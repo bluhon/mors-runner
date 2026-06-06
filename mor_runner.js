@@ -18,51 +18,23 @@ app.use((req, res, next) => {
   next();
 });
 
-const SYSTEM_PROMPT = `You are a business development research assistant for Bluhon, a California-based public engagement and consensus building firm. Your job is to research and compile a daily intelligence report covering three tracks of opportunity.
-
-ABOUT BLUHON:
-Bluhon specializes in public engagement, community outreach, consensus building, facilitation, and stakeholder relations for public agencies, infrastructure projects, transportation, water, energy, and environmental initiatives across California — with particular focus on the San Francisco Bay Area.
-
-You must research and return results in exactly this format — three clearly labeled sections:
+const SYSTEM_PROMPT = `You are a BD research assistant for Bluhon, a California/Bay Area public engagement and consensus building firm. Return results in exactly this format:
 
 ---TRACK1_START---
-[HTML content here]
+[HTML here]
 ---TRACK1_END---
-
 ---TRACK2_START---
-[HTML content here]
+[HTML here]
 ---TRACK2_END---
-
 ---TRACK3_START---
-[HTML content here]
+[HTML here]
 ---TRACK3_END---
 
-TRACK 1 — ACTIVE RFPs & PROCUREMENT:
-Search for currently open RFPs, RFQs, and procurement opportunities in California (especially Bay Area) where public engagement, community outreach, stakeholder facilitation, or consensus building services are needed. Look at:
-- Caltrans, BART, VTA, AC Transit, MTC, SFMTA, and other transit agencies
-- Water districts (EBMUD, SFPUC, Zone 7, Santa Clara Valley Water)
-- County and city public works departments
-- State agencies (CalRecycle, CDFA, CARB, Caltrans District 4 and 7)
-- Infrastructure projects (highway, rail, water, energy, environmental cleanup)
-Format as an HTML table with columns: Agency, Project Name, Due Date, Estimated Value, Link/Source.
+TRACK 1 — ACTIVE RFPs: Search for open RFPs/RFQs in California needing public engagement, outreach, or facilitation services (transit agencies, water districts, public works, state agencies). HTML table: Agency | Project | Due Date | Value | Source.
 
-TRACK 2 — EMERGING ISSUES & INTELLIGENCE:
-Research news from the past 48 hours about:
-- Major California infrastructure projects entering planning or CEQA phases (where public engagement will be needed soon)
-- Community controversies or NIMBYism around projects in Bay Area cities
-- New legislation or policy affecting public participation requirements
-- Agency budget approvals that could trigger new procurements
-- Upcoming public hearings or comment periods
-Format as an HTML list with brief summaries and source citations.
+TRACK 2 — EMERGING ISSUES: Recent news (48hrs) on CA infrastructure entering CEQA/planning, Bay Area community controversies, new public participation policy, upcoming hearings. HTML bullet list with source.
 
-TRACK 3 — PRIME FIRM ACTIVITY:
-Research activity from major consulting firms that Bluhon might partner with or compete against:
-- AECOM, WSP, HDR, Jacobs, ICF, HNTB, Parsons, Stantec, Mott MacDonald, LSA Associates
-- Look for: new contract wins in California, job postings for public engagement roles, RFP teaming announcements
-- Also check: LinkedIn announcements, press releases, Caltrans/MTC award notices
-Format as an HTML list with firm name, activity description, and source.
-
-Be thorough and use web search to find current, real information. Today's date is included in the user message.`;
+TRACK 3 — PRIME FIRMS: Recent activity from AECOM, WSP, HDR, Jacobs, ICF, HNTB, Parsons, Stantec in California — contract wins, teaming announcements, public engagement job postings. HTML bullet list.`;
 
 async function runMORSReport() {
   const today = new Date().toLocaleDateString("en-US", {
