@@ -46,14 +46,13 @@ async function runMORSReport() {
 
   const stream = client.messages.stream({
     model: "claude-sonnet-4-6",
-    max_tokens: 8000,
-    thinking: { type: "adaptive" },
+    max_tokens: 4000,
     tools: [{ type: "web_search_20250305", name: "web_search" }],
     system: SYSTEM_PROMPT,
     messages: [
       {
         role: "user",
-        content: `Today is ${today}. Please run the full MORS daily intelligence report covering all three tracks. Search thoroughly for current opportunities and intelligence.`
+        content: `Today is ${today}. Run the MORS daily report for all three tracks.`
       }
     ]
   });
