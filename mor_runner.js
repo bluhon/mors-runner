@@ -10,6 +10,13 @@ const AIRTABLE_TABLE_ID = "tblnaSbxkGaoscwZj";
 const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 const app = express();
 app.use(express.json());
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
 
 const SYSTEM_PROMPT = `You are a business development research assistant for Bluhon, a California-based public engagement and consensus building firm. Your job is to research and compile a daily intelligence report covering three tracks of opportunity.
 
