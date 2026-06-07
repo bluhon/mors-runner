@@ -1347,6 +1347,15 @@ async function handleFileUpload(fileList) {
   document.getElementById('file-upload-input').value = '';
 }
 
+async function deleteCanvasFile(url) {
+  if (!confirm('Remove this file from the canvas?')) return;
+  const canvas = allCanvases.find(c => c.id === currentCanvasId);
+  if (!canvas) return;
+  const files = safeJSON(canvas.fields.files_list, []).filter(f => f.url !== url);
+  await atUpdate(CONFIG.TABLES.RFP_CANVAS, currentCanvasId, { files_list: JSON.stringify(files) });
+  canvas.fields.files_list = JSON.stringify(files);
+  renderCanvasFiles(files);
+}
 function renderCanvasFiles(files) {
   const el = document.getElementById('canvas-files');
   if (!el) return;
@@ -1354,7 +1363,7 @@ function renderCanvasFiles(files) {
   el.innerHTML = files.map(f => {
     const kb = f.size ? (f.size > 1048576 ? (f.size/1048576).toFixed(1)+'MB' : Math.ceil(f.size/1024)+'KB') : '';
     const dt = f.date ? new Date(f.date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
-    return `<div class="file-entry"><i class="ti ti-file"></i><a class="file-name" href="${f.url}" target="_blank" rel="noopener">${escHtml(f.name)}</a><span class="file-date">${kb}${dt?' · '+dt:''}</span></div>`;
+    return `<div class="file-entry"><i class="ti ti-file"></i><a class="file-name" href="${f.url}" target="_blank" rel="noopener">${escHtml(f.name)}</a><span class="file-date">${kb}${dt?' · '+dt:''}</span><button onclick="deleteCanvasFile('${escHtml(f.url)}')" style="margin-left:auto;background:none;border:none;cursor:pointer;color:#aaa;font-size:14px;padding:0 4px" title="Remove file"><i class="ti ti-trash"></i></button></div>`;
   }).join('');
 }
 
