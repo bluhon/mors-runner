@@ -94,8 +94,7 @@ async function runMORSReport() {
           track1_html,
           track2_html,
           track3_html,
-          status: "complete",
-          generated_at: new Date().toISOString()
+          status: "complete"
         }
       })
     }
