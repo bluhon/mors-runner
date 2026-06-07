@@ -284,7 +284,13 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
 </div>
 
 <div id="app">
-  <nav class="sidebar">
+  <!-- Mobile sidebar overlay -->
+  <div id="sidebar-overlay" onclick="closeSidebar()"></div>
+  <!-- Mobile menu button -->
+  <button id="mobile-menu-btn" onclick="toggleSidebar()" style="display:none;position:fixed;top:12px;left:12px;z-index:300;background:var(--brand);color:#fff;border:none;border-radius:6px;padding:8px 10px;cursor:pointer;font-size:18px;line-height:1">
+    <i class="ti ti-menu-2"></i>
+  </button>
+  <nav class="sidebar" id="sidebar">
     <div class="sidebar-top">
       <div class="sidebar-wordmark">MO<span>RS</span></div>
       <div class="sidebar-user" id="sidebar-user">Bluhon BD</div>
@@ -754,6 +760,21 @@ function showPage(id) {
   if (id === 'contacts') loadContacts();
   if (id === 'primes') loadPrimes();
   if (id === 'memory') loadMemory();
+  closeSidebar();
+}
+
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  const open = sidebar.classList.toggle('open');
+  overlay.classList.toggle('visible', open);
+}
+
+function closeSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  if (sidebar) sidebar.classList.remove('open');
+  if (overlay) overlay.classList.remove('visible');
 }
 
 async function loadReport() {
