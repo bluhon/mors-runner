@@ -52,7 +52,13 @@ async function runMORSReport() {
     messages: [
       {
         role: "user",
-        content: `Today is ${today}. Run the MORS daily report for all three tracks.`
+        content: (()=>{
+          const now = new Date();
+          const cutoff = new Date(now);
+          cutoff.setDate(cutoff.getDate() - 45);
+          const cutoffStr = cutoff.toLocaleDateString("en-US", { year:"numeric", month:"long", day:"numeric", timeZone:"America/Los_Angeles" });
+          return `Today is ${today}. Run the MORS daily report for all three tracks.\n\nCRITICAL DATE FILTER: Only include RFPs, solicitations, and opportunities issued after ${cutoffStr}. Reject anything older. If you cannot confirm the issue date is within the last 45 days, do not include it.`;
+        })()
       }
     ]
   });
