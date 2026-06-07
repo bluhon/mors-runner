@@ -1374,6 +1374,111 @@ OUTPUT FORMAT — use exactly these delimiters:
   }
 });
 
+// ─── GET /seed-media — one-time seed of MEDIA_SOURCES table ─────────────────
+app.get("/seed-media", async (req, res) => {
+  const MEDIA_SEED = [
+    // Track 2 — Local News (Bay Area Tier 1)
+    { source_name: 'SF Chronicle',              url: 'https://www.sfchronicle.com',                   track: 'Track 2', geography: 'Bay Area',          county: '',              source_type: 'Regional News' },
+    { source_name: 'SF Examiner',               url: 'https://www.sfexaminer.com',                    track: 'Track 2', geography: 'San Francisco',    county: 'San Francisco', source_type: 'Local News' },
+    { source_name: 'Mission Local',             url: 'https://missionlocal.org',                      track: 'Track 2', geography: 'San Francisco',    county: 'San Francisco', source_type: 'Local News' },
+    { source_name: 'Hoodline SF',               url: 'https://hoodline.com',                          track: 'Track 2', geography: 'San Francisco',    county: 'San Francisco', source_type: 'Local News' },
+    { source_name: 'East Bay Times',            url: 'https://www.eastbaytimes.com',                  track: 'Track 2', geography: 'East Bay',          county: '',              source_type: 'Regional News' },
+    { source_name: 'Berkeleyside',              url: 'https://www.berkeleyside.org',                  track: 'Track 2', geography: 'Berkeley',          county: 'Alameda',       source_type: 'Local News' },
+    { source_name: 'The Oaklandside',           url: 'https://oaklandside.org',                       track: 'Track 2', geography: 'Oakland',           county: 'Alameda',       source_type: 'Local News' },
+    { source_name: 'Alameda Sun',               url: 'https://www.alamedasun.com',                    track: 'Track 2', geography: 'Alameda',           county: 'Alameda',       source_type: 'Local News' },
+    { source_name: 'Marin Independent Journal', url: 'https://www.marinij.com',                       track: 'Track 2', geography: 'Marin',             county: 'Marin',         source_type: 'Regional News' },
+    { source_name: 'Marin Post',                url: 'https://marinpost.org',                         track: 'Track 2', geography: 'Marin',             county: 'Marin',         source_type: 'Local News' },
+    { source_name: 'Novato Advance',            url: 'https://www.novatoadvance.com',                 track: 'Track 2', geography: 'Novato',            county: 'Marin',         source_type: 'Local News' },
+    { source_name: 'San Jose Mercury News',     url: 'https://www.mercurynews.com',                   track: 'Track 2', geography: 'South Bay',         county: 'Santa Clara',   source_type: 'Regional News' },
+    { source_name: 'San Jose Spotlight',        url: 'https://sanjosespotlight.com',                  track: 'Track 2', geography: 'San Jose',          county: 'Santa Clara',   source_type: 'Local News' },
+    { source_name: 'The Palo Alto Weekly',      url: 'https://www.paloaltoonline.com',                track: 'Track 2', geography: 'Palo Alto',         county: 'Santa Clara',   source_type: 'Local News' },
+    { source_name: 'Mountain View Voice',       url: 'https://www.mv-voice.com',                      track: 'Track 2', geography: 'Mountain View',     county: 'Santa Clara',   source_type: 'Local News' },
+    { source_name: 'Sunnyvale Sun',             url: 'https://svcnews.com',                           track: 'Track 2', geography: 'Sunnyvale',         county: 'Santa Clara',   source_type: 'Local News' },
+    { source_name: 'Daily Post (Palo Alto)',    url: 'https://padailypost.com',                       track: 'Track 2', geography: 'South Bay',         county: 'Santa Clara',   source_type: 'Local News' },
+    { source_name: 'The Daily Californian',     url: 'https://www.dailycal.org',                      track: 'Track 2', geography: 'Berkeley',          county: 'Alameda',       source_type: 'Local News' },
+    { source_name: 'Richmond Standard',         url: 'https://richmondstandard.com',                  track: 'Track 2', geography: 'Richmond',          county: 'Contra Costa',  source_type: 'Local News' },
+    { source_name: 'Contra Costa Times',        url: 'https://www.eastbaytimes.com/tag/contra-costa', track: 'Track 2', geography: 'Contra Costa',      county: 'Contra Costa',  source_type: 'Local News' },
+    { source_name: 'East County Today (CCC)',   url: 'https://eastcountytoday.net',                   track: 'Track 2', geography: 'East Contra Costa', county: 'Contra Costa',  source_type: 'Local News' },
+    { source_name: 'Antioch Herald',            url: 'https://www.antiochherald.com',                 track: 'Track 2', geography: 'Antioch',           county: 'Contra Costa',  source_type: 'Local News' },
+    { source_name: 'Livermore Independent',     url: 'https://www.livermorenewsindependent.com',      track: 'Track 2', geography: 'Livermore',         county: 'Alameda',       source_type: 'Local News' },
+    { source_name: 'Valley Times (Pleasanton)', url: 'https://www.eastbaytimes.com/tag/pleasanton',   track: 'Track 2', geography: 'Tri-Valley',        county: 'Alameda',       source_type: 'Local News' },
+    { source_name: 'Half Moon Bay Review',      url: 'https://www.hmbreview.com',                     track: 'Track 2', geography: 'Half Moon Bay',     county: 'San Mateo',     source_type: 'Local News' },
+    { source_name: 'San Mateo Daily Journal',   url: 'https://www.smdailyjournal.com',                track: 'Track 2', geography: 'San Mateo',         county: 'San Mateo',     source_type: 'Local News' },
+    { source_name: 'Redwood City Pulse',        url: 'https://www.redwoodcitypulse.com',              track: 'Track 2', geography: 'Redwood City',      county: 'San Mateo',     source_type: 'Local News' },
+    { source_name: 'Peninsula Press',           url: 'https://peninsulapress.com',                    track: 'Track 2', geography: 'Peninsula',         county: 'San Mateo',     source_type: 'Local News' },
+    { source_name: 'Napa Valley Register',      url: 'https://napavalleyregister.com',                track: 'Track 2', geography: 'Napa',              county: 'Napa',          source_type: 'Local News' },
+    { source_name: 'Sonoma Index-Tribune',      url: 'https://www.sonomanews.com',                    track: 'Track 2', geography: 'Sonoma',            county: 'Sonoma',        source_type: 'Local News' },
+    { source_name: 'Santa Rosa Press Democrat', url: 'https://www.pressdemocrat.com',                 track: 'Track 2', geography: 'Sonoma',            county: 'Sonoma',        source_type: 'Regional News' },
+    { source_name: 'North Bay Business Journal',url: 'https://www.northbaybusinessjournal.com',       track: 'Track 2', geography: 'North Bay',         county: '',              source_type: 'Regional News' },
+    // Track 2 — Tier 2 geographies
+    { source_name: 'Sacramento Bee',            url: 'https://www.sacbee.com',                        track: 'Track 2', geography: 'Sacramento',        county: 'Sacramento',    source_type: 'Regional News' },
+    { source_name: 'Sacramento Business Journal', url: 'https://www.bizjournals.com/sacramento',      track: 'Track 2', geography: 'Sacramento',        county: 'Sacramento',    source_type: 'Regional News' },
+    { source_name: 'CapRadio News',             url: 'https://www.capradio.org/news',                 track: 'Track 2', geography: 'Sacramento',        county: 'Sacramento',    source_type: 'Local News' },
+    { source_name: 'Fresno Bee',                url: 'https://www.fresnobee.com',                     track: 'Track 2', geography: 'Fresno',            county: 'Fresno',        source_type: 'Regional News' },
+    { source_name: 'Stockton Record',           url: 'https://www.recordnet.com',                     track: 'Track 2', geography: 'Stockton',          county: 'San Joaquin',   source_type: 'Local News' },
+    { source_name: 'Bakersfield Californian',   url: 'https://www.bakersfield.com',                   track: 'Track 2', geography: 'Bakersfield',       county: 'Kern',          source_type: 'Local News' },
+    { source_name: 'Salinas Californian',       url: 'https://www.thecalifornian.com',                track: 'Track 2', geography: 'Salinas',           county: 'Monterey',      source_type: 'Local News' },
+    { source_name: 'Santa Cruz Sentinel',       url: 'https://www.santacruzsentinel.com',             track: 'Track 2', geography: 'Santa Cruz',        county: 'Santa Cruz',    source_type: 'Local News' },
+    { source_name: 'Monterey Herald',           url: 'https://www.montereyherald.com',                track: 'Track 2', geography: 'Monterey',          county: 'Monterey',      source_type: 'Local News' },
+    // Track 3 — Firm/contract news
+    { source_name: 'Engineering News-Record',   url: 'https://www.enr.com',                           track: 'Track 3', geography: 'National',          county: '',              source_type: 'Regional News' },
+    { source_name: 'Planetizen',                url: 'https://www.planetizen.com',                    track: 'Track 3', geography: 'National',          county: '',              source_type: 'Regional News' },
+    { source_name: 'SF Business Times',         url: 'https://www.bizjournals.com/sanfrancisco',      track: 'Track 3', geography: 'Bay Area',          county: '',              source_type: 'Regional News' },
+    { source_name: 'Silicon Valley Biz Journal',url: 'https://www.bizjournals.com/sanjose',           track: 'Track 3', geography: 'South Bay',         county: 'Santa Clara',   source_type: 'Regional News' },
+    { source_name: 'GovWin / Deltek',           url: 'https://iq.govwin.com',                         track: 'Track 3', geography: 'National',          county: '',              source_type: 'Regional News' },
+    { source_name: 'GovConWire',                url: 'https://www.govconwire.com',                    track: 'Track 3', geography: 'National',          county: '',              source_type: 'Regional News' },
+    // Track 4 — Agency Boards
+    { source_name: 'MTC/ABAG Agendas',          url: 'https://mtc.ca.gov/whats-happening/meetings',   track: 'Track 4', geography: 'Bay Area',          county: '',              source_type: 'Agency Board' },
+    { source_name: 'BAAQMD Board',              url: 'https://www.baaqmd.gov/about-the-air-district/board-of-directors', track: 'Track 4', geography: 'Bay Area', county: '', source_type: 'Agency Board' },
+    { source_name: 'East Bay Regional Parks Board', url: 'https://www.ebparks.org/about/board',       track: 'Track 4', geography: 'East Bay',          county: '',              source_type: 'Agency Board' },
+    { source_name: 'BCDC Agendas',              url: 'https://bcdc.ca.gov/meetings/',                 track: 'Track 4', geography: 'Bay Area',          county: '',              source_type: 'Agency Board' },
+    { source_name: 'SF Bay RWQCB',              url: 'https://www.waterboards.ca.gov/sanfranciscobay/board_info/agendas/', track: 'Track 4', geography: 'Bay Area', county: '', source_type: 'Agency Board' },
+    { source_name: 'CA Coastal Commission',     url: 'https://www.coastal.ca.gov/meetings.html',      track: 'Track 4', geography: 'Statewide',         county: '',              source_type: 'Agency Board' },
+    { source_name: 'SFPUC Commission',          url: 'https://sfpuc.org/about-us/commissions-and-advisory-bodies', track: 'Track 4', geography: 'San Francisco', county: 'San Francisco', source_type: 'Agency Board' },
+    { source_name: 'BART Board',                url: 'https://www.bart.gov/about/bod/agendas',        track: 'Track 4', geography: 'Bay Area',          county: '',              source_type: 'Agency Board' },
+    { source_name: 'Caltrans District 4',       url: 'https://dot.ca.gov/caltrans-near-me/district-4', track: 'Track 4', geography: 'Bay Area',         county: '',              source_type: 'Agency Board' },
+    // Track 4 — County Boards
+    { source_name: 'SF BOS',                    url: 'https://sfgov.org/bos/agendas',                 track: 'Track 4', geography: 'San Francisco',    county: 'San Francisco', source_type: 'County Board' },
+    { source_name: 'Alameda County BOS',        url: 'https://www.acgov.org/board',                   track: 'Track 4', geography: 'Alameda County',   county: 'Alameda',       source_type: 'County Board' },
+    { source_name: 'Contra Costa BOS',          url: 'https://www.contracosta.ca.gov/agendas',        track: 'Track 4', geography: 'Contra Costa',     county: 'Contra Costa',  source_type: 'County Board' },
+    { source_name: 'Marin County BOS',          url: 'https://www.marincounty.org/depts/bs/board-agendas', track: 'Track 4', geography: 'Marin',       county: 'Marin',         source_type: 'County Board' },
+    { source_name: 'Santa Clara County BOS',    url: 'https://www.sccgov.org/sites/bos/Pages/bos-agendas.aspx', track: 'Track 4', geography: 'Santa Clara', county: 'Santa Clara', source_type: 'County Board' },
+    { source_name: 'Sonoma County BOS',         url: 'https://sonomacounty.ca.gov/boardofSupervisors', track: 'Track 4', geography: 'Sonoma',          county: 'Sonoma',        source_type: 'County Board' },
+    { source_name: 'San Mateo County BOS',      url: 'https://www.smcgov.org/board-supervisors',      track: 'Track 4', geography: 'San Mateo',        county: 'San Mateo',     source_type: 'County Board' },
+    { source_name: 'Napa County BOS',           url: 'https://www.countyofnapa.org/agendas',          track: 'Track 4', geography: 'Napa',             county: 'Napa',          source_type: 'County Board' },
+    // Track 4 — City Boards
+    { source_name: 'Oakland City Council',      url: 'https://www.oaklandca.gov/topics/city-council-agendas', track: 'Track 4', geography: 'Oakland',  county: 'Alameda',       source_type: 'City Board' },
+    { source_name: 'Berkeley City Council',     url: 'https://www.cityofberkeley.info/city-council-meetings', track: 'Track 4', geography: 'Berkeley', county: 'Alameda',       source_type: 'City Board' },
+    { source_name: 'San Jose City Council',     url: 'https://www.sanjoseca.gov/your-government/departments/city-clerk/city-council/agendas-minutes', track: 'Track 4', geography: 'San Jose', county: 'Santa Clara', source_type: 'City Board' },
+    { source_name: 'Richmond City Council',     url: 'https://www.ci.richmond.ca.us/agendacenter',    track: 'Track 4', geography: 'Richmond',         county: 'Contra Costa',  source_type: 'City Board' },
+    { source_name: 'Palo Alto City Council',    url: 'https://www.cityofpaloalto.org/city-council',   track: 'Track 4', geography: 'Palo Alto',        county: 'Santa Clara',   source_type: 'City Board' },
+    { source_name: 'San Mateo City Council',    url: 'https://www.cityofsanmateo.org/agendacenter',   track: 'Track 4', geography: 'San Mateo',        county: 'San Mateo',     source_type: 'City Board' },
+    { source_name: 'Novato City Council',       url: 'https://www.cityofnovato.org/agendacenter',     track: 'Track 4', geography: 'Novato',           county: 'Marin',         source_type: 'City Board' },
+    { source_name: 'Livermore City Council',    url: 'https://www.cityoflivermore.net/agendacenter',  track: 'Track 4', geography: 'Livermore',        county: 'Alameda',       source_type: 'City Board' },
+    { source_name: 'Danville Town Council',     url: 'https://www.danville.ca.gov/agendacenter',      track: 'Track 4', geography: 'Danville',         county: 'Contra Costa',  source_type: 'City Board' },
+  ];
+
+  try {
+    let total = 0;
+    for (let i = 0; i < MEDIA_SEED.length; i += 10) {
+      const batch = MEDIA_SEED.slice(i, i + 10);
+      const batchRes = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_MEDIA_TABLE}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ records: batch.map(s => ({ fields: { ...s, active: true } })), typecast: true })
+      });
+      if (!batchRes.ok) throw new Error(`Airtable batch POST failed: ${batchRes.status} ${await batchRes.text()}`);
+      total += batch.length;
+      console.log(`[seed-media] Batch ${Math.floor(i/10)+1}: ${batch.length} records posted (${total} total)`);
+      await new Promise(r => setTimeout(r, 250));
+    }
+    res.json({ success: true, total, message: `Seeded ${total} records into MEDIA_SOURCES` });
+  } catch (err) {
+    console.error('[seed-media] Error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ─── POST /feedback ───────────────────────────────────────────────────────────
 app.post("/feedback", async (req, res) => {
   const { opp_id, reason, title, agency, source_url } = req.body || {};
