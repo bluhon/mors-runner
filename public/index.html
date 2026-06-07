@@ -1380,13 +1380,25 @@ async function syncCanvasContact(f) {
 async function syncCanvasPrime(firmName, canvasFields) {
   if (!firmName) return;
   const existing = allPrimes.find(p => p.fields.firm_name && p.fields.firm_name.toLowerCase() === firmName.toLowerCase());
-  if (existing) return; // already in Prime Firms
-  const rec = await atCreate(CONFIG.TABLES.PRIME_FIRMS, {
-    firm_name: firmName,
-    teaming_status: 'Watch',
-    teaming_notes: `Added from canvas: ${canvasFields.canvas_title || ''}`
-  });
-  if (rec && rec.id) { allPrimes.push(rec); showToast(`"${firmName}" added to Prime Firms`, 'success'); }
+  if (!existing) {
+    const rec = await atCreate(CONFIG.TABLES.PRIME_FIRMS, {
+      firm_name: firmName,
+      teaming_status: 'Watch',
+      teaming_notes: `Added from canvas: ${canvasFields.canvas_title || ''}`
+    });
+    if (rec && rec.id) { allPrimes.push(rec); showToast(`"${firmName}" added to Prime Firms`, 'success'); }
+  }
+  // Also ensure a Contact record exists for this firm as an org
+  const contactExists = allContacts.find(c => c.fields.org && c.fields.org.toLowerCase() === firmName.toLowerCase());
+  if (!contactExists) {
+    const cRec = await atCreate(CONFIG.TABLES.CONTACTS, {
+      org: firmName,
+      relationship_type: 'Prime firm',
+      added_by: currentUser ? currentUser.name : 'MORS',
+      added_date: new Date().toISOString().split('T')[0]
+    });
+    if (cRec && cRec.id) { allContacts.push(cRec); showToast(`"${firmName}" added to Contacts`, 'success'); }
+  }
 }
 async function updateCanvasStatus(val) {
   const statusMap = { '2': '2 — Building team', '3': '3 — No go', '4': '4 — Submitting' };
@@ -1490,7 +1502,7 @@ function renderPrimes() {
   let html = '<div style="display:flex;flex-direction:column;gap:10px">';
   allPrimes.forEach(p => {
     const f = p.fields;
-    html += `<div class="card"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><div class="card-title">${f.firm_name||'—'}</div><div style="font-size:12px;color:var(--muted);margin-top:2px">${f.sector_focus||''}${f.geo_presence?' · '+f.geo_presence:''}</div></div>${f.teaming_status?`<span class="badge ${statusColors[f.teaming_status]||'badge-gray'}">${f.teaming_status}</span>`:''}</div>${f.recent_wins?`<div style="margin-top:10px;font-size:13px;color:#bbb;line-height:1.5">${f.recent_wins}</div>`:''}${f.teaming_notes?`<div style="margin-top:8px;font-size:12px;color:var(--muted)">${f.teaming_notes}</div>`:''}${f.key_contact_name?`<div style="margin-top:10px;font-size:12px;color:var(--muted)"><i class="ti ti-user" style="font-size:12px;margin-right:4px"></i>${f.key_contact_name}${f.key_contact_email?' · '+f.key_contact_email:''}</div>`:''}</div>`;
+    html += `<div class="card" style="padding:12px 16px"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px"><div><div class="card-title" style="font-size:1.0rem">${f.firm_name||'—'}</div>${f.key_contact_name?`<div style="font-size:12px;color:var(--muted);margin-top:2px"><i class="ti ti-user" style="font-size:11px;margin-right:3px"></i>${f.key_contact_name}${f.key_contact_email?' · '+f.key_contact_email:''}</div>`:''}</div>${f.teaming_status?`<span class="badge ${statusColors[f.teaming_status]||'badge-gray'}">${f.teaming_status}</span>`:''}</div></div>`;
   });
   html += '</div>';
   el.innerHTML = html;
