@@ -418,20 +418,31 @@ function getDateContext() {
   return { today, cutoffStr };
 }
 
-async function runClaudeSearch(userPrompt) {
-  const stream = client.messages.stream({
-    model: "claude-sonnet-4-6",
-    max_tokens: 5000,
-    tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 6 }],
-    system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: userPrompt }]
-  });
-  const response = await stream.finalMessage();
-  let text = "";
-  for (const block of response.content) {
-    if (block.type === "text") text += block.text;
+async function runClaudeSearch(userPrompt, attempt = 1) {
+  try {
+    const stream = client.messages.stream({
+      model: "claude-sonnet-4-6",
+      max_tokens: 5000,
+      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 6 }],
+      system: SYSTEM_PROMPT,
+      messages: [{ role: "user", content: userPrompt }]
+    });
+    const response = await stream.finalMessage();
+    let text = "";
+    for (const block of response.content) {
+      if (block.type === "text") text += block.text;
+    }
+    return text;
+  } catch (err) {
+    if (err.status === 429 && attempt <= 3) {
+      const retryAfter = parseInt(err.headers?.get?.("retry-after") || "120", 10);
+      const waitMs = (retryAfter + 10) * 1000;
+      console.log(`[${new Date().toISOString()}] Rate limited — waiting ${retryAfter + 10}s before retry ${attempt}/3`);
+      await new Promise(resolve => setTimeout(resolve, waitMs));
+      return runClaudeSearch(userPrompt, attempt + 1);
+    }
+    throw err;
   }
-  return text;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -481,9 +492,7 @@ OUTPUT FORMAT — use exactly these delimiters:
 [JSON array of Track 1 opportunities]
 ---OPPORTUNITIES_JSON_END---`);
 
-  console.log(`[${new Date().toISOString()}] Call 1 complete — waiting 90s before Call 2 to avoid rate limit`);
-  await new Promise(resolve => setTimeout(resolve, 90000));
-  console.log(`[${new Date().toISOString()}] Call 2: Tracks 3+4`);
+  console.log(`[${new Date().toISOString()}] Call 1 complete — Call 2: Tracks 3+4`);
 
   // ── Call 2: Track 3 (Prime Firms) + Track 4 (Competitors) ────────────────
   const text2 = await runClaudeSearch(`Today is ${today}.
