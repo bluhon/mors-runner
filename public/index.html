@@ -759,9 +759,9 @@ function showPage(id) {
 async function loadReport() {
   const res = await atFetch(CONFIG.TABLES.DAILY_REPORTS, '?sort[0][field]=report_date&sort[0][direction]=desc&maxRecords=30');
   allReports = (res.records || []).sort((a, b) => {
-    const da = a.fields.run_timestamp || a.id;
-    const db = b.fields.run_timestamp || b.id;
-    return db > da ? 1 : -1;
+    const da = a.fields.report_date || '';
+    const db = b.fields.report_date || '';
+    return db > da ? 1 : db < da ? -1 : 0;
   });
   currentReportIndex = 0;
   renderReport();
@@ -843,6 +843,10 @@ async function createTrack2Canvas(item) {
 async function loadProspects() {
   const container = document.getElementById('track1-opps-container');
   if (!container) return;
+  if (currentReportIndex !== 0) {
+    container.innerHTML = '<div class="t1-no-opps">View today\'s report to mark interest in opportunities.</div>';
+    return;
+  }
   const res = await atFetch(CONFIG.TABLES.OPPORTUNITIES, `?sort[0][field]=deadline&sort[0][direction]=asc&maxRecords=50`);
   const prospects = res.records || [];
   if (prospects.length === 0) {
