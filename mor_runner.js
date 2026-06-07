@@ -481,7 +481,9 @@ OUTPUT FORMAT — use exactly these delimiters:
 [JSON array of Track 1 opportunities]
 ---OPPORTUNITIES_JSON_END---`);
 
-  console.log(`[${new Date().toISOString()}] Call 1 complete — Call 2: Tracks 3+4`);
+  console.log(`[${new Date().toISOString()}] Call 1 complete — waiting 90s before Call 2 to avoid rate limit`);
+  await new Promise(resolve => setTimeout(resolve, 90000));
+  console.log(`[${new Date().toISOString()}] Call 2: Tracks 3+4`);
 
   // ── Call 2: Track 3 (Prime Firms) + Track 4 (Competitors) ────────────────
   const text2 = await runClaudeSearch(`Today is ${today}.
