@@ -129,7 +129,7 @@ html,body{height:100%;background:var(--bg);color:var(--white);font-family:var(--
 .track-body tr:last-child td{border-bottom:none!important}
 .track-body ul,.track-body ol{padding-left:20px;margin-top:6px}
 .track-body li{margin-bottom:14px;font-size:14px;color:#333;line-height:1.7;font-weight:400}
-.track-body p{font-size:14px;color:var(--muted);margin-bottom:10px;font-style:italic}
+.track-body p{font-size:1.05rem;color:#000;margin-bottom:10px;font-style:normal}
 .track-body a{color:var(--brand);text-decoration:none}
 .track-body a:hover{text-decoration:underline}
 .track-body strong,.track-body b{font-weight:600;color:#111}
@@ -1093,8 +1093,10 @@ function openCanvas(canvasId) {
   const canvas = allCanvases.find(c => c.id === canvasId);
   if (!canvas) return;
   const f = canvas.fields;
-  document.getElementById('canvas-page-title').innerHTML = f.canvas_title || 'RFP <span>Canvas</span>';
-  document.getElementById('canvas-page-subtitle').textContent = f.issuer_agency || '';
+  document.getElementById('canvas-page-title').textContent = f.canvas_title || 'RFP Canvas';
+  const opp = allOpportunities.find(o => o.fields.title === f.canvas_title);
+  const sourceUrl = opp && opp.fields.source_url;
+  document.getElementById('canvas-page-subtitle').innerHTML = (f.issuer_agency || '') + (sourceUrl ? ` &nbsp;·&nbsp; <a href="${escHtml(sourceUrl)}" target="_blank" rel="noopener" style="color:#048BC9;font-weight:700"><i class="ti ti-external-link"></i> View RFP</a>` : '');
   document.getElementById('canvas-status-select').value = f.pursuit_status ? f.pursuit_status.charAt(0) : '2';
   document.getElementById('canvas-inactive-badge').style.display = f.active ? 'none' : 'inline-block';
   renderCanvasGrid(canvas);

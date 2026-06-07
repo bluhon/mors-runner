@@ -62,9 +62,9 @@ html, body {
 
 .page-title {
   font-family: var(--bl-font-heading) !important;
-  font-size: clamp(2.0rem, 1.8rem + 1vw, 2.8rem) !important;
+  font-size: clamp(1.4rem, 1.2rem + 0.8vw, 1.9rem) !important;
   font-weight: 700 !important;
-  line-height: 1.05 !important;
+  line-height: 1.2 !important;
   color: #048BC9 !important;
 }
 
