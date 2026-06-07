@@ -686,7 +686,7 @@ const CONFIG = {
     CONTACTS:       'tblLzyl3eZh45LgxL',
     PRIME_FIRMS:    'tbl9MicFOSIYkKLGs',
     PROJECT_MEMORY:  'tblNgcBpooPK9wOkD',
-    SEARCH_SOURCES:  'SEARCH_SOURCES_TABLE_ID',
+    SEARCH_SOURCES:  'tblsQwva2y8ABugYH',
     USERS:           'tblVZEf4vqSEZiVCc',
     TRACK2_ITEMS:    'tbl4f7N5EoaKRwRXK'
   }
@@ -1768,7 +1768,7 @@ async function confirmReject(oppId, title, agency, sourceUrl) {
 let allSources = [];
 
 async function loadSources() {
-  const res = await atFetch(CONFIG.TABLES.SEARCH_SOURCES, '?sort[0][field]=site_name&sort[0][direction]=asc');
+  const res = await atFetch(CONFIG.TABLES.SEARCH_SOURCES, '?sort[0][field]=source_name&sort[0][direction]=asc');
   allSources = res.records || [];
   renderSources();
 }
@@ -1784,14 +1784,14 @@ function renderSources() {
   let html = '<div style="display:flex;flex-direction:column;gap:10px">';
   allSources.forEach(s => {
     const f = s.fields;
-    const badgeClass = portalColors[f.portal_type] || 'badge-gray';
+    const badgeClass = portalColors[f.source_type] || 'badge-gray';
     html += `<div class="card" style="padding:18px 22px">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
         <div style="min-width:0;flex:1">
-          <div style="font-family:var(--font-head);font-size:1.1rem;font-weight:700;color:#000;margin-bottom:4px">${escHtml(f.site_name||'—')}</div>
+          <div style="font-family:var(--font-head);font-size:1.1rem;font-weight:700;color:#000;margin-bottom:4px">${escHtml(f.source_name||'—')}</div>
           ${f.url ? `<div style="margin-bottom:6px"><a href="${escHtml(f.url)}" target="_blank" rel="noopener" style="color:var(--brand);font-size:0.9rem">${escHtml(f.url)}</a></div>` : ''}
           <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px">
-            ${f.portal_type ? `<span class="badge ${badgeClass}">${escHtml(f.portal_type)}</span>` : ''}
+            ${f.source_type ? `<span class="badge ${badgeClass}">${escHtml(f.source_type)}</span>` : ''}
             ${f.username ? `<span style="font-size:0.85rem;color:var(--muted)"><i class="ti ti-user" style="font-size:12px;margin-right:3px"></i>${escHtml(f.username)}</span>` : ''}
           </div>
           ${f.notes ? `<div style="font-size:0.9rem;color:#555;line-height:1.5">${escHtml(f.notes)}</div>` : ''}
@@ -1825,9 +1825,9 @@ async function saveSource() {
   const url  = document.getElementById('src-url').value.trim();
   if (!name) { showToast('Site name is required', 'error'); return; }
   const fields = {
-    site_name:    name,
+    source_name:  name,
     url:          url,
-    portal_type:  document.getElementById('src-type').value || '',
+    source_type:  document.getElementById('src-type').value || '',
     username:     document.getElementById('src-username').value.trim(),
     env_var_name: document.getElementById('src-envvar').value.trim(),
     notes:        document.getElementById('src-notes').value.trim(),

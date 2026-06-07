@@ -9,7 +9,7 @@ const AIRTABLE_REPORTS_TABLE  = "tblnaSbxkGaoscwZj";
 const AIRTABLE_OPPS_TABLE     = "tbleIossei7FDqi9H";
 const AIRTABLE_TRACK2_TABLE   = "tbl4f7N5EoaKRwRXK";
 const AIRTABLE_MEMORY_TABLE   = "tblNgcBpooPK9wOkD";  // PROJECT_MEMORY
-const AIRTABLE_SOURCES_TABLE  = "tblSOURCES_PLACEHOLDER"; // SEARCH_SOURCES — leave as placeholder, user will fill in
+const AIRTABLE_SOURCES_TABLE  = "tblsQwva2y8ABugYH"; // SEARCH_SOURCES
 
 const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 const app = express();
@@ -344,9 +344,9 @@ async function fetchSearchSources() {
     const data = await atGet(AIRTABLE_SOURCES_TABLE, `?filterByFormula=${formula}&maxRecords=100`);
     const records = data.records || [];
     return records.map(r => ({
-      site_name:   r.fields.site_name   || '',
+      site_name:   r.fields.source_name  || '',
       url:         r.fields.url         || '',
-      portal_type: r.fields.portal_type || '',
+      portal_type: r.fields.source_type  || '',
       username:    r.fields.username    || '',
       notes:       r.fields.notes       || ''
     }));
