@@ -983,7 +983,7 @@ function formatTrackItems(html) {
   const tmp = document.createElement('div');
   tmp.innerHTML = html;
   const items = tmp.querySelectorAll('li');
-  if (!items.length) return `<div style="font-family:'Source Sans 3',Arial,sans-serif;font-size:1.0rem;line-height:1.75;color:#333;">${html}</div>`;
+  if (!items.length) return `<div style="font-family:'Source Sans 3',Arial,sans-serif;font-size:1.05rem;line-height:1.8;color:#333;">${html}</div>`;
   let out = '';
   items.forEach((li, i) => {
     const strong = li.querySelector('strong, b');
@@ -1000,10 +1000,10 @@ function formatTrackItems(html) {
       sourceLink = linkMatch[1];
       body = body.replace(linkMatch[0], '').replace(/source\s*:/i, '').trim().replace(/[,.\s]+$/, '');
     }
-    out += `<div style="margin-bottom:28px;${i > 0 ? 'padding-top:24px;border-top:1px solid #e8e8e8;' : ''}">`;
-    if (title) out += `<div style="font-family:'Noto Serif KR','Times New Roman',serif;font-size:1.2rem;font-weight:700;color:#000;line-height:1.3;margin-bottom:8px;">${title}</div>`;
-    if (body) out += `<div style="font-family:'Source Sans 3',Arial,sans-serif;font-size:1.0rem;line-height:1.75;color:#333;margin-bottom:6px;">${body}</div>`;
-    if (sourceLink) out += `<div style="margin-top:6px;">${sourceLink}</div>`;
+    out += `<div style="margin-bottom:32px;${i > 0 ? 'padding-top:28px;border-top:1px solid #e8e8e8;' : ''}">`;
+    if (title) out += `<div style="font-family:'Noto Serif KR','Times New Roman',serif;font-size:1.35rem;font-weight:700;color:#000;line-height:1.3;margin-bottom:10px;">${title}</div>`;
+    if (body) out += `<div style="font-family:'Source Sans 3',Arial,sans-serif;font-size:1.05rem;line-height:1.8;color:#333;margin-bottom:8px;">${body}</div>`;
+    if (sourceLink) out += `<div style="margin-top:8px;font-size:0.95rem;">${sourceLink}</div>`;
     out += `</div>`;
   });
   return out;
