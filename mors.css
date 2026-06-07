@@ -1,0 +1,171 @@
+/* ============================================================
+   MORS — Marketing Opportunity Research System
+   Brand CSS — Bluhon design system
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&family=Source+Sans+3:wght@200;300;400;500;600;700&family=Roboto+Condensed:wght@400;600&display=swap');
+
+/* ---- Root tokens ---- */
+:root {
+  --bl-color-black:  #000000;
+  --bl-color-gray:   #333333;
+  --bl-color-accent: #048BC9;
+  --bl-color-muted:  #555555;
+
+  --bl-font-body:    "Source Sans 3", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --bl-font-heading: "Noto Serif KR", "Times New Roman", serif;
+  --bl-font-nav:     "Roboto Condensed", Arial, sans-serif;
+
+  --bl-font-size-base:   16px;
+  --bl-line-height-base: 1.75;
+}
+
+/* ---- Global reset & base ---- */
+html { font-optical-sizing: auto; -webkit-font-smoothing: antialiased; }
+
+body {
+  font-family: var(--bl-font-body);
+  font-size: var(--bl-font-size-base);
+  line-height: var(--bl-line-height-base);
+  color: var(--bl-color-gray);
+  background: #ffffff;
+  font-weight: 400;
+}
+
+/* ---- Headings ---- */
+h1, h2, h3, h4 {
+  font-family: var(--bl-font-heading);
+  font-weight: 600;
+  color: var(--bl-color-accent);
+  margin-top: 0;
+  line-height: 1.2;
+}
+
+h1 { font-size: 2.5rem;  font-weight: 500; color: var(--bl-color-gray); }
+h2 { font-size: 1.9rem;  font-weight: 500; color: var(--bl-color-gray); }
+h3 { font-size: 1.4rem;  font-weight: 600; color: var(--bl-color-accent); }
+h4 { font-size: 1.1rem;  font-weight: 600; color: var(--bl-color-accent); font-family: var(--bl-font-nav); letter-spacing: .02em; }
+
+/* ---- Body text ---- */
+p  { font-family: var(--bl-font-body); font-size: 1rem; line-height: 1.75; color: var(--bl-color-gray); margin-bottom: 1em; font-weight: 400; }
+strong, b { font-weight: 600; color: var(--bl-color-black); }
+
+/* ---- MORS track body (report content) ---- */
+.track-body {
+  font-family: var(--bl-font-body) !important;
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  color: var(--bl-color-gray) !important;
+  line-height: 1.8 !important;
+}
+
+.track-body strong,
+.track-body b {
+  font-weight: 600 !important;
+  color: var(--bl-color-black) !important;
+}
+
+.track-body table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+
+.track-body th {
+  font-family: var(--bl-font-nav) !important;
+  font-size: 11px !important;
+  text-transform: uppercase !important;
+  letter-spacing: .09em !important;
+  color: var(--bl-color-muted) !important;
+  font-weight: 600 !important;
+  text-align: left !important;
+  padding: 10px 16px !important;
+  border-bottom: 1px solid #e2e4e9 !important;
+  background: #f4f5f7 !important;
+}
+
+.track-body td {
+  font-family: var(--bl-font-body) !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  color: var(--bl-color-gray) !important;
+  padding: 14px 16px !important;
+  border-bottom: 1px solid #e2e4e9 !important;
+  vertical-align: top !important;
+  line-height: 1.7 !important;
+  background: #ffffff !important;
+}
+
+.track-body tr:last-child td { border-bottom: none !important; }
+.track-body ul, .track-body ol { padding-left: 20px; margin-top: 6px; }
+
+.track-body li {
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  color: var(--bl-color-gray) !important;
+  line-height: 1.75 !important;
+  margin-bottom: 14px !important;
+}
+
+.track-body p {
+  font-size: 14px !important;
+  color: var(--bl-color-muted) !important;
+  font-style: italic !important;
+  margin-bottom: 10px !important;
+}
+
+.track-body a { color: var(--bl-color-accent); text-decoration: none; }
+.track-body a:hover { text-decoration: underline; }
+
+/* ---- Track 1 opportunity cards ---- */
+.t1-agency {
+  font-family: var(--bl-font-nav);
+  font-size: 11px;
+  color: var(--bl-color-accent);
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.t1-title {
+  font-family: var(--bl-font-heading);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.35;
+  margin-bottom: 7px;
+  color: var(--bl-color-black);
+  letter-spacing: .01em;
+}
+
+.t1-scope {
+  font-family: var(--bl-font-body);
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--bl-color-gray);
+  line-height: 1.7;
+  margin-top: 4px;
+}
+
+/* ---- Pipeline table ---- */
+.pipeline-table th {
+  font-family: var(--bl-font-nav) !important;
+  font-size: 11px !important;
+  text-transform: uppercase !important;
+  letter-spacing: .09em !important;
+  color: var(--bl-color-muted) !important;
+  font-weight: 600 !important;
+  padding: 10px 16px !important;
+  border-bottom: 1px solid #e2e4e9 !important;
+  background: #f4f5f7 !important;
+  text-align: left !important;
+}
+
+.pipeline-table td {
+  font-family: var(--bl-font-body) !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  color: var(--bl-color-gray) !important;
+  padding: 14px 16px !important;
+  border-bottom: 1px solid #e2e4e9 !important;
+  line-height: 1.55 !important;
+  vertical-align: top !important;
+}
+
+.pipeline-table td strong { font-weight: 600; color: var(--bl-color-black); }
