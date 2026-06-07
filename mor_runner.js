@@ -1013,6 +1013,13 @@ For each item found, identify:
 
 Find 5–8 items. Prioritize: land use conflicts, CEQA disputes, facility siting (waste, water, energy), housing EIR opposition, port/airport/transit project community conflict, water rights disputes, agricultural land conflicts.
 
+TRACK 2 OUTPUT FORMAT: Group all items under these exact headings in this order. Only include a heading if you have at least one item for it. Use an <h2> tag for each heading and a <ul> for items under it:
+<h2>Local News</h2>  — items from neighborhood/city-level outlets
+<h2>Regional News</h2>  — items from county-wide or multi-county outlets (Chronicle, Mercury News, Press Democrat, etc.)
+<h2>Agency Board</h2>  — items sourced from special district or state/federal agency agendas
+<h2>County Board</h2>  — items sourced from county BOS agendas or county planning commission packets
+<h2>City Board</h2>  — items sourced from city council or city planning commission agendas
+
 OUTPUT FORMAT — you MUST output ALL THREE sections below in this exact order. Do not skip any section.
 
 ---TRACK1_START---
@@ -1079,6 +1086,11 @@ WHAT TO LOOK FOR in agenda packets and staff reports:
 For each item: name the governing body, meeting date, agenda item title, what was discussed/directed, estimated timeline to RFP, and the specific Bluhon service that fits.
 
 Find 4–6 items. Prioritize items closest to issuing an RFP. Flag ⭐ if RFP authorization was granted.
+
+TRACK 4 OUTPUT FORMAT: Group all items under these exact headings in this order. Only include a heading if you have at least one item for it. Use an <h2> tag for each heading and a <ul> for items under it:
+<h2>Agency Board</h2>  — special districts, regional agencies, state/federal bodies (MTC, BAAQMD, BCDC, RWQCB, Coastal Commission, BART, etc.)
+<h2>County Board</h2>  — board of supervisors, county planning commissions
+<h2>City Board</h2>  — city councils, city planning commissions
 
 OUTPUT FORMAT — use exactly these delimiters:
 
