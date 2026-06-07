@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600;700&family=Roboto+Condensed:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="https://bluhon.com/mors/mors.css">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -228,57 +229,8 @@ select.form-input option{background:var(--bg2);color:var(--white)}
 .report-nav-btn:hover{color:var(--white)}
 .today-badge{background:rgba(200,241,53,.15);color:var(--lime);font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px;letter-spacing:.06em}
 
-/* ── Bluhon brand typography (matches projects.css exactly) ── */
-html,body{font-family:'Source Sans 3',system-ui,sans-serif!important;font-size:16px!important;line-height:1.85!important;color:#000!important}
-
-/* Headings — Noto Serif KR, weight 500, brand color */
-.page-title,.track-header,.modal-title,.sidebar-wordmark,.login-logo,.t1-title,.card-title,.report-date-label,.empty-state-title{font-family:'Noto Serif KR','Times New Roman',serif!important;font-weight:500!important;color:var(--brand)!important}
-
-/* Canvas + report section titles — h3 equivalent: weight 600, black */
-.canvas-section-title{font-family:'Noto Serif KR','Times New Roman',serif!important;font-size:1.5rem!important;font-weight:600!important;color:#000!important;letter-spacing:0!important;text-transform:none!important}
-
-/* Page title sizing */
-.page-title{font-size:clamp(1.9rem,1.6rem + 0.9vw,2.5rem)!important;line-height:1.05!important;letter-spacing:0!important}
-
-/* Page subtitle */
-.page-subtitle{font-family:'Source Sans 3',system-ui,sans-serif!important;font-size:1.05rem!important;color:#555!important;line-height:1.6!important}
-
-/* Sidebar wordmark */
-.sidebar-wordmark{font-size:2.2rem!important;letter-spacing:-0.01em!important}
-
-/* Sidebar nav */
-.nav-item{font-family:'Source Sans 3',system-ui,sans-serif!important;font-size:1.05rem!important;font-weight:600!important;text-transform:uppercase!important;letter-spacing:0.02em!important;color:#333!important}
-.nav-item.active{color:var(--brand)!important}
-.sidebar-section{font-family:'Source Sans 3',system-ui,sans-serif!important;font-size:0.7rem!important;font-weight:600!important;letter-spacing:.12em!important;text-transform:uppercase!important;color:#aaa!important}
-.sidebar-user{font-family:'Source Sans 3',system-ui,sans-serif!important;font-size:0.85rem!important;color:#666!important}
-
-/* Labels — Roboto Condensed, brand color, weight 600 (matches .left-col in projects.css) */
-.field-label,.form-label,.pipeline-table th,.track-body th,.login-field label{font-family:'Roboto Condensed',Arial,sans-serif!important;font-size:1.0rem!important;font-weight:600!important;color:var(--brand)!important;text-transform:none!important;letter-spacing:0!important}
-.t1-agency,.opp-agency{font-family:'Roboto Condensed',Arial,sans-serif!important;font-size:0.85rem!important;font-weight:600!important;color:var(--brand)!important;text-transform:uppercase!important;letter-spacing:.06em!important}
-
-/* Body / reading text — Source Sans 3, 1.05rem+, nearly black */
-.track-body{font-family:'Source Sans 3',system-ui,sans-serif!important;font-size:1.05rem!important;line-height:1.85!important;color:#000!important;font-weight:400!important}
-.track-body p{font-size:1.3rem!important;line-height:1.8!important;color:#000!important;font-style:normal!important;letter-spacing:-0.01em!important}
-.track-body li{font-size:1.05rem!important;line-height:1.8!important;color:#000!important;margin-bottom:10px!important}
-.track-body strong,.track-body b{font-weight:700!important;color:#000!important}
-.track-body td{font-size:1.0rem!important;color:#000!important;line-height:1.7!important}
-
-/* Opportunity cards */
-.t1-title{font-family:'Noto Serif KR',serif!important;font-size:1.2rem!important;font-weight:500!important;line-height:1.3!important;color:#000!important}
-.t1-scope{font-family:'Source Sans 3',system-ui,sans-serif!important;font-size:1.0rem!important;font-weight:400!important;line-height:1.7!important;color:#222!important}
-.pipeline-table td{font-family:'Source Sans 3',system-ui,sans-serif!important;font-size:1.0rem!important;color:#000!important}
-
-/* Inputs and buttons */
-.field-input,.form-input{font-family:'Source Sans 3',system-ui,sans-serif!important;font-size:1.0rem!important;color:#000!important}
-.btn{font-family:'Source Sans 3',system-ui,sans-serif!important;font-size:0.9rem!important}
-
-/* Cards */
-.card-title{font-family:'Noto Serif KR',serif!important;font-size:1.25rem!important;font-weight:500!important;color:#000!important}
-.card-body,.card-meta{font-family:'Source Sans 3',system-ui,sans-serif!important}
-
-/* Notes */
-.note-author{font-family:'Roboto Condensed',Arial,sans-serif!important;font-size:1.0rem!important;font-weight:600!important;color:var(--brand)!important}
-.note-text{font-family:'Source Sans 3',system-ui,sans-serif!important;font-size:1.0rem!important;color:#000!important;line-height:1.7!important}
+/* base font fallback until mors.css loads */
+html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-height:1.85;color:#000}
 </style>
 </head>
 <body>

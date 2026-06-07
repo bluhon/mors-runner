@@ -1,0 +1,290 @@
+/* ============================================================
+   MORS — Bluhon brand typography
+   Upload to: bluhon.com/mors/mors.css
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@200;300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@200;300;400;500;600;700&display=swap');
+
+:root {
+  --bl-color-black:  #000000;
+  --bl-color-gray:   #333333;
+  --bl-color-accent: #048BC9;
+  --bl-font-body:    "Source Sans 3", system-ui, -apple-system, sans-serif;
+  --bl-font-heading: "Noto Serif KR", "Times New Roman", serif;
+  --bl-font-label:   "Roboto Condensed", Arial, sans-serif;
+}
+
+html, body {
+  font-family: var(--bl-font-body);
+  font-size: 16px;
+  line-height: 1.85;
+  color: #000;
+  -webkit-font-smoothing: antialiased;
+  font-optical-sizing: auto;
+}
+
+/* ── Sidebar ── */
+
+.sidebar-wordmark {
+  font-family: var(--bl-font-heading);
+  font-size: 2.2rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--bl-color-accent);
+}
+
+.sidebar-section {
+  font-family: var(--bl-font-body);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #aaa;
+}
+
+.sidebar-user {
+  font-family: var(--bl-font-body);
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.nav-item {
+  font-family: var(--bl-font-body);
+  font-size: 1.0rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #333;
+}
+
+.nav-item.active {
+  color: var(--bl-color-accent);
+}
+
+/* ── Page headers ── */
+
+.page-title {
+  font-family: var(--bl-font-heading);
+  font-size: clamp(1.9rem, 1.6rem + 0.9vw, 2.5rem);
+  font-weight: 500;
+  line-height: 1.05;
+  letter-spacing: 0;
+  color: var(--bl-color-accent);
+}
+
+.page-subtitle {
+  font-family: var(--bl-font-body);
+  font-size: 1.05rem;
+  color: #555;
+  line-height: 1.6;
+}
+
+/* ── Report reading ── */
+
+.track-header {
+  font-family: var(--bl-font-heading);
+  font-size: clamp(1.6rem, 1.4rem + 0.6vw, 2.0rem);
+  font-weight: 600;
+  color: #000;
+  letter-spacing: 0;
+}
+
+.track-body {
+  font-family: var(--bl-font-body);
+  font-size: 1.05rem;
+  line-height: 1.85;
+  color: #000;
+  font-weight: 400;
+}
+
+.track-body p {
+  font-size: 1.2rem;
+  line-height: 1.8;
+  color: #000;
+  font-style: normal;
+  letter-spacing: -0.01em;
+  margin-bottom: 1.2em;
+}
+
+.track-body li {
+  font-size: 1.05rem;
+  line-height: 1.8;
+  color: #000;
+  margin-bottom: 10px;
+}
+
+.track-body strong,
+.track-body b {
+  font-weight: 700;
+  color: #000;
+}
+
+.track-body th {
+  font-family: var(--bl-font-label);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--bl-color-accent);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.track-body td {
+  font-size: 1.0rem;
+  color: #000;
+  line-height: 1.7;
+}
+
+/* ── Opportunity cards ── */
+
+.t1-agency,
+.opp-agency {
+  font-family: var(--bl-font-label);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--bl-color-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.t1-title {
+  font-family: var(--bl-font-heading);
+  font-size: 1.15rem;
+  font-weight: 500;
+  line-height: 1.3;
+  color: #000;
+}
+
+.t1-scope {
+  font-family: var(--bl-font-body);
+  font-size: 1.0rem;
+  font-weight: 400;
+  line-height: 1.7;
+  color: #222;
+}
+
+/* ── Pipeline table ── */
+
+.pipeline-table th {
+  font-family: var(--bl-font-label);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--bl-color-accent);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.pipeline-table td {
+  font-family: var(--bl-font-body);
+  font-size: 1.0rem;
+  color: #000;
+}
+
+/* ── Canvas ── */
+
+.canvas-section-title {
+  font-family: var(--bl-font-heading);
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: #000;
+  letter-spacing: 0;
+  text-transform: none;
+  margin-bottom: 16px;
+}
+
+.field-label,
+.form-label,
+.login-field label {
+  font-family: var(--bl-font-label);
+  font-size: 1.0rem;
+  font-weight: 600;
+  color: var(--bl-color-accent);
+  text-transform: none;
+  letter-spacing: 0;
+  margin-bottom: 6px;
+}
+
+.field-value {
+  font-family: var(--bl-font-body);
+  font-size: 1.05rem;
+  color: #000;
+}
+
+.field-input,
+.form-input {
+  font-family: var(--bl-font-body);
+  font-size: 1.0rem;
+  color: #000;
+}
+
+/* ── Notes ── */
+
+.note-author {
+  font-family: var(--bl-font-label);
+  font-size: 1.0rem;
+  font-weight: 600;
+  color: var(--bl-color-accent);
+}
+
+.note-date {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.note-text {
+  font-family: var(--bl-font-body);
+  font-size: 1.05rem;
+  color: #000;
+  line-height: 1.7;
+}
+
+/* ── Cards ── */
+
+.card-title {
+  font-family: var(--bl-font-heading);
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: #000;
+}
+
+.card-body,
+.card-meta {
+  font-family: var(--bl-font-body);
+}
+
+/* ── Modals ── */
+
+.modal-title {
+  font-family: var(--bl-font-heading);
+  font-weight: 500;
+  color: var(--bl-color-accent);
+}
+
+/* ── Report nav ── */
+
+.report-date-label {
+  font-family: var(--bl-font-heading);
+  font-weight: 500;
+  color: var(--bl-color-accent);
+}
+
+/* ── Login ── */
+
+.login-logo {
+  font-family: var(--bl-font-heading);
+  font-weight: 500;
+  color: var(--bl-color-accent);
+}
+
+/* ── Buttons ── */
+
+.btn {
+  font-family: var(--bl-font-body);
+  font-size: 0.9rem;
+}
+
+.btn-lg {
+  font-family: var(--bl-font-heading);
+  font-weight: 600;
+}
