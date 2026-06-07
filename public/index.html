@@ -314,6 +314,9 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
     <div class="nav-item" onclick="showPage('memory')" id="nav-memory">
       <i class="ti ti-brain"></i> Project Memory
     </div>
+    <div class="nav-item" onclick="showPage('sources')" id="nav-sources">
+      <i class="ti ti-search"></i> Sources
+    </div>
     <div class="sidebar-bottom">
       <div class="logout-btn" onclick="doLogout()">
         <i class="ti ti-logout"></i> Sign out
@@ -546,10 +549,76 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
             <p>Start marking leads as Interest = Yes and the learning engine will build up here.</p>
           </div>
         </div>
+        <div style="margin-top:40px">
+          <div style="font-family:var(--font-head);font-size:1.25rem;font-weight:700;color:#000;margin-bottom:4px">Quality Patterns</div>
+          <div style="font-size:0.9rem;color:var(--muted);margin-bottom:16px">Feedback patterns learned from "Not relevant" signals — injected into each runner search.</div>
+          <div id="quality-patterns-content">
+            <div style="font-size:0.9rem;color:var(--muted);font-style:italic">Loading quality patterns…</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="page-sources">
+      <div class="page-header">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <div>
+            <div class="page-title">Search <span>Sources</span></div>
+            <div class="page-subtitle">Procurement portals to monitor</div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="openAddSource()">
+            <i class="ti ti-plus"></i> Add Source
+          </button>
+        </div>
+      </div>
+      <div class="page-body">
+        <div id="sources-content">
+          <div class="empty-state">
+            <i class="ti ti-search"></i>
+            <div class="empty-state-title">No sources yet</div>
+            <p>Add procurement portals to track for opportunities.</p>
+          </div>
+        </div>
       </div>
     </section>
 
   </main>
+</div>
+
+<div class="modal-overlay" id="modal-source">
+  <div class="modal">
+    <div class="modal-title">Add Search <span>Source</span></div>
+    <div class="form-row"><label class="form-label">Site name *</label><input class="form-input" id="src-name" placeholder="e.g. PlanetBids — Alameda County"></div>
+    <div class="form-row"><label class="form-label">URL *</label><input class="form-input" id="src-url" placeholder="https://..."></div>
+    <div class="form-row">
+      <label class="form-label">Portal type</label>
+      <select class="form-input" id="src-type">
+        <option value="">— Select —</option>
+        <option value="eProcure">eProcure</option>
+        <option value="PlanetBids">PlanetBids</option>
+        <option value="Bid4G">Bid4G</option>
+        <option value="OpenGov">OpenGov</option>
+        <option value="BidSync">BidSync</option>
+        <option value="Direct">Direct</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+    <div class="form-row"><label class="form-label">Username</label><input class="form-input" id="src-username" placeholder="Login username"></div>
+    <div class="form-row">
+      <label class="form-label">Password env var name</label>
+      <input class="form-input" id="src-envvar" placeholder="e.g. SRC_PLANETBIDS_PW">
+      <div style="font-size:0.85rem;color:var(--muted);margin-top:4px">Password stored as a Render env var — enter variable name only, not the password itself.</div>
+    </div>
+    <div class="form-row"><label class="form-label">Notes</label><textarea class="form-input" id="src-notes" rows="3" placeholder="Search tips, login notes, etc."></textarea></div>
+    <div class="form-row" style="display:flex;align-items:center;gap:10px">
+      <input type="checkbox" id="src-active" checked style="width:16px;height:16px;accent-color:var(--brand);cursor:pointer">
+      <label for="src-active" class="form-label" style="margin:0;cursor:pointer">Active (include in runner searches)</label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-source')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSource()"><i class="ti ti-check"></i> Save Source</button>
+    </div>
+  </div>
 </div>
 
 <div class="modal-overlay" id="modal-contact">
@@ -616,9 +685,10 @@ const CONFIG = {
     RFP_CANVAS:     'tblLxvmDGcti1fJAV',
     CONTACTS:       'tblLzyl3eZh45LgxL',
     PRIME_FIRMS:    'tbl9MicFOSIYkKLGs',
-    PROJECT_MEMORY: 'tblNgcBpooPK9wOkD',
-    USERS:          'tblVZEf4vqSEZiVCc',
-    TRACK2_ITEMS:   'tbl4f7N5EoaKRwRXK'
+    PROJECT_MEMORY:  'tblNgcBpooPK9wOkD',
+    SEARCH_SOURCES:  'SEARCH_SOURCES_TABLE_ID',
+    USERS:           'tblVZEf4vqSEZiVCc',
+    TRACK2_ITEMS:    'tbl4f7N5EoaKRwRXK'
   }
 };
 
@@ -759,6 +829,7 @@ function showPage(id) {
   if (id === 'contacts') loadContacts();
   if (id === 'primes') loadPrimes();
   if (id === 'memory') loadMemory();
+  if (id === 'sources') loadSources();
   closeSidebar();
 }
 
@@ -917,6 +988,15 @@ async function loadProspects() {
         <div class="t1-row-title">${displayTitle}</div>
         ${scopeShort ? `<div class="t1-row-scope">${scopeShort}</div>` : ''}
         ${f.estimated_value ? `<div class="t1-row-value">${f.estimated_value}</div>` : ''}
+        <div id="feedback-row-${p.id}" style="margin-top:8px">
+          <span onclick="showFeedbackPicker('${p.id}')" style="font-size:0.85rem;color:#aaa;cursor:pointer;text-decoration:underline;text-underline-offset:2px">Not relevant</span>
+          <div id="feedback-picker-${p.id}" style="display:none;margin-top:6px;display:none">
+            <span style="font-size:0.85rem;color:var(--muted);margin-right:6px">Why not?</span>
+            ${['Not an RFP','Not in scope','Not in geography','Due date past','Low budget','No interest'].map(r =>
+              `<span onclick="submitFeedback('${p.id}','${r.replace(/'/g,"\\'")}','${(f.title||'').replace(/'/g,"\\'").replace(/"/g,'&quot;').slice(0,80)}','${(f.agency||'').replace(/'/g,"\\'").slice(0,60)}','${(f.source_url||'').replace(/'/g,"\\'")}')" style="display:inline-block;font-size:0.85rem;padding:3px 10px;border-radius:20px;border:1px solid var(--border2);color:var(--muted);cursor:pointer;margin-right:4px;margin-bottom:4px;background:var(--bg2)">${r}</span>`
+            ).join('')}
+          </div>
+        </div>
       </td>
       <td>${srcCell}</td>
       <td><div class="t1-due-date ${urgentClass}">${dlStr}</div></td>
@@ -1528,9 +1608,42 @@ async function savePrime() {
 }
 
 async function loadMemory() {
-  const res = await atFetch(CONFIG.TABLES.PROJECT_MEMORY, '?sort[0][field]=last_seen&sort[0][direction]=desc');
-  allMemory = res.records || [];
+  const [memRes, patternRes] = await Promise.all([
+    atFetch(CONFIG.TABLES.PROJECT_MEMORY, '?sort[0][field]=last_seen&sort[0][direction]=desc'),
+    atFetch(CONFIG.TABLES.PROJECT_MEMORY, `?filterByFormula=${encodeURIComponent('{pattern_type}="poor_result"')}&sort[0][field]=frequency&sort[0][direction]=desc&maxRecords=50`)
+  ]);
+  allMemory = memRes.records || [];
   renderMemory();
+  renderQualityPatterns(patternRes.records || []);
+}
+
+function renderQualityPatterns(patterns) {
+  const el = document.getElementById('quality-patterns-content');
+  if (!el) return;
+  if (patterns.length === 0) {
+    el.innerHTML = '<div style="font-size:0.9rem;color:var(--muted);font-style:italic">No quality patterns yet. Use "Not relevant" on Track 1 cards to start building feedback.</div>';
+    return;
+  }
+  let html = '<div style="display:flex;flex-direction:column;gap:8px">';
+  patterns.forEach(p => {
+    const f = p.fields;
+    html += `<div class="card" style="padding:14px 18px;border-left:3px solid var(--warning)">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div style="min-width:0;flex:1">
+          <div style="font-size:1.0rem;font-weight:600;color:#000;margin-bottom:4px">${escHtml(f.description||'—')}</div>
+          ${f.example_title ? `<div style="font-size:0.85rem;color:var(--muted);margin-bottom:2px">Example: ${escHtml(f.example_title)}</div>` : ''}
+          ${f.example_url ? `<a href="${escHtml(f.example_url)}" target="_blank" style="font-size:0.85rem;color:var(--brand)">View source <i class="ti ti-external-link" style="font-size:11px"></i></a>` : ''}
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <span class="badge badge-orange">poor_result</span>
+          ${f.frequency ? `<div style="font-size:0.85rem;color:var(--muted);margin-top:4px">${f.frequency}× seen</div>` : ''}
+          ${f.last_seen ? `<div style="font-size:0.85rem;color:var(--muted)">${new Date(f.last_seen).toLocaleDateString()}</div>` : ''}
+        </div>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+  el.innerHTML = html;
 }
 function renderMemory() {
   const yes = allMemory.filter(m => m.fields.pursuit_signal === 'interest-yes');
@@ -1584,6 +1697,126 @@ async function makePipelineCanvas(oppId, title) {
     showToast('Canvas error: ' + msg, 'error');
   }
 }
+// ─── Feedback / Learning Loop ────────────────────────────────────────────────
+function showFeedbackPicker(oppId) {
+  const picker = document.getElementById('feedback-picker-' + oppId);
+  if (picker) picker.style.display = picker.style.display === 'none' ? 'block' : 'none';
+}
+
+async function submitFeedback(oppId, reason, title, agency, sourceUrl) {
+  // Immediately hide card with fade
+  const row = document.getElementById('t1c-' + oppId);
+  if (row) { row.style.transition = 'opacity 0.35s'; row.style.opacity = '0'; setTimeout(() => row.remove(), 360); }
+  try {
+    await fetch('https://mors-runner.onrender.com/feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ opp_id: oppId, reason, title, agency, source_url: sourceUrl })
+    });
+  } catch(e) {
+    console.warn('Feedback submit failed:', e.message);
+  }
+  showToast('Feedback recorded — runner will learn from this', 'success');
+}
+
+// ─── Search Sources ───────────────────────────────────────────────────────────
+let allSources = [];
+
+async function loadSources() {
+  const res = await atFetch(CONFIG.TABLES.SEARCH_SOURCES, '?sort[0][field]=site_name&sort[0][direction]=asc');
+  allSources = res.records || [];
+  renderSources();
+}
+
+function renderSources() {
+  const el = document.getElementById('sources-content');
+  if (!el) return;
+  if (allSources.length === 0) {
+    el.innerHTML = '<div class="empty-state"><i class="ti ti-search"></i><div class="empty-state-title">No sources yet</div><p>Add procurement portals to track for opportunities.</p></div>';
+    return;
+  }
+  const portalColors = { eProcure:'badge-blue', PlanetBids:'badge-lime', Bid4G:'badge-green', OpenGov:'badge-purple', BidSync:'badge-orange', Direct:'badge-gray', Other:'badge-gray' };
+  let html = '<div style="display:flex;flex-direction:column;gap:10px">';
+  allSources.forEach(s => {
+    const f = s.fields;
+    const badgeClass = portalColors[f.portal_type] || 'badge-gray';
+    html += `<div class="card" style="padding:18px 22px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div style="min-width:0;flex:1">
+          <div style="font-family:var(--font-head);font-size:1.1rem;font-weight:700;color:#000;margin-bottom:4px">${escHtml(f.site_name||'—')}</div>
+          ${f.url ? `<div style="margin-bottom:6px"><a href="${escHtml(f.url)}" target="_blank" rel="noopener" style="color:var(--brand);font-size:0.9rem">${escHtml(f.url)}</a></div>` : ''}
+          <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px">
+            ${f.portal_type ? `<span class="badge ${badgeClass}">${escHtml(f.portal_type)}</span>` : ''}
+            ${f.username ? `<span style="font-size:0.85rem;color:var(--muted)"><i class="ti ti-user" style="font-size:12px;margin-right:3px"></i>${escHtml(f.username)}</span>` : ''}
+          </div>
+          ${f.notes ? `<div style="font-size:0.9rem;color:#555;line-height:1.5">${escHtml(f.notes)}</div>` : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;color:var(--muted)">
+            <input type="checkbox" ${f.active ? 'checked' : ''} onchange="toggleSourceActive('${s.id}', this.checked)" style="width:15px;height:15px;accent-color:var(--brand);cursor:pointer">
+            Active
+          </label>
+          ${f.last_searched ? `<div style="font-size:0.85rem;color:var(--muted)">Last searched: ${new Date(f.last_searched).toLocaleDateString()}</div>` : ''}
+          ${f.results_quality ? `<span class="badge ${f.results_quality==='Excellent'?'badge-lime':f.results_quality==='Good'?'badge-green':'badge-red'}">${escHtml(f.results_quality)}</span>` : ''}
+        </div>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function openAddSource() {
+  ['src-name','src-url','src-username','src-envvar','src-notes'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  const typeEl = document.getElementById('src-type'); if (typeEl) typeEl.value = '';
+  const activeEl = document.getElementById('src-active'); if (activeEl) activeEl.checked = true;
+  document.getElementById('modal-source').classList.add('visible');
+}
+
+async function saveSource() {
+  const name = document.getElementById('src-name').value.trim();
+  const url  = document.getElementById('src-url').value.trim();
+  if (!name) { showToast('Site name is required', 'error'); return; }
+  const fields = {
+    site_name:    name,
+    url:          url,
+    portal_type:  document.getElementById('src-type').value || '',
+    username:     document.getElementById('src-username').value.trim(),
+    env_var_name: document.getElementById('src-envvar').value.trim(),
+    notes:        document.getElementById('src-notes').value.trim(),
+    active:       document.getElementById('src-active').checked
+  };
+  const btn = document.querySelector('#modal-source .btn-primary');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Saving…';
+  try {
+    const rec = await atCreate(CONFIG.TABLES.SEARCH_SOURCES, fields);
+    if (rec && rec.id) {
+      allSources.push(rec);
+      renderSources();
+      closeModal('modal-source');
+      showToast('Source saved', 'success');
+    } else {
+      showToast('Save failed — check table ID in config', 'error');
+    }
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+  btn.disabled = false; btn.innerHTML = '<i class="ti ti-check"></i> Save Source';
+}
+
+async function toggleSourceActive(recordId, active) {
+  try {
+    await atUpdate(CONFIG.TABLES.SEARCH_SOURCES, recordId, { active });
+    const rec = allSources.find(s => s.id === recordId);
+    if (rec) rec.fields.active = active;
+    showToast(active ? 'Source activated' : 'Source deactivated', 'success');
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
 function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function safeJSON(str, fallback) { try { return JSON.parse(str); } catch { return fallback; } }
 function showToast(msg, type = '') {

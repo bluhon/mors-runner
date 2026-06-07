@@ -524,7 +524,12 @@ async function runMORSReport() {
   // Build dynamic system prompt additions
   let dynamicSystemPrompt = SYSTEM_PROMPT;
   if (memoryPatterns.length > 0) {
-    dynamicSystemPrompt += `\n\n═══════════════════════════════════════════════════════════════\nQUALITY FEEDBACK FROM PREVIOUS RUNS:\n═══════════════════════════════════════════════════════════════\n${memoryPatterns.join('\n')}`;
+    const critical = memoryPatterns.filter(p => p.startsWith('CRITICAL:'));
+    const other = memoryPatterns.filter(p => !p.startsWith('CRITICAL:'));
+    let feedbackSection = `\n\n═══════════════════════════════════════════════════════════════\nQUALITY RULES LEARNED FROM USER FEEDBACK (MUST FOLLOW):\n═══════════════════════════════════════════════════════════════`;
+    if (critical.length > 0) feedbackSection += `\n\n${critical.join('\n\n')}`;
+    if (other.length > 0) feedbackSection += `\n\nOther feedback patterns:\n${other.join('\n')}`;
+    dynamicSystemPrompt += feedbackSection;
   }
 
   // Build search sources injection for Track 1
@@ -846,6 +851,64 @@ OUTPUT FORMAT — use exactly these delimiters:
     console.log(`[${new Date().toISOString()}] TEST RUN complete`);
   } catch(err) {
     console.error("Test run failed:", err.message);
+  }
+});
+
+// ─── POST /feedback ───────────────────────────────────────────────────────────
+app.post("/feedback", async (req, res) => {
+  const { opp_id, reason, title, agency, source_url } = req.body || {};
+  if (!opp_id) return res.status(400).json({ success: false, error: 'opp_id required' });
+  try {
+    // 1. Update the OPPORTUNITIES record
+    await atPatch(AIRTABLE_OPPS_TABLE, opp_id, {
+      interest: 'no',
+      feedback_reason: reason || ''
+    });
+
+    // 2. Upsert PROJECT_MEMORY record
+    const today = new Date().toISOString().split('T')[0];
+
+    // Critical reasons get strong instructional language injected into system prompt
+    let description;
+    if (reason === 'Not an RFP') {
+      description = `CRITICAL: "${title}" (${agency}) was flagged as NOT an RFP — it was a news article, meeting agenda, or announcement, not an actual procurement solicitation. Track 1 must ONLY include open solicitations with a procurement URL, RFP/RFQ number, or direct bid portal link. Do not include news coverage or project announcements.`;
+    } else if (reason === 'Due date past') {
+      description = `CRITICAL: "${title}" (${agency}) was flagged because the due date had already passed. Always verify the proposal deadline is in the future before including any opportunity in Track 1. Expired RFPs are useless and waste the user's time.`;
+    } else {
+      description = [reason, title, agency].filter(Boolean).join(' — ');
+    }
+
+    // Look for existing record with matching example_title
+    let existingId = null;
+    if (title) {
+      const formula = encodeURIComponent(`{example_title}="${title.replace(/"/g, '\\"')}"`);
+      const existing = await atGet(AIRTABLE_MEMORY_TABLE, `?filterByFormula=${formula}&maxRecords=1`);
+      if (existing.records && existing.records.length > 0) {
+        existingId = existing.records[0].id;
+        const currentFreq = existing.records[0].fields.frequency || 0;
+        await atPatch(AIRTABLE_MEMORY_TABLE, existingId, {
+          frequency: currentFreq + 1,
+          last_seen: today
+        });
+      }
+    }
+
+    if (!existingId) {
+      await atPost(AIRTABLE_MEMORY_TABLE, {
+        pattern_type:  'poor_result',
+        description:   description,
+        example_title: title || '',
+        example_url:   source_url || '',
+        frequency:     1,
+        created_date:  today,
+        last_seen:     today
+      });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[/feedback] Error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
