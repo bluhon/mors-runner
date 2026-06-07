@@ -123,10 +123,20 @@ html, body {
 }
 
 .track-body td {
-  font-size: 1.05rem !important;
+  font-size: 0.95rem !important;
   color: #000 !important;
   font-weight: 400 !important;
-  line-height: 1.7 !important;
+  line-height: 1.6 !important;
+  max-width: 320px !important;
+  overflow: hidden !important;
+}
+
+.track-body td p {
+  margin: 0 !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 5 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
 }
 
 /* Hide empty table cells in reports, scroll wide tables */
