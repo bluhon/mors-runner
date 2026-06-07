@@ -297,49 +297,86 @@ async function atPost(tableId, fields) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Main report runner
+// Helpers
 // ─────────────────────────────────────────────────────────────────────────────
-async function runMORSReport() {
+function getDateContext() {
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "long", year: "numeric", month: "long", day: "numeric",
     timeZone: "America/Los_Angeles"
   });
-
-  console.log(`[${new Date().toISOString()}] Starting MORS report for ${today}`);
-
-  const now = new Date();
-  const cutoff = new Date(now);
+  const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 45);
   const cutoffStr = cutoff.toLocaleDateString("en-US", {
     year: "numeric", month: "long", day: "numeric", timeZone: "America/Los_Angeles"
   });
+  return { today, cutoffStr };
+}
 
+async function runClaudeSearch(userPrompt) {
   const stream = client.messages.stream({
     model: "claude-sonnet-4-6",
-    max_tokens: 8000,
-    tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 12 }],
+    max_tokens: 5000,
+    tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 6 }],
     system: SYSTEM_PROMPT,
-    messages: [{
-      role: "user",
-      content: `Today is ${today}.
+    messages: [{ role: "user", content: userPrompt }]
+  });
+  const response = await stream.finalMessage();
+  let text = "";
+  for (const block of response.content) {
+    if (block.type === "text") text += block.text;
+  }
+  return text;
+}
 
-Run the full MORS daily intelligence report across all four tracks. Search thoroughly — use multiple targeted searches for each track.
+// ─────────────────────────────────────────────────────────────────────────────
+// Main report runner — two sequential calls to stay within rate limits
+// ─────────────────────────────────────────────────────────────────────────────
+async function runMORSReport() {
+  const { today, cutoffStr } = getDateContext();
+  const reportDate = new Date().toISOString().split("T")[0];
 
-CRITICAL DATE FILTER: Only include RFPs and solicitations issued after ${cutoffStr} (within the last 45 days). If you cannot confirm the issue date, flag it clearly but still include if it appears active.
+  console.log(`[${new Date().toISOString()}] Starting MORS report for ${today} — Call 1: Tracks 1+2`);
+
+  // ── Call 1: Track 1 (RFPs) + Track 2 (Emerging Issues) ───────────────────
+  const text1 = await runClaudeSearch(`Today is ${today}.
+
+Run MORS Tracks 1 and 2 only. Search thoroughly.
+
+CRITICAL DATE FILTER: Only include RFPs issued after ${cutoffStr} (last 45 days).
 
 TRACK 1 INSTRUCTIONS:
-- Search caleprocure.ca.gov first using these queries: "public engagement", "community outreach", "facilitation", "consensus", "strategic plan", "organizational assessment"
+- Search caleprocure.ca.gov using: "public engagement", "community outreach", "facilitation", "consensus", "strategic plan", "organizational assessment"
 - Then search PlanetBids for Bay Area agencies
 - Then search individual agency sites: SFMTA, BART, MTC, ABAG, BCDC, EBMUD, SFPUC, SCVWD, VTA, WETA
-- Then search key county procurement portals: Alameda County, Contra Costa County, Marin County, San Mateo County, Santa Clara County
+- Then search key county procurement portals: Alameda, Contra Costa, Marin, San Mateo, Santa Clara
 - Find at least 5 real, verifiable opportunities
-- For each opportunity, confirm it passes the Public Realm Test and viability criteria
-- Flag any from prior Bluhon clients (ABAG ✅, BCDC ✅, SF Regional Water Board ✅, Cities of Berkeley/Oakland/Palo Alto/San Jose/San Mateo/Redwood City/Livermore/Novato/Half Moon Bay/Danville ✅, Contra Costa County ✅, Alameda County ✅, Marin County ✅, Santa Clara County ✅, Sonoma County ✅)
+- Flag prior Bluhon clients: ABAG ✅, BCDC ✅, SF Regional Water Board ✅, Cities of Berkeley/Oakland/Palo Alto/San Jose/San Mateo/Redwood City/Livermore/Novato/Half Moon Bay/Danville ✅, Contra Costa County ✅, Alameda County ✅, Marin County ✅, Santa Clara County ✅, Sonoma County ✅
 
 TRACK 2 INSTRUCTIONS:
 - Search Bay Area and California news from the past 72 hours
-- Look specifically for: projects entering CEQA, community opposition stories, governance disputes, facility siting conflicts, agricultural/mining controversies
-- Note the specific Bluhon service that would be needed and who to call
+- Look for: projects entering CEQA, community opposition, governance disputes, facility siting conflicts, agricultural/mining controversies
+- Note the specific Bluhon service needed and who to call
+
+OUTPUT FORMAT — use exactly these delimiters:
+
+---TRACK1_START---
+[HTML table]
+---TRACK1_END---
+
+---TRACK2_START---
+[HTML unordered list]
+---TRACK2_END---
+
+---OPPORTUNITIES_JSON_START---
+[JSON array of Track 1 opportunities]
+---OPPORTUNITIES_JSON_END---`);
+
+  console.log(`[${new Date().toISOString()}] Call 1 complete — Call 2: Tracks 3+4`);
+
+  // ── Call 2: Track 3 (Prime Firms) + Track 4 (Competitors) ────────────────
+  const text2 = await runClaudeSearch(`Today is ${today}.
+
+Run MORS Tracks 3 and 4 only.
 
 TRACK 3 INSTRUCTIONS:
 - Search for recent California contract wins and job postings from: AECOM, WSP, HDR, Jacobs, ICF, HNTB, Parsons, Stantec, Arup, Fehr & Peers, Kimley-Horn, GHD, EPS
@@ -347,32 +384,33 @@ TRACK 3 INSTRUCTIONS:
 
 TRACK 4 INSTRUCTIONS:
 - Search for recent activity from direct competitors: MIG, PlaceWorks, Circlepoint, Raimi+Associates, Rincon Consultants, Mintier Harnish, CONCUR
-- Look for their recent wins, new hires, press releases, and any gaps Bluhon could fill`
-    }]
-  });
+- Look for recent wins, new hires, press releases, and gaps Bluhon could fill
 
-  const response = await stream.finalMessage();
+OUTPUT FORMAT — use exactly these delimiters:
 
-  let fullText = "";
-  for (const block of response.content) {
-    if (block.type === "text") fullText += block.text;
-  }
+---TRACK3_START---
+[HTML unordered list]
+---TRACK3_END---
 
-  // Parse all four tracks
-  const track1Match = fullText.match(/---TRACK1_START---([\s\S]*?)---TRACK1_END---/);
-  const track2Match = fullText.match(/---TRACK2_START---([\s\S]*?)---TRACK2_END---/);
-  const track3Match = fullText.match(/---TRACK3_START---([\s\S]*?)---TRACK3_END---/);
-  const track4Match = fullText.match(/---TRACK4_START---([\s\S]*?)---TRACK4_END---/);
-  const oppsMatch   = fullText.match(/---OPPORTUNITIES_JSON_START---([\s\S]*?)---OPPORTUNITIES_JSON_END---/);
+---TRACK4_START---
+[HTML unordered list]
+---TRACK4_END---`);
+
+  console.log(`[${new Date().toISOString()}] Call 2 complete — parsing and saving`);
+
+  // ── Parse ─────────────────────────────────────────────────────────────────
+  const track1Match = text1.match(/---TRACK1_START---([\s\S]*?)---TRACK1_END---/);
+  const track2Match = text1.match(/---TRACK2_START---([\s\S]*?)---TRACK2_END---/);
+  const track3Match = text2.match(/---TRACK3_START---([\s\S]*?)---TRACK3_END---/);
+  const track4Match = text2.match(/---TRACK4_START---([\s\S]*?)---TRACK4_END---/);
+  const oppsMatch   = text1.match(/---OPPORTUNITIES_JSON_START---([\s\S]*?)---OPPORTUNITIES_JSON_END---/);
 
   const track1_html = track1Match ? track1Match[1].trim() : "<p>No Track 1 data.</p>";
   const track2_html = track2Match ? track2Match[1].trim() : "<p>No Track 2 data.</p>";
   const track3_html = track3Match ? track3Match[1].trim() : "<p>No Track 3 data.</p>";
   const track4_html = track4Match ? track4Match[1].trim() : "<p>No Track 4 data.</p>";
 
-  const reportDate = new Date().toISOString().split("T")[0];
-
-  // Save daily report (track4_html stored in notes field or appended)
+  // ── Save report ───────────────────────────────────────────────────────────
   const saved = await atPost(AIRTABLE_REPORTS_TABLE, {
     report_date: reportDate,
     track1_html,
@@ -382,7 +420,7 @@ TRACK 4 INSTRUCTIONS:
   });
   console.log(`[${new Date().toISOString()}] Report saved — ID: ${saved.id}`);
 
-  // Save individual opportunities
+  // ── Save individual opportunities ─────────────────────────────────────────
   if (oppsMatch) {
     let opps = [];
     try {
