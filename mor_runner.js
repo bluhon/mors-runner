@@ -668,6 +668,27 @@ app.get("/config", (req, res) => {
   res.json({ airtable_token: AIRTABLE_TOKEN, base_id: AIRTABLE_BASE_ID });
 });
 
+// File upload — store on Render disk, serve via /files/
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+const uploadDir = './public/files';
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+const storage = multer.diskStorage({
+  destination: uploadDir,
+  filename: (req, file, cb) => {
+    const safe = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+    cb(null, Date.now() + '_' + safe);
+  }
+});
+const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } });
+
+app.post('/upload', upload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file received' });
+  const url = 'https://mors-runner.onrender.com/files/' + req.file.filename;
+  res.json({ url, name: req.file.originalname, size: req.file.size });
+});
+
 app.use(express.static("public"));
 
 app.post("/test-run", async (req, res) => {

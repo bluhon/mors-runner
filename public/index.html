@@ -1140,7 +1140,8 @@ function openCanvas(canvasId) {
   if (!canvas) return;
   const f = canvas.fields;
   const rawTitle = f.canvas_title || 'RFP Canvas';
-  document.getElementById('canvas-page-title').textContent = rawTitle.length > 100 ? rawTitle.slice(0,100) + '…' : rawTitle;
+  const decodedTitle = rawTitle.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&#39;/g,"'").replace(/&quot;/g,'"');
+  document.getElementById('canvas-page-title').textContent = decodedTitle.length > 120 ? decodedTitle.slice(0,120) + '…' : decodedTitle;
   const opp = allOpportunities.find(o => o.fields.title === f.canvas_title);
   const sourceUrl = opp && opp.fields.source_url;
   document.getElementById('canvas-page-subtitle').innerHTML = (f.issuer_agency || '') + (sourceUrl ? ` &nbsp;·&nbsp; <a href="${escHtml(sourceUrl)}" target="_blank" rel="noopener" style="color:#048BC9;font-weight:700"><i class="ti ti-external-link"></i> View RFP</a>` : '');
@@ -1287,7 +1288,7 @@ async function handleFileUpload(fileList) {
     fd.append('file', file);
     try {
       showToast('Uploading ' + file.name + '…', '');
-      const res = await fetch('https://bluhon.com/mors/upload.php', { method: 'POST', body: fd });
+      const res = await fetch('https://mors-runner.onrender.com/upload', { method: 'POST', body: fd });
       const data = await res.json();
       if (data.error) { showToast('Upload error: ' + data.error, 'error'); continue; }
       files.push({ name: data.name, url: data.url, size: data.size, date: new Date().toISOString(), by: currentUser.name });
