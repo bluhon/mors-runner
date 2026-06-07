@@ -7,7 +7,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600;700&family=Roboto+Condensed:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="mors.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -229,20 +228,29 @@ select.form-input option{background:var(--bg2);color:var(--white)}
 .report-nav-btn:hover{color:var(--white)}
 .today-badge{background:rgba(200,241,53,.15);color:var(--lime);font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px;letter-spacing:.06em}
 
-/* ── Bluhon brand typography ── */
-html,body{font-family:'Source Sans 3',system-ui,-apple-system,sans-serif;font-size:16px}
-.main,.page-body,.track-body,.t1-body,.t1-scope,.pipeline-table td,.canvas-section,.field-value,.card-body,.btn,.field-input,.form-input{font-family:'Source Sans 3',system-ui,-apple-system,sans-serif}
-.page-title,.track-header,.canvas-section-title,.modal-title,.sidebar-wordmark,.login-logo,.t1-title,.card-title,.report-date-label{font-family:'Noto Serif KR','Times New Roman',serif}
-.nav-item{font-size:15px;font-weight:400;color:#444;font-family:'Source Sans 3',system-ui,sans-serif}
-.nav-item.active{font-weight:600;color:var(--brand)}
-.sidebar-wordmark{font-size:36px}
-.sidebar-user{font-size:13px;color:#666}
-.sidebar-section{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#999}
-.pipeline-table th,.track-body th,.field-label,.form-label,.t1-agency,.opp-agency{font-family:'Roboto Condensed',Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#777}
-.track-body{font-size:16px;line-height:1.85;color:#333;font-weight:400;font-family:'Source Sans 3',system-ui,sans-serif}
-.track-body strong,.track-body b{font-weight:600;color:#000}
-.track-body li{font-size:15px;line-height:1.8;color:#333;font-weight:400;margin-bottom:10px}
-.track-body p{font-size:15px;color:#555;font-weight:400;line-height:1.75;font-style:normal}
+/* ── Bluhon brand typography — definitive ── */
+html,body{font-family:'Source Sans 3',system-ui,sans-serif!important;font-size:16px!important}
+*{font-family:inherit}
+.page-title,.track-header,.canvas-section-title,.modal-title,.sidebar-wordmark,.login-logo,.t1-title,.card-title,.report-date-label,.empty-state-title{font-family:'Noto Serif KR','Times New Roman',serif!important}
+.nav-item{font-family:'Source Sans 3',system-ui,sans-serif!important;font-size:15px!important;font-weight:400!important}
+.nav-item.active{font-weight:600!important;color:var(--brand)!important}
+.sidebar-wordmark{font-family:'Noto Serif KR',serif!important;font-size:32px!important}
+.sidebar-user{font-family:'Source Sans 3',system-ui,sans-serif!important;font-size:13px!important;color:#666!important}
+.sidebar-section{font-family:'Source Sans 3',system-ui,sans-serif!important;font-size:11px!important;font-weight:700!important;letter-spacing:.1em!important;text-transform:uppercase!important;color:#999!important}
+.page-title{font-size:36px!important;font-weight:700!important;line-height:1.1!important}
+.page-subtitle{font-family:'Source Sans 3',system-ui,sans-serif!important;font-size:15px!important;color:#666!important}
+.pipeline-table th,.track-body th,.field-label,.form-label,.t1-agency,.opp-agency,.login-field label,.form-label{font-family:'Roboto Condensed',Arial,sans-serif!important;font-size:11px!important;font-weight:700!important;letter-spacing:.1em!important;text-transform:uppercase!important;color:#777!important}
+.track-body{font-family:'Source Sans 3',system-ui,sans-serif!important;font-size:16px!important;line-height:1.85!important;color:#333!important;font-weight:400!important}
+.track-body strong,.track-body b{font-weight:700!important;color:#000!important}
+.track-body li{font-family:'Source Sans 3',system-ui,sans-serif!important;font-size:15px!important;line-height:1.8!important;color:#333!important;font-weight:400!important;margin-bottom:10px!important}
+.track-body p{font-family:'Source Sans 3',system-ui,sans-serif!important;font-size:15px!important;color:#555!important;font-weight:400!important;line-height:1.75!important;font-style:normal!important}
+.t1-title{font-family:'Noto Serif KR',serif!important;font-size:18px!important;font-weight:700!important;line-height:1.35!important;color:#111!important}
+.t1-scope{font-family:'Source Sans 3',system-ui,sans-serif!important;font-size:15px!important;font-weight:400!important;line-height:1.7!important;color:#444!important}
+.t1-agency{font-family:'Roboto Condensed',Arial,sans-serif!important;font-size:11px!important;font-weight:700!important;letter-spacing:.1em!important;text-transform:uppercase!important;color:var(--brand)!important}
+.pipeline-table td{font-family:'Source Sans 3',system-ui,sans-serif!important;font-size:15px!important;color:#333!important}
+.field-input,.form-input,.btn{font-family:'Source Sans 3',system-ui,sans-serif!important;font-size:14px!important}
+.card-title{font-family:'Noto Serif KR',serif!important;font-size:18px!important;font-weight:700!important}
+.card-body,.card-meta{font-family:'Source Sans 3',system-ui,sans-serif!important}
 .track-body td{font-size:14px!important;font-weight:400;color:#333;line-height:1.7!important}
 .t1-title{font-size:18px;font-weight:700;line-height:1.35;color:#111}
 .t1-scope{font-size:14px;font-weight:400;line-height:1.7;color:#444;font-family:'Source Sans 3',system-ui,sans-serif}
