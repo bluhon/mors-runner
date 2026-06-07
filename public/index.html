@@ -862,7 +862,7 @@ async function loadProspects() {
       <div class="t1-body">
         <div class="t1-agency">${f.agency || ''}</div>
         <div class="t1-title">${f.title || 'Untitled Opportunity'}</div>
-        ${f.scope ? `<div class="t1-scope">${f.scope.replace(/<\/?(strong|b)>/gi,'')}</div>` : ''}
+        ${f.scope ? `<div class="t1-scope">${f.scope.replace(/<\/?(strong|b)>/gi,'').slice(0,280)}${f.scope.length>280?'…':''}</div>` : ''}
         ${srcLink}
       </div>
       <div class="t1-due">

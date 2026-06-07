@@ -129,6 +129,18 @@ html, body {
   line-height: 1.7 !important;
 }
 
+/* Hide empty table cells in reports, scroll wide tables */
+.track-body table {
+  display: block !important;
+  overflow-x: auto !important;
+  max-width: 100% !important;
+}
+
+.track-body td:empty,
+.track-body th:empty {
+  display: none !important;
+}
+
 /* ── Opportunity cards ── */
 
 .t1-agency,
