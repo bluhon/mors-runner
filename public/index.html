@@ -121,13 +121,15 @@ html,body{height:100%;background:var(--bg);color:#000;font-family:'Source Sans 3
 .track-header.t2{border-color:var(--info)}
 .track-header.t3{border-color:var(--warning)}
 .track-number{color:var(--lime);margin-right:8px}
-.track-body{font-size:1.05rem;color:#000;line-height:1.8;margin-bottom:8px;font-family:'Source Sans 3',Arial,sans-serif;font-weight:400}
-.track-body p,.track-body li{font-family:'Source Sans 3',Arial,sans-serif;font-size:1.05rem;color:#000;line-height:1.8;margin-bottom:0.8em}
+.track-body{font-family:'Source Sans 3',Arial,sans-serif;font-size:1.05rem;color:#000;line-height:1.6;font-weight:400}
+.track-body h3{font-family:'Source Sans 3',Arial,sans-serif;font-size:1.05rem;font-weight:700;color:#000;line-height:1.4;margin:0 0 4px 0;padding:0}
+.track-body p{font-family:'Source Sans 3',Arial,sans-serif;font-size:1.05rem;color:#000;line-height:1.6;margin:0 0 4px 0}
+.track-body p.bluhon-angle{margin-top:6px;display:block}
 .track-body ul,.track-body ol{padding-left:22px;margin-top:4px}
-.track-body li{margin-bottom:8px}
+.track-body li{font-size:1.05rem;line-height:1.6;margin-bottom:8px}
 .track-body a{color:var(--brand);text-decoration:none}
 .track-body a:hover{text-decoration:underline}
-.track-body strong,.track-body b{font-weight:700;color:#111}
+.track-body strong,.track-body b{font-weight:700;color:#000}
 .opp-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px 24px;margin-bottom:10px;transition:border-color .15s}
 .opp-card:hover{border-color:var(--border2)}
 .opp-card.interested{border-left:3px solid var(--lime)}
@@ -1000,10 +1002,15 @@ function formatTrackItems(html) {
       sourceLink = linkMatch[1];
       body = body.replace(linkMatch[0], '').replace(/source\s*:/i, '').trim().replace(/[,.\s]+$/, '');
     }
-    out += `<div style="margin-bottom:32px;${i > 0 ? 'padding-top:28px;border-top:1px solid #e8e8e8;' : ''}">`;
-    if (title) out += `<div style="font-family:'Noto Serif KR','Times New Roman',serif;font-size:1.35rem;font-weight:700;color:#000;line-height:1.3;margin-bottom:10px;">${title}</div>`;
-    if (body) out += `<div style="font-family:'Source Sans 3',Arial,sans-serif;font-size:1.05rem;line-height:1.8;color:#333;margin-bottom:8px;">${body}</div>`;
-    if (sourceLink) out += `<div style="margin-top:8px;font-size:0.95rem;">${sourceLink}</div>`;
+    // Break "Bluhon angle:" onto its own line
+    const bodyParts = body.split(/(?=\bBluhon angle\b)/i);
+    const mainBody = bodyParts[0].trim();
+    const anglePart = bodyParts[1] ? bodyParts[1].trim() : '';
+    out += `<div style="margin-bottom:28px;${i > 0 ? 'padding-top:24px;border-top:1px solid #e8e8e8;' : ''}">`;
+    if (title) out += `<h3>${title}</h3>`;
+    if (mainBody) out += `<p>${mainBody}</p>`;
+    if (anglePart) out += `<p class="bluhon-angle">${anglePart}</p>`;
+    if (sourceLink) out += `<p style="margin-top:6px;">${sourceLink}</p>`;
     out += `</div>`;
   });
   return out;
