@@ -14,7 +14,7 @@
   --bl-color-gray:   #333333;
   --bl-color-accent: #048BC9;
 
-  --bl-font-body:    "Inter", "Source Sans 3", system-ui, sans-serif;
+  --bl-font-body:    "Source Sans 3", Arial, sans-serif;
   --bl-font-heading: "Noto Serif KR", "Times New Roman", serif;
   --bl-font-label:   "Roboto Condensed", Arial, sans-serif;
 
@@ -23,10 +23,10 @@
 }
 
 html, body {
-  font-family: var(--bl-font-body) !important;
+  font-family: "Source Sans 3", Arial, sans-serif !important;
   font-size: 16px !important;
-  line-height: 1.6 !important;
-  color: var(--bl-color-gray) !important;
+  line-height: 1.8 !important;
+  color: #000 !important;
   -webkit-font-smoothing: antialiased;
 }
 
