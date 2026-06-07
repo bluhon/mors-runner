@@ -9,7 +9,11 @@ const AIRTABLE_REPORTS_TABLE  = "tblnaSbxkGaoscwZj";
 const AIRTABLE_OPPS_TABLE     = "tbleIossei7FDqi9H";
 const AIRTABLE_TRACK2_TABLE   = "tbl4f7N5EoaKRwRXK";
 const AIRTABLE_MEMORY_TABLE   = "tblNgcBpooPK9wOkD";  // PROJECT_MEMORY
-const AIRTABLE_SOURCES_TABLE  = "tblsQwva2y8ABugYH"; // SEARCH_SOURCES
+const AIRTABLE_SOURCES_TABLE  = "tblsQwva2y8ABugYH";  // SEARCH_SOURCES
+
+// FindRFP.com credentials — set these as Render env vars
+const FINDRFP_EMAIL    = process.env.FINDRFP_EMAIL    || '';
+const FINDRFP_PASSWORD = process.env.FINDRFP_PASSWORD || '';
 
 const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 const app = express();
@@ -357,6 +361,113 @@ async function fetchSearchSources() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// FindRFP.com authenticated scraper
+// Logs in, searches California RFPs matching Bluhon's keywords, returns opps
+// ─────────────────────────────────────────────────────────────────────────────
+const FINDRFP_KEYWORDS = [
+  'public engagement', 'community outreach', 'facilitation', 'consensus building',
+  'stakeholder engagement', 'public participation', 'environmental planning',
+  'strategic plan', 'organizational assessment', 'mediation'
+];
+
+async function scrapeFindrfp() {
+  if (!FINDRFP_EMAIL || !FINDRFP_PASSWORD) {
+    console.log('[FindRFP] No credentials — skipping');
+    return [];
+  }
+  try {
+    console.log('[FindRFP] Logging in...');
+    // Step 1: GET login page to grab CSRF token
+    const loginPage = await fetch('https://www.findrfp.com/login', {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' }
+    });
+    const loginHtml = await loginPage.text();
+    const cookieHeader = loginPage.headers.get('set-cookie') || '';
+    const cookies = cookieHeader.split(',').map(c => c.split(';')[0].trim()).join('; ');
+    // Extract CSRF token from form
+    const csrfMatch = loginHtml.match(/name="_token"\s+value="([^"]+)"/);
+    const csrf = csrfMatch ? csrfMatch[1] : '';
+
+    // Step 2: POST login
+    const loginRes = await fetch('https://www.findrfp.com/login', {
+      method: 'POST',
+      redirect: 'manual',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Cookie': cookies,
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+        'Referer': 'https://www.findrfp.com/login'
+      },
+      body: new URLSearchParams({ email: FINDRFP_EMAIL, password: FINDRFP_PASSWORD, _token: csrf })
+    });
+    // Capture session cookie from login response
+    const sessionCookie = [cookies, loginRes.headers.get('set-cookie') || '']
+      .join('; ').split(',').map(c => c.split(';')[0].trim()).join('; ');
+
+    if (loginRes.status !== 302 && loginRes.status !== 200) {
+      console.warn(`[FindRFP] Login failed — status ${loginRes.status}`);
+      return [];
+    }
+    console.log('[FindRFP] Logged in — searching...');
+
+    const opps = [];
+    // Step 3: Search each keyword, filter to California
+    for (const keyword of FINDRFP_KEYWORDS.slice(0, 5)) { // limit to 5 to avoid rate limits
+      try {
+        const searchUrl = `https://www.findrfp.com/rfp-search?keyword=${encodeURIComponent(keyword)}&state=CA&status=open`;
+        const searchRes = await fetch(searchUrl, {
+          headers: {
+            'Cookie': sessionCookie,
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+            'Referer': 'https://www.findrfp.com'
+          }
+        });
+        const html = await searchRes.text();
+        // Parse result rows — FindRFP uses table rows with bid details
+        const rowMatches = html.match(/<tr[^>]*class="[^"]*bid[^"]*"[^>]*>([\s\S]*?)<\/tr>/gi) || [];
+        for (const row of rowMatches.slice(0, 8)) {
+          const cells = (row.match(/<td[^>]*>([\s\S]*?)<\/td>/gi) || [])
+            .map(td => td.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
+          const titleMatch = row.match(/href="([^"]*rfp[^"]*)"[^>]*>([^<]+)</i);
+          const title = titleMatch ? titleMatch[2].trim() : cells[1] || '';
+          const agency = cells[0] || '';
+          const dueDateRaw = cells[2] || cells[3] || '';
+          const urlPath = titleMatch ? titleMatch[1] : '';
+          const source_url = urlPath.startsWith('http') ? urlPath : `https://www.findrfp.com${urlPath}`;
+          const dateMatch = dueDateRaw.match(/(\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2})/);
+          let deadline = null;
+          if (dateMatch) {
+            const parsed = new Date(dateMatch[1]);
+            if (!isNaN(parsed) && parsed > new Date()) deadline = parsed.toISOString().split('T')[0];
+          }
+          // Skip if no title or deadline already passed
+          if (!title || (deadline === null && dueDateRaw)) continue;
+          if (!opps.find(o => o.title === title)) {
+            opps.push({ title, agency, deadline, scope: keyword, source_url, via: 'FindRFP' });
+          }
+        }
+        await new Promise(r => setTimeout(r, 800)); // polite delay between searches
+      } catch (e) {
+        console.warn(`[FindRFP] Search for "${keyword}" failed: ${e.message}`);
+      }
+    }
+    // Update last_searched on the SEARCH_SOURCES record
+    try {
+      const formula = encodeURIComponent(`{source_name}="FindRFP"`);
+      const src = await atGet(AIRTABLE_SOURCES_TABLE, `?filterByFormula=${formula}&maxRecords=1`);
+      if (src.records && src.records[0]) {
+        await atPatch(AIRTABLE_SOURCES_TABLE, src.records[0].id, { last_searched: new Date().toISOString().split('T')[0] });
+      }
+    } catch(e) {}
+    console.log(`[FindRFP] Found ${opps.length} opportunities`);
+    return opps;
+  } catch (err) {
+    console.warn(`[FindRFP] Scraper error: ${err.message}`);
+    return [];
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Geographic rotation — cycles through Bay Area zones + Tier 2/3/4 over time
 // ─────────────────────────────────────────────────────────────────────────────
 function getISOWeek(date) {
@@ -515,10 +626,11 @@ async function runMORSReport() {
 
   console.log(`[${new Date().toISOString()}] Starting MORS report for ${today} — ${geo.label}`);
 
-  // ── Fetch memory patterns and search sources ──────────────────────────────
-  const [memoryPatterns, searchSources] = await Promise.all([
+  // ── Fetch memory patterns, search sources, and scrape Tier B portals in parallel
+  const [memoryPatterns, searchSources, findrfpOpps] = await Promise.all([
     fetchProjectMemory(),
-    fetchSearchSources()
+    fetchSearchSources(),
+    scrapeFindrfp()
   ]);
 
   // Build dynamic system prompt additions
@@ -657,7 +769,27 @@ OUTPUT FORMAT — use exactly these delimiters:
       console.warn(`Opp save failed (${opp.title}):`, e.message);
     }
   }
-  console.log(`[${new Date().toISOString()}] Saved ${oppCount} opportunities`);
+  console.log(`[${new Date().toISOString()}] Saved ${oppCount} Claude opportunities`);
+
+  // ── Save FindRFP.com scraped opportunities ────────────────────────────────
+  let findrfpCount = 0;
+  for (const opp of findrfpOpps) {
+    // Skip duplicates already in OPPORTUNITIES (simple title match)
+    try {
+      await atPost(AIRTABLE_OPPS_TABLE, {
+        title:      `${opp.title} [via FindRFP]`,
+        agency:     opp.agency,
+        deadline:   opp.deadline || null,
+        track:      "1 — Active RFP",
+        scope:      opp.scope,
+        source_url: opp.source_url
+      });
+      findrfpCount++;
+    } catch(e) {
+      console.warn(`FindRFP opp save failed (${opp.title}):`, e.message);
+    }
+  }
+  if (findrfpCount > 0) console.log(`[${new Date().toISOString()}] Saved ${findrfpCount} FindRFP opportunities`);
 
   // ── Parse and save Track 2 items individually ─────────────────────────────
   if (track2_html && track2_html !== "<p>No Track 2 data.</p>") {
