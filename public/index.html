@@ -1,0 +1,1391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MORS — Marketing Opportunity Research System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600;700&family=Roboto+Condensed:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="mors.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#ffffff;
+  --bg2:#f4f5f7;
+  --bg3:#eaecf0;
+  --bg4:#dde0e6;
+  --lime:#048BC9;
+  --lime-dim:#0370a0;
+  --white:#333333;
+  --muted:#555555;
+  --border:#e2e4e9;
+  --border2:#cdd0d8;
+  --danger:#cc2222;
+  --warning:#d97706;
+  --success:#2e8f5e;
+  --info:#048BC9;
+  --brand:#048BC9;
+  --font-head:'Noto Serif KR','Times New Roman',serif;
+  --font-body:'Source Sans 3',system-ui,sans-serif;
+  --font-nav:'Roboto Condensed',Arial,sans-serif;
+  --r:6px;
+  --r-lg:10px;
+}
+html,body{height:100%;background:var(--bg);color:var(--white);font-family:var(--font-body);font-size:16px;line-height:1.7;-webkit-font-smoothing:antialiased}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:2px}
+#login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:2rem}
+.login-box{width:100%;max-width:400px}
+.login-logo{font-family:var(--font-head);font-size:52px;font-weight:700;letter-spacing:-.01em;line-height:1;margin-bottom:4px;color:var(--brand)}
+.login-logo span{color:inherit}
+.login-tagline{font-size:12px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:48px}
+.login-field{margin-bottom:16px}
+.login-field label{display:block;font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
+.login-field input{width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);padding:14px 16px;color:var(--white);font-family:var(--font-body);font-size:15px;outline:none;transition:border-color .15s}
+.login-field input:focus{border-color:var(--brand)}
+.login-btn{width:100%;background:var(--brand);color:#ffffff;font-family:var(--font-head);font-size:20px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border:none;border-radius:var(--r);padding:16px;cursor:pointer;margin-top:8px;transition:background .15s,transform .1s}
+.login-btn:hover{background:#3a5a8a}
+.login-btn:active{transform:scale(.99)}
+.login-error{color:var(--danger);font-size:12px;margin-top:10px;min-height:18px}
+.login-register-link{margin-top:20px;font-size:13px;color:var(--muted);text-align:center}
+.login-register-link a{color:var(--lime);cursor:pointer;text-decoration:none}
+#app{display:none;height:100vh;overflow:hidden;flex-direction:row}
+#app.visible{display:flex}
+.sidebar{width:220px;min-width:220px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;height:100vh;overflow-y:auto}
+.sidebar-top{padding:24px 20px 16px}
+.sidebar-wordmark{font-family:var(--font-head);font-size:42px;font-weight:700;letter-spacing:-.01em;line-height:1;color:var(--brand)}
+.sidebar-wordmark span{color:inherit}
+.sidebar-user{font-size:11px;color:var(--muted);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)}
+.sidebar-section{padding:8px 12px 4px;font-size:10px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-top:8px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;transition:background .12s,color .12s;font-size:15px;color:#444;font-weight:400;font-family:var(--font-body);border-left:3px solid transparent;margin:1px 0}
+.nav-item i{font-size:17px}
+.nav-item:hover{background:var(--bg3);color:var(--white)}
+.nav-item.active{background:var(--bg3);color:var(--brand);border-left-color:var(--brand);font-weight:500}
+.sidebar-bottom{padding:16px 20px;border-top:1px solid var(--border);margin-top:16px}
+.logout-btn{display:flex;align-items:center;gap:8px;background:var(--brand);color:#fff;font-size:12px;font-weight:700;cursor:pointer;transition:opacity .12s;padding:8px 12px;border-radius:6px}
+.logout-btn:hover{opacity:.85}
+.main{flex:1;overflow-y:auto;display:flex;flex-direction:column}
+.page{display:none;flex-direction:column;min-height:100%}
+.page.active{display:flex}
+.page-header{padding:40px 48px 28px;border-bottom:1px solid var(--border);flex-shrink:0}
+.page-title{font-family:var(--font-head);font-size:40px;font-weight:700;letter-spacing:-.01em;line-height:1.1;color:var(--brand)}
+.page-title span{color:inherit}
+.page-subtitle{font-size:15px;color:#555;margin-top:8px}
+.page-body{padding:36px 48px;flex:1}
+.report-reading-col{max-width:820px}
+.metric-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:28px}
+.metric{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px}
+.metric-val{font-family:var(--font-head);font-size:40px;font-weight:800;line-height:1;color:var(--lime)}
+.metric-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:4px}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px 24px;margin-bottom:12px;transition:border-color .15s}
+.card:hover{border-color:var(--border2)}
+.card-title{font-family:var(--font-head);font-size:20px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;margin-bottom:4px}
+.card-meta{font-size:12px;color:var(--muted);margin-bottom:10px}
+.card-body{font-size:15px;color:#111;line-height:1.7}
+.badge{display:inline-block;font-size:10px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:4px;margin-right:4px;margin-bottom:4px}
+.badge-lime{background:rgba(200,241,53,.15);color:var(--lime)}
+.badge-blue{background:rgba(91,156,246,.15);color:var(--info)}
+.badge-red{background:rgba(255,77,77,.15);color:var(--danger)}
+.badge-orange{background:rgba(245,166,35,.15);color:var(--warning)}
+.badge-green{background:rgba(76,175,125,.15);color:var(--success)}
+.badge-gray{background:rgba(138,138,133,.12);color:var(--muted)}
+.badge-purple{background:rgba(167,139,250,.15);color:#a78bfa}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:10px 18px;border-radius:var(--r);font-family:var(--font-body);font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .12s;text-decoration:none}
+.btn-primary{background:var(--brand);color:#ffffff}
+.btn-primary:hover{background:#3a5a8a}
+.btn-ghost{background:transparent;color:var(--white);border:1px solid var(--border2)}
+.btn-ghost:hover{background:var(--bg3)}
+.btn-danger{background:transparent;color:var(--danger);border:1px solid rgba(255,77,77,.3)}
+.btn-danger:hover{background:rgba(255,77,77,.1)}
+.btn-sm{padding:7px 12px;font-size:12px}
+.btn-lg{padding:14px 24px;font-family:var(--font-head);font-weight:700;letter-spacing:.05em;text-transform:uppercase;font-size:17px}
+.t2-item-row{display:flex;align-items:flex-start;gap:14px;padding:14px 18px;background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--info);border-radius:var(--r-lg);margin-bottom:8px}
+.t2-item-content{flex:1;min-width:0}
+.prospect-item{display:flex;align-items:flex-start;gap:14px;padding:14px 18px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);margin-bottom:8px;transition:border-color .12s}
+.prospect-item:hover{border-color:var(--border2)}
+.prospect-item.checked{border-left:3px solid var(--brand);background:var(--bg3)}
+.prospect-cb{width:18px;height:18px;min-width:18px;margin-top:2px;accent-color:var(--brand);cursor:pointer}
+.prospect-title{font-weight:600;font-size:16px;color:#111}
+.prospect-meta{font-size:14px;color:#444;margin-top:4px}
+.interest-row{display:flex;align-items:center;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
+.interest-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.interest-toggle{display:flex;gap:6px}
+.int-btn{padding:7px 14px;border-radius:var(--r);font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border2);background:transparent;color:var(--muted);transition:all .12s;font-family:var(--font-body)}
+.int-btn.yes.active{background:rgba(200,241,53,.2);border-color:var(--lime);color:var(--lime)}
+.int-btn.no.active{background:rgba(138,138,133,.15);border-color:var(--muted);color:var(--muted)}
+.int-btn:hover{border-color:var(--border2);color:var(--white)}
+.track-header{font-family:var(--font-head);font-size:28px;font-weight:700;letter-spacing:-.01em;margin:44px 0 20px;padding-bottom:12px;border-bottom:2px solid var(--border)}
+.track-header.t1{border-color:var(--lime)}
+.track-header.t2{border-color:var(--info)}
+.track-header.t3{border-color:var(--warning)}
+.track-number{color:var(--lime);margin-right:8px}
+.track-body{font-size:15px;color:#333;line-height:1.8;margin-bottom:8px;font-family:'Source Sans 3',system-ui,sans-serif;font-weight:400}
+.track-body table{width:100%;border-collapse:collapse;margin-top:8px}
+.track-body th{font-size:11px!important;text-transform:uppercase!important;letter-spacing:.09em!important;color:var(--muted)!important;font-weight:600!important;text-align:left!important;padding:10px 16px!important;border-bottom:1px solid var(--border)!important;background:var(--bg2)!important}
+.track-body td{padding:14px 16px!important;border-bottom:1px solid var(--border)!important;font-size:14px!important;color:#333!important;vertical-align:top!important;line-height:1.7!important;background:#fff!important;font-weight:400!important}
+.track-body tr:last-child td{border-bottom:none!important}
+.track-body ul,.track-body ol{padding-left:20px;margin-top:6px}
+.track-body li{margin-bottom:14px;font-size:14px;color:#333;line-height:1.7;font-weight:400}
+.track-body p{font-size:14px;color:var(--muted);margin-bottom:10px;font-style:italic}
+.track-body a{color:var(--brand);text-decoration:none}
+.track-body a:hover{text-decoration:underline}
+.track-body strong,.track-body b{font-weight:600;color:#111}
+.opp-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px 24px;margin-bottom:10px;transition:border-color .15s}
+.opp-card:hover{border-color:var(--border2)}
+.opp-card.interested{border-left:3px solid var(--lime)}
+.opp-card.not-interested{opacity:.55}
+.opp-agency{font-size:11px;color:var(--brand);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
+.opp-title{font-family:var(--font-head);font-size:22px;font-weight:700;letter-spacing:.02em;margin-bottom:6px;line-height:1.2}
+.opp-meta{font-size:12px;color:var(--muted);margin-bottom:8px}
+.opp-scope{font-size:15px;color:#111;line-height:1.7;margin-bottom:4px}
+.t1-card{display:grid;grid-template-columns:28px 1fr auto;align-items:start;gap:18px;background:#fff;border:1px solid var(--border);border-bottom:none;padding:20px 22px;transition:background .15s}
+.t1-card:first-child{border-radius:var(--r-lg) var(--r-lg) 0 0}
+.t1-card:last-of-type{border-bottom:1px solid var(--border);border-radius:0 0 var(--r-lg) var(--r-lg)}
+.t1-card:only-of-type{border-radius:var(--r-lg);border-bottom:1px solid var(--border)}
+.t1-card:hover{background:#fafbfc}
+.t1-card.t1-interested{background:#f2fbf6;border-left:3px solid var(--success)}
+.t1-card.t1-no-interest{opacity:.45}
+.t1-cb{width:18px;height:18px;cursor:pointer;margin-top:4px;accent-color:var(--brand);flex-shrink:0}
+.t1-body{min-width:0}
+.t1-agency{font-size:11px;color:var(--brand);text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin-bottom:4px}
+.t1-title{font-family:var(--font-head);font-size:18px;font-weight:700;line-height:1.35;margin-bottom:7px;color:#111;letter-spacing:.01em}
+.t1-scope{font-size:14px;color:#444;line-height:1.7;margin-top:4px;font-weight:400;font-family:var(--font-body)}
+.t1-source{font-size:11px;margin-top:8px}
+.t1-source a{color:var(--brand);text-decoration:none;opacity:.8}
+.t1-source a:hover{opacity:1;text-decoration:underline}
+.t1-due{text-align:right;white-space:nowrap;min-width:72px;padding-top:2px}
+.t1-due-label{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:4px}
+.t1-due-date{font-size:15px;font-weight:700;color:#333}
+.t1-due-date.urgent{color:var(--danger)}
+.t1-due-date.warning{color:var(--warning)}
+.t1-submit-row{margin-top:16px;padding:14px 22px;background:var(--bg2);border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r-lg) var(--r-lg);display:flex;align-items:center;gap:14px}
+.t1-no-opps{padding:24px;color:var(--muted);font-size:13px;font-style:italic}
+.pipeline-table{width:100%;border-collapse:collapse}
+.pipeline-table th{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:600;text-align:left;padding:10px 16px;border-bottom:1px solid var(--border);white-space:nowrap;background:var(--bg2)}
+.pipeline-table td{padding:14px 16px;border-bottom:1px solid var(--border);font-size:14px;vertical-align:top;font-weight:400;color:#333;line-height:1.5}
+.pipeline-table tr:hover td{background:var(--bg3)}
+.pipeline-table tr:last-child td{border-bottom:none}
+.status-pill{display:inline-block;font-size:11px;font-weight:500;padding:4px 10px;border-radius:20px;white-space:nowrap}
+.status-2{background:rgba(91,156,246,.15);color:var(--info)}
+.status-3{background:rgba(138,138,133,.15);color:var(--muted)}
+.status-4{background:rgba(200,241,53,.15);color:var(--lime)}
+.canvas-grid{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}
+.canvas-main{display:flex;flex-direction:column;gap:16px}
+.canvas-sidebar-panel{display:flex;flex-direction:column;gap:16px}
+.canvas-section{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px 24px}
+.canvas-section-title{font-family:var(--font-head);font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--brand);margin-bottom:14px}
+.field-group{margin-bottom:14px}
+.field-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px}
+.field-value{font-size:14px;color:var(--white)}
+.field-input{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);padding:10px 12px;color:var(--white);font-family:var(--font-body);font-size:14px;outline:none;transition:border-color .15s}
+.field-input:focus{border-color:var(--brand)}
+textarea.field-input{resize:vertical;min-height:80px}
+.note-entry{border-left:2px solid var(--border2);padding:10px 14px;margin-bottom:10px;background:var(--bg3);border-radius:0 var(--r) var(--r) 0}
+.note-author{font-size:11px;color:var(--brand);font-weight:500;margin-bottom:2px}
+.note-date{font-size:10px;color:var(--muted)}
+.note-text{font-size:13px;color:#ccc;margin-top:4px;line-height:1.5}
+.file-entry{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg3);border-radius:var(--r);margin-bottom:6px;font-size:13px}
+.file-entry i{color:var(--muted);font-size:16px}
+.file-name{flex:1;color:var(--white)}
+.file-date{font-size:11px;color:var(--muted)}
+.upload-zone{border:1.5px dashed var(--border2);border-radius:var(--r);padding:24px;text-align:center;color:var(--muted);font-size:13px;cursor:pointer;transition:border-color .15s,color .15s;margin-top:10px}
+.upload-zone:hover{border-color:var(--lime);color:var(--lime)}
+.form-section{max-width:560px}
+.form-row{margin-bottom:18px}
+.form-label{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+.form-input{width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);padding:12px 14px;color:var(--white);font-family:var(--font-body);font-size:14px;outline:none;transition:border-color .15s}
+.form-input:focus{border-color:var(--lime)}
+select.form-input{cursor:pointer}
+select.form-input option{background:var(--bg2);color:var(--white)}
+.form-actions{display:flex;gap:10px;margin-top:24px}
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted)}
+.empty-state i{font-size:40px;margin-bottom:16px;opacity:.4;display:block}
+.empty-state-title{font-family:var(--font-head);font-size:22px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;color:var(--white);opacity:.5}
+.empty-state p{font-size:13px;max-width:300px;margin:0 auto}
+.date-chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--muted)}
+.date-chip.urgent{color:var(--danger)}
+.date-chip.warning{color:var(--warning)}
+.divider{height:1px;background:var(--border);margin:20px 0}
+#register-screen{display:none;align-items:center;justify-content:center;min-height:100vh;padding:2rem}
+#register-screen.visible{display:flex}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--lime);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#toast{position:fixed;bottom:24px;right:24px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);padding:12px 18px;font-size:13px;color:var(--white);transform:translateY(80px);opacity:0;transition:all .25s;z-index:999;display:flex;align-items:center;gap:10px;max-width:320px}
+#toast.show{transform:translateY(0);opacity:1}
+#toast.success{border-color:var(--success);color:var(--success)}
+#toast.error{border-color:var(--danger);color:var(--danger)}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.visible{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r-lg);padding:28px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto}
+.modal-title{font-family:var(--font-head);font-size:26px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin-bottom:20px}
+.modal-title span{color:var(--lime)}
+.modal-actions{display:flex;gap:10px;margin-top:24px;justify-content:flex-end}
+.report-nav{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+.report-date-label{font-family:var(--font-head);font-size:18px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.report-nav-btn{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);transition:all .12s}
+.report-nav-btn:hover{color:var(--white)}
+.today-badge{background:rgba(200,241,53,.15);color:var(--lime);font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px;letter-spacing:.06em}
+
+/* ── Bluhon brand typography ── */
+html,body{font-family:'Source Sans 3',system-ui,-apple-system,sans-serif;font-size:16px}
+.main,.page-body,.track-body,.t1-body,.t1-scope,.pipeline-table td,.canvas-section,.field-value,.card-body,.btn,.field-input,.form-input{font-family:'Source Sans 3',system-ui,-apple-system,sans-serif}
+.page-title,.track-header,.canvas-section-title,.modal-title,.sidebar-wordmark,.login-logo,.t1-title,.card-title,.report-date-label{font-family:'Noto Serif KR','Times New Roman',serif}
+.nav-item{font-size:15px;font-weight:400;color:#444;font-family:'Source Sans 3',system-ui,sans-serif}
+.nav-item.active{font-weight:600;color:var(--brand)}
+.sidebar-wordmark{font-size:36px}
+.sidebar-user{font-size:13px;color:#666}
+.sidebar-section{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#999}
+.pipeline-table th,.track-body th,.field-label,.form-label,.t1-agency,.opp-agency{font-family:'Roboto Condensed',Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#777}
+.track-body{font-size:16px;line-height:1.85;color:#333;font-weight:400;font-family:'Source Sans 3',system-ui,sans-serif}
+.track-body strong,.track-body b{font-weight:600;color:#000}
+.track-body li{font-size:15px;line-height:1.8;color:#333;font-weight:400;margin-bottom:10px}
+.track-body p{font-size:15px;color:#555;font-weight:400;line-height:1.75;font-style:normal}
+.track-body td{font-size:14px!important;font-weight:400;color:#333;line-height:1.7!important}
+.t1-title{font-size:18px;font-weight:700;line-height:1.35;color:#111}
+.t1-scope{font-size:14px;font-weight:400;line-height:1.7;color:#444;font-family:'Source Sans 3',system-ui,sans-serif}
+.page-title{font-size:36px}
+.page-subtitle{font-size:14px;color:#777;font-family:'Source Sans 3',system-ui,sans-serif}
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">MO<span>RS</span></div>
+    <div class="login-tagline">Marketing Opportunity Research System — Bluhon</div>
+    <div class="login-field">
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="you@bluhon.com" autocomplete="email">
+    </div>
+    <div class="login-field">
+      <label>Password</label>
+      <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="login-btn" onclick="doLogin()">Enter MORS</button>
+    <div class="login-error" id="login-error"></div>
+    <div class="login-register-link">No account? <a onclick="showRegister()">Register here</a></div>
+  </div>
+</div>
+
+<div id="register-screen">
+  <div class="login-box">
+    <div class="login-logo">MO<span>RS</span></div>
+    <div class="login-tagline">Create your account</div>
+    <div class="login-field">
+      <label>Your name</label>
+      <input type="text" id="reg-name" placeholder="e.g. Julie or Julie Smith">
+    </div>
+    <div class="login-field">
+      <label>Email</label>
+      <input type="email" id="reg-email" placeholder="you@bluhon.com">
+    </div>
+    <div class="login-field">
+      <label>Password</label>
+      <input type="password" id="reg-password" placeholder="Choose a password">
+    </div>
+    <button class="login-btn" onclick="doRegister()">Create Account</button>
+    <div class="login-error" id="reg-error"></div>
+    <div class="login-register-link"><a onclick="showLogin()">Back to login</a></div>
+  </div>
+</div>
+
+<div id="app">
+  <nav class="sidebar">
+    <div class="sidebar-top">
+      <div class="sidebar-wordmark">MO<span>RS</span></div>
+      <div class="sidebar-user" id="sidebar-user">Bluhon BD</div>
+    </div>
+    <div class="sidebar-section">Daily</div>
+    <div class="nav-item active" onclick="showPage('report')" id="nav-report">
+      <i class="ti ti-report-analytics"></i> Today's Report
+    </div>
+    <div class="sidebar-section">Pipeline</div>
+    <div class="nav-item" onclick="showPage('pipeline')" id="nav-pipeline">
+      <i class="ti ti-filter"></i> Pipeline
+    </div>
+    <div class="nav-item" onclick="showPage('canvas-list')" id="nav-canvas-list">
+      <i class="ti ti-layout-board"></i> RFP Canvases
+    </div>
+    <div class="sidebar-section">Intelligence</div>
+    <div class="nav-item" onclick="showPage('contacts')" id="nav-contacts">
+      <i class="ti ti-users"></i> Contacts
+    </div>
+    <div class="nav-item" onclick="showPage('primes')" id="nav-primes">
+      <i class="ti ti-building"></i> Prime Firms
+    </div>
+    <div class="nav-item" onclick="showPage('memory')" id="nav-memory">
+      <i class="ti ti-brain"></i> Project Memory
+    </div>
+    <div class="sidebar-bottom">
+      <div class="logout-btn" onclick="doLogout()">
+        <i class="ti ti-logout"></i> Sign out
+      </div>
+    </div>
+  </nav>
+
+  <main class="main">
+
+    <section class="page active" id="page-report">
+      <div class="page-header">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <div>
+            <div class="page-title">Today's <span>Report</span></div>
+            <div class="page-subtitle">Auto-generated Mon–Fri at 9:30am PT · Bluhon MORS</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="triggerManualRun()" id="rerun-btn">
+            <i class="ti ti-refresh"></i> Re-run now
+          </button>
+        </div>
+      </div>
+      <div class="page-body" id="report-body">
+        <div class="report-nav">
+          <div class="report-nav-btn" onclick="navReport(-1)"><i class="ti ti-chevron-left"></i></div>
+          <div class="report-date-label" id="report-date-label">Loading...</div>
+          <div class="report-nav-btn" onclick="navReport(1)"><i class="ti ti-chevron-right"></i></div>
+          <div class="today-badge" id="today-badge" style="display:none">Today</div>
+        </div>
+        <div id="report-content">
+          <div class="empty-state">
+            <i class="ti ti-report-search"></i>
+            <div class="empty-state-title">No report yet</div>
+            <p>Reports arrive automatically at 9:30am on weekdays. You can also trigger a manual run above.</p>
+          </div>
+        </div>
+        <div id="prospects-section" style="display:none;margin-top:32px">
+          <div style="font-family:var(--font-head);font-size:18px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--brand);margin-bottom:6px">New Prospects</div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:16px">Check the opportunities you want to pursue — an RFP Canvas will be created for each. The rest will be logged to Project Memory.</div>
+          <div id="prospects-list"></div>
+          <div style="margin-top:20px">
+            <button class="btn" onclick="submitInterested()" id="submit-interested-btn" style="background:var(--brand);color:#fff;padding:10px 28px;font-size:14px;font-weight:600">
+              <i class="ti ti-check"></i> Submit Interested
+            </button>
+          </div>
+        </div>
+        <div id="track2-interested-section" style="display:none;margin-top:40px">
+          <div style="font-family:var(--font-head);font-size:18px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--info);margin-bottom:6px">Emerging Issues — Mark Interest</div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:16px">Click <strong>Interested</strong> on any issue to create a Potential Project Canvas for it.</div>
+          <div id="track2-items-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="page-pipeline">
+      <div class="page-header">
+        <div class="page-title">Active <span>Pipeline</span></div>
+        <div class="page-subtitle">All opportunities marked Interest = Yes</div>
+      </div>
+      <div class="page-body">
+        <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="filterPipeline('all')">All</button>
+          <button class="btn btn-ghost btn-sm" onclick="filterPipeline('2')">Building Team</button>
+          <button class="btn btn-ghost btn-sm" onclick="filterPipeline('4')">Submitting</button>
+          <button class="btn btn-ghost btn-sm" onclick="filterPipeline('3')">No Go</button>
+        </div>
+        <div id="pipeline-content">
+          <div class="empty-state">
+            <i class="ti ti-filter"></i>
+            <div class="empty-state-title">Pipeline is empty</div>
+            <p>Mark opportunities as Interest = Yes in Today's Report to add them here.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Add RFP Modal -->
+    <div id="add-rfp-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center">
+      <div style="background:#fff;border-radius:var(--r-lg);padding:32px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.18)">
+        <div style="font-family:var(--font-head);font-size:20px;font-weight:700;margin-bottom:20px">Add RFP Manually</div>
+        <div class="field-group"><div class="field-label">Project Title *</div><input class="field-input" id="add-rfp-title" placeholder="e.g. Public Engagement Services"></div>
+        <div class="field-group"><div class="field-label">Agency *</div><input class="field-input" id="add-rfp-agency" placeholder="e.g. City of Oakland"></div>
+        <div class="field-group"><div class="field-label">Source URL</div><input class="field-input" id="add-rfp-url" placeholder="https://..."></div>
+        <div class="field-group"><div class="field-label">Scope (one line)</div><input class="field-input" id="add-rfp-scope" placeholder="Brief description of engagement scope"></div>
+        <div class="field-group"><div class="field-label">Due Date</div><input class="field-input" type="date" id="add-rfp-due"></div>
+        <div class="field-group"><div class="field-label">Est. Value</div><input class="field-input" id="add-rfp-value" placeholder="e.g. $150,000"></div>
+        <div class="field-group"><div class="field-label">Pursuit Type</div>
+          <select class="field-input" id="add-rfp-pursuit">
+            <option value="Prime">Prime</option>
+            <option value="Sub/Team">Sub/Team</option>
+          </select>
+        </div>
+        <div class="field-group"><div class="field-label">Geo Tier</div>
+          <select class="field-input" id="add-rfp-tier">
+            <option value="Tier 1">Tier 1 — Bay Area</option>
+            <option value="Tier 2">Tier 2 — Central/North Coast CA</option>
+            <option value="Tier 3">Tier 3 — Southern California</option>
+            <option value="Tier 4">Tier 4 — Nevada/Oregon</option>
+          </select>
+        </div>
+        <div class="field-group"><div class="field-label">Potential Prime</div><input class="field-input" id="add-rfp-prime" placeholder="Firm name if subbing"></div>
+        <div style="display:flex;gap:10px;margin-top:20px">
+          <button class="btn" style="background:var(--brand);color:#fff;flex:1" onclick="submitAddRFP()"><i class="ti ti-plus"></i> Create Canvas</button>
+          <button class="btn btn-ghost" onclick="closeAddRFP()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <section class="page" id="page-canvas-list">
+      <div class="page-header">
+        <div class="page-title">RFP <span>Canvases</span></div>
+        <div class="page-subtitle">Active and inactive project workspaces</div>
+      </div>
+      <div class="page-body">
+        <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="filterCanvas('active')">Active</button>
+          <button class="btn btn-ghost btn-sm" onclick="filterCanvas('all')">All including closed</button>
+          <button class="btn btn-sm" style="background:var(--brand);color:#fff;margin-left:auto" onclick="openAddRFP()"><i class="ti ti-plus"></i> Add RFP</button>
+        </div>
+        <div id="canvas-list-content">
+          <div class="empty-state">
+            <i class="ti ti-layout-board"></i>
+            <div class="empty-state-title">No canvases yet</div>
+            <p>Canvases are created automatically when you mark a lead as Interest = Yes.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="page-canvas">
+      <div class="page-header">
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="showPage('canvas-list')">
+            <i class="ti ti-arrow-left"></i> All Canvases
+          </button>
+          <div>
+            <div class="page-title" id="canvas-page-title">Canvas</div>
+            <div class="page-subtitle" id="canvas-page-subtitle"></div>
+          </div>
+        </div>
+      </div>
+      <div class="page-body">
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:24px;flex-wrap:wrap">
+          <span class="field-label" style="margin:0">Status:</span>
+          <select class="form-input" style="width:auto;padding:8px 12px" id="canvas-status-select" onchange="updateCanvasStatus(this.value)">
+            <option value="2">2 — Building Team</option>
+            <option value="3">3 — No Go</option>
+            <option value="4">4 — Submitting</option>
+          </select>
+          <span id="canvas-inactive-badge" style="display:none" class="badge badge-gray">Inactive</span>
+        </div>
+        <div class="canvas-grid" id="canvas-grid"></div>
+      </div>
+    </section>
+
+    <section class="page" id="page-contacts">
+      <div class="page-header">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <div>
+            <div class="page-title"><span>Contacts</span> & Relationships</div>
+            <div class="page-subtitle">Clients, agencies, primes, partners</div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="showAddContact()">
+            <i class="ti ti-plus"></i> Add Contact
+          </button>
+        </div>
+      </div>
+      <div class="page-body">
+        <div style="margin-bottom:16px">
+          <input class="form-input" style="max-width:340px" placeholder="Search contacts..." oninput="searchContacts(this.value)">
+        </div>
+        <div id="contacts-content">
+          <div class="empty-state">
+            <i class="ti ti-users"></i>
+            <div class="empty-state-title">No contacts yet</div>
+            <p>Add contacts manually or link them from RFP Canvases.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="page-primes">
+      <div class="page-header">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <div>
+            <div class="page-title"><span>Prime</span> Firms</div>
+            <div class="page-subtitle">Teaming intelligence — who's winning what</div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="showAddPrime()">
+            <i class="ti ti-plus"></i> Add Firm
+          </button>
+        </div>
+      </div>
+      <div class="page-body">
+        <div id="primes-content">
+          <div class="empty-state">
+            <i class="ti ti-building"></i>
+            <div class="empty-state-title">No prime firms yet</div>
+            <p>Add firms as you encounter them in reports. Paste from procurement pages.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="page-memory">
+      <div class="page-header">
+        <div class="page-title">Project <span>Memory</span></div>
+        <div class="page-subtitle">AI learning engine — what Bluhon has recognized as relevant</div>
+      </div>
+      <div class="page-body">
+        <div class="card" style="border-color:rgba(200,241,53,.25);margin-bottom:24px">
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <i class="ti ti-brain" style="color:var(--lime);font-size:22px;flex-shrink:0;margin-top:2px"></i>
+            <div>
+              <div style="font-size:13px;font-weight:500;color:var(--lime);margin-bottom:4px">How Claude learns from MORS</div>
+              <div style="font-size:13px;color:#bbb;line-height:1.6">Every time you mark Interest = Yes on a lead, the project type, sector, keywords, and agency type are logged here. The daily runner reads the last 30 entries and feeds them back to Claude as calibration context — so the search gets smarter about what Bluhon recognizes as relevant over time.</div>
+            </div>
+          </div>
+        </div>
+        <div class="metric-row" style="margin-bottom:24px">
+          <div class="metric"><div class="metric-val" id="mem-total">—</div><div class="metric-lbl">Total signals</div></div>
+          <div class="metric"><div class="metric-val" id="mem-interest">—</div><div class="metric-lbl">Interest yes</div></div>
+          <div class="metric"><div class="metric-val" id="mem-noint">—</div><div class="metric-lbl">No interest</div></div>
+          <div class="metric"><div class="metric-val" id="mem-sectors">—</div><div class="metric-lbl">Sectors tracked</div></div>
+        </div>
+        <div id="memory-content">
+          <div class="empty-state">
+            <i class="ti ti-brain"></i>
+            <div class="empty-state-title">Memory is empty</div>
+            <p>Start marking leads as Interest = Yes and the learning engine will build up here.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div class="modal-overlay" id="modal-contact">
+  <div class="modal">
+    <div class="modal-title">Add <span>Contact</span></div>
+    <div class="form-row"><label class="form-label">Name</label><input class="form-input" id="c-name" placeholder="Full name"></div>
+    <div class="form-row"><label class="form-label">Title / Role</label><input class="form-input" id="c-title" placeholder="e.g. Planning Director"></div>
+    <div class="form-row"><label class="form-label">Organization</label><input class="form-input" id="c-org" placeholder="Agency or firm name"></div>
+    <div class="form-row"><label class="form-label">Email</label><input class="form-input" type="email" id="c-email"></div>
+    <div class="form-row"><label class="form-label">Phone</label><input class="form-input" id="c-phone"></div>
+    <div class="form-row">
+      <label class="form-label">Relationship type</label>
+      <select class="form-input" id="c-type">
+        <option value="Client — direct">Client — direct</option>
+        <option value="Client — sub">Client — sub</option>
+        <option value="Prior client">Prior client</option>
+        <option value="Agency contact">Agency contact</option>
+        <option value="Prime firm">Prime firm</option>
+        <option value="Sub / partner">Sub / partner</option>
+      </select>
+    </div>
+    <div class="form-row"><label class="form-label">Notes</label><textarea class="form-input" id="c-notes" rows="3"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-contact')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveContact()"><i class="ti ti-check"></i> Save Contact</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-prime">
+  <div class="modal">
+    <div class="modal-title">Add Prime <span>Firm</span></div>
+    <div class="form-row"><label class="form-label">Firm name</label><input class="form-input" id="p-name" placeholder="e.g. AECOM, MIG, PlaceWorks"></div>
+    <div class="form-row"><label class="form-label">Sector focus</label><input class="form-input" id="p-sector" placeholder="e.g. planning, water, transportation"></div>
+    <div class="form-row"><label class="form-label">Geographic presence</label><input class="form-input" id="p-geo" placeholder="e.g. Bay Area, SoCal, statewide"></div>
+    <div class="form-row"><label class="form-label">Recent wins (paste from procurement pages)</label><textarea class="form-input" id="p-wins" rows="4" placeholder="Project name, agency, contract value if known..."></textarea></div>
+    <div class="form-row">
+      <label class="form-label">Teaming status</label>
+      <select class="form-input" id="p-status">
+        <option value="Watch">Watch</option>
+        <option value="Active target">Active target</option>
+        <option value="Teamed">Teamed</option>
+      </select>
+    </div>
+    <div class="form-row"><label class="form-label">Teaming notes</label><textarea class="form-input" id="p-notes" rows="3"></textarea></div>
+    <div class="form-row"><label class="form-label">Key contact name</label><input class="form-input" id="p-contact-name"></div>
+    <div class="form-row"><label class="form-label">Key contact email</label><input class="form-input" type="email" id="p-contact-email"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-prime')">Cancel</button>
+      <button class="btn btn-primary" onclick="savePrime()"><i class="ti ti-check"></i> Save Firm</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const CONFIG = {
+  AIRTABLE_TOKEN: '',
+  BASE_ID: '',
+  TABLES: {
+    DAILY_REPORTS:  'tblnaSbxkGaoscwZj',
+    OPPORTUNITIES:  'tbleIossei7FDqi9H',
+    RFP_CANVAS:     'tblLxvmDGcti1fJAV',
+    CONTACTS:       'tblLzyl3eZh45LgxL',
+    PRIME_FIRMS:    'tbl9MicFOSIYkKLGs',
+    PROJECT_MEMORY: 'tblNgcBpooPK9wOkD',
+    USERS:          'tblVZEf4vqSEZiVCc',
+    TRACK2_ITEMS:   'tbl4f7N5EoaKRwRXK'
+  }
+};
+
+let currentUser = null;
+let currentReportIndex = 0;
+let allReports = [];
+let allOpportunities = [];
+let allCanvases = [];
+let allContacts = [];
+let allPrimes = [];
+let allMemory = [];
+let currentCanvasId = null;
+
+async function atFetch(tableId, params = '') {
+  const url = `https://api.airtable.com/v0/${CONFIG.BASE_ID}/${tableId}${params}`;
+  const res = await fetch(url, { headers: { 'Authorization': `Bearer ${CONFIG.AIRTABLE_TOKEN}` } });
+  return res.json();
+}
+async function atCreate(tableId, fields) {
+  const res = await fetch(`https://api.airtable.com/v0/${CONFIG.BASE_ID}/${tableId}`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${CONFIG.AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields })
+  });
+  return res.json();
+}
+async function atUpdate(tableId, recordId, fields) {
+  const res = await fetch(`https://api.airtable.com/v0/${CONFIG.BASE_ID}/${tableId}/${recordId}`, {
+    method: 'PATCH',
+    headers: { 'Authorization': `Bearer ${CONFIG.AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields })
+  });
+  return res.json();
+}
+
+function showRegister() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('register-screen').classList.add('visible');
+}
+function showLogin() {
+  document.getElementById('register-screen').classList.remove('visible');
+  document.getElementById('login-screen').style.display = 'flex';
+}
+async function doRegister() {
+  const name = document.getElementById('reg-name').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const password = document.getElementById('reg-password').value;
+  const err = document.getElementById('reg-error');
+  if (!name || !email || !password) { err.textContent = 'All fields required.'; return; }
+  if (password.length < 6) { err.textContent = 'Password must be at least 6 characters.'; return; }
+  err.textContent = 'Creating account...';
+  try {
+    const hash = await hashPassword(password);
+    const existing = await atFetch(CONFIG.TABLES.USERS, `?filterByFormula=${encodeURIComponent(`{email}="${email}"`)}`);
+    if (existing.error) { err.textContent = 'Airtable error: ' + existing.error.message; return; }
+    if (existing.records && existing.records.length > 0) { err.textContent = 'Account already exists.'; return; }
+    const rec = await atCreate(CONFIG.TABLES.USERS, { name, email, password_hash: hash, created_at: new Date().toISOString(), last_login: new Date().toISOString() });
+    if (rec.error) { err.textContent = 'Airtable error: ' + rec.error.message; return; }
+    if (rec.id) { currentUser = { id: rec.id, name, email }; localStorage.setItem('mors_user', JSON.stringify(currentUser)); launchApp(); }
+    else { err.textContent = 'Registration failed. Try again.'; }
+  } catch(e) { err.textContent = 'Error: ' + e.message; }
+}
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const err = document.getElementById('login-error');
+  err.textContent = 'Signing in...';
+  const hash = await hashPassword(password);
+  const res = await atFetch(CONFIG.TABLES.USERS, `?filterByFormula=${encodeURIComponent(`{email}="${email}"`)}`);
+  if (!res.records || res.records.length === 0) { err.textContent = 'No account found.'; return; }
+  const user = res.records[0];
+  if (user.fields.password_hash !== hash) { err.textContent = 'Incorrect password.'; return; }
+  currentUser = { id: user.id, name: user.fields.name, email };
+  localStorage.setItem('mors_user', JSON.stringify(currentUser));
+  await atUpdate(CONFIG.TABLES.USERS, user.id, { last_login: new Date().toISOString() });
+  launchApp();
+}
+function doLogout() {
+  localStorage.removeItem('mors_user');
+  currentUser = null;
+  document.getElementById('app').classList.remove('visible');
+  document.getElementById('login-screen').style.display = 'flex';
+}
+async function hashPassword(password) {
+  // pure-JS SHA-256 — works over HTTP (crypto.subtle requires HTTPS)
+  function sha256(ascii) {
+    function rr(v,a){return(v>>>a)|(v<<(32-a));}
+    const P=Math.pow,M=Math.pow(2,32);
+    let result='',words=[],H=[],K=[],comp={};
+    for(let c=2,n=0;n<64;c++){
+      if(!comp[c]){
+        for(let i=0;i<313;i+=c)comp[i]=1;
+        H[n]=(P(c,.5)*M)|0;
+        K[n++]=(P(c,1/3)*M)|0;
+      }
+    }
+    ascii+='\x80';
+    while(ascii.length%64!==56)ascii+='\x00';
+    const bitLen=((ascii.length-1)*8);
+    for(let i=0;i<ascii.length;i++)words[i>>2]|=ascii.charCodeAt(i)<<((3-i%4)*8);
+    words.push(0, bitLen);
+    for(let j=0;j<words.length;){
+      const W=words.slice(j,j+=16),old=H.slice();
+      for(let i=0;i<64;i++){
+        if(i>=16){
+          const w15=W[i-15],w2=W[i-2];
+          W[i]=((W[i-16]+(rr(w15,7)^rr(w15,18)^(w15>>>3))+W[i-7]+(rr(w2,17)^rr(w2,19)^(w2>>>10)))|0);
+        }
+        const e=H[4];
+        const t1=(H[7]+(rr(e,6)^rr(e,11)^rr(e,25))+((e&H[5])^(~e&H[6]))+K[i]+W[i])|0;
+        const a=H[0];
+        const t2=((rr(a,2)^rr(a,13)^rr(a,22))+((a&H[1])^(a&H[2])^(H[1]&H[2])))|0;
+        H=[((t1+t2)|0),a,H[1],H[2],(H[3]+t1)|0,H[4],H[5],H[6]];
+      }
+      H=H.map((v,i)=>(v+old[i])|0);
+    }
+    for(let i=0;i<8;i++)for(let j=3;j>=0;j--)result+=((H[i]>>(j*8))&255).toString(16).padStart(2,'0');
+    return result;
+  }
+  return sha256(password);
+}
+function launchApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('register-screen').classList.remove('visible');
+  document.getElementById('app').classList.add('visible');
+  document.getElementById('sidebar-user').textContent = currentUser.name;
+  loadReport();
+}
+
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  const navEl = document.getElementById('nav-' + id);
+  if (navEl) navEl.classList.add('active');
+  if (id === 'pipeline') loadPipeline();
+  if (id === 'canvas-list') loadCanvasList();
+  if (id === 'contacts') loadContacts();
+  if (id === 'primes') loadPrimes();
+  if (id === 'memory') loadMemory();
+}
+
+async function loadReport() {
+  const res = await atFetch(CONFIG.TABLES.DAILY_REPORTS, '?sort[0][field]=report_date&sort[0][direction]=desc&maxRecords=30');
+  allReports = (res.records || []).sort((a, b) => {
+    const da = a.fields.run_timestamp || a.id;
+    const db = b.fields.run_timestamp || b.id;
+    return db > da ? 1 : -1;
+  });
+  currentReportIndex = 0;
+  renderReport();
+  await loadProspects();
+  await loadTrack2Items();
+}
+
+let allTrack2Items = [];
+async function loadTrack2Items() {
+  const today = new Date().toISOString().split('T')[0];
+  const res = await atFetch(CONFIG.TABLES.TRACK2_ITEMS, `?filterByFormula=${encodeURIComponent(`AND({interested}=FALSE(), {report_date}="${today}")`)}&sort[0][field]=headline&sort[0][direction]=asc&maxRecords=50`);
+  allTrack2Items = (res.records || []);
+  renderTrack2Interested();
+}
+
+function renderTrack2Interested() {
+  const section = document.getElementById('track2-interested-section');
+  if (!section) return;
+  if (allTrack2Items.length === 0) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  let html = '';
+  for (const item of allTrack2Items) {
+    const f = item.fields;
+    html += `<div class="t2-item-row" id="t2item-${item.id}">
+      <div class="t2-item-content">
+        <div style="font-weight:600;font-size:14px;margin-bottom:4px">${escHtml(f.headline||'')}</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:4px">${escHtml(f.summary||'')}</div>
+        ${f.bluhon_angle ? `<div style="font-size:12px;color:var(--brand)"><em>Bluhon angle:</em> ${escHtml(f.bluhon_angle)}</div>` : ''}
+        ${f.source_url ? `<div style="margin-top:4px"><a href="${escHtml(f.source_url)}" target="_blank" style="font-size:12px;color:var(--muted)">Source <i class="ti ti-external-link"></i></a></div>` : ''}
+      </div>
+      <button class="btn" style="background:var(--brand);color:#fff;white-space:nowrap;flex-shrink:0" onclick="markTrack2Interested('${item.id}')">
+        <i class="ti ti-star"></i> Interested
+      </button>
+    </div>`;
+  }
+  document.getElementById('track2-items-list').innerHTML = html;
+}
+
+async function markTrack2Interested(itemId) {
+  const btn = document.querySelector(`#t2item-${itemId} button`);
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>'; }
+  try {
+    await atUpdate(CONFIG.TABLES.TRACK2_ITEMS, itemId, { interested: true });
+    const item = allTrack2Items.find(i => i.id === itemId);
+    if (item) await createTrack2Canvas(item);
+    document.getElementById(`t2item-${itemId}`).remove();
+    allTrack2Items = allTrack2Items.filter(i => i.id !== itemId);
+    if (allTrack2Items.length === 0) document.getElementById('track2-interested-section').style.display = 'none';
+    showToast('Potential Project Canvas created', 'success');
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-star"></i> Interested'; }
+  }
+}
+
+async function createTrack2Canvas(item) {
+  const f = item.fields;
+  await atCreate(CONFIG.TABLES.RFP_CANVAS, {
+    canvas_title: f.headline || 'Untitled Issue',
+    canvas_type: 'Potential Project',
+    opportunity_id: '',
+    pursuit_status: '1 — Monitoring',
+    active: true,
+    created_by: currentUser.name,
+    created_at: new Date().toISOString(),
+    notes_log: JSON.stringify([{ author: currentUser.name, date: new Date().toISOString(), text: f.bluhon_angle || '' }]),
+    files_list: JSON.stringify([]),
+    canvas_json: JSON.stringify({
+      summary: f.summary || '',
+      bluhon_angle: f.bluhon_angle || '',
+      source_url: f.source_url || '',
+      geo_focus: f.geo_focus || '',
+      canvas_type: 'Potential Project',
+      contacts: []
+    })
+  });
+}
+
+async function loadProspects() {
+  if (currentReportIndex !== 0) return;
+  const container = document.getElementById('track1-opps-container');
+  if (!container) return;
+  const res = await atFetch(CONFIG.TABLES.OPPORTUNITIES, `?sort[0][field]=deadline&sort[0][direction]=asc&maxRecords=50`);
+  const prospects = res.records || [];
+  if (prospects.length === 0) {
+    container.innerHTML = '';
+    document.getElementById('prospects-section').style.display = 'none';
+    return;
+  }
+  const today = new Date(); today.setHours(0,0,0,0);
+  const cardsHtml = prospects.map(p => {
+    const f = p.fields;
+    let dl = f.deadline ? new Date(f.deadline) : null;
+    let dlStr = '—'; let urgentClass = '';
+    if (dl) {
+      const diff = (dl - today) / 86400000;
+      dlStr = dl.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+      if (diff <= 7) urgentClass = 'urgent';
+      else if (diff <= 21) urgentClass = 'warning';
+    }
+    const srcLink = f.source_url ? `<div class="t1-source"><a href="${f.source_url}" target="_blank"><i class="ti ti-external-link"></i> Source</a></div>` : '';
+    const alreadyYes = f.interest === 'Yes';
+    const alreadyNo  = f.interest === 'No';
+    return `<div class="t1-card ${alreadyYes?'t1-interested':alreadyNo?'t1-no-interest':''}" id="t1c-${p.id}">
+      <input type="checkbox" class="t1-cb" id="cb-${p.id}" ${alreadyYes?'checked':''} ${alreadyNo?'disabled':''} onchange="toggleT1Card('${p.id}', this.checked)" title="Mark interested">
+      <div class="t1-body">
+        <div class="t1-agency">${f.agency || ''}</div>
+        <div class="t1-title">${f.title || 'Untitled Opportunity'}</div>
+        ${f.scope ? `<div class="t1-scope">${f.scope.replace(/<\/?(strong|b)>/gi,'')}</div>` : ''}
+        ${srcLink}
+      </div>
+      <div class="t1-due">
+        <div class="t1-due-label">Due</div>
+        <div class="t1-due-date ${urgentClass}">${dlStr}</div>
+      </div>
+    </div>`;
+  }).join('');
+  container.innerHTML = `<div style="margin-top:24px"><div class="track-header t1" style="margin-bottom:12px"><span class="track-number">✓</span> Mark Your Interest</div><div style="font-size:13px;color:var(--muted);margin-bottom:14px">Check the RFPs you want to pursue, then click Submit to create RFP Canvases.</div><div style="padding:0">
+    ${cardsHtml}
+    <div class="t1-submit-row">
+      <button class="btn" onclick="submitT1Interested()" id="submit-interested-btn" style="background:var(--brand);color:#fff;padding:10px 28px;font-size:14px;font-weight:600">
+        <i class="ti ti-check"></i> Submit Interested
+      </button>
+      <span style="font-size:12px;color:var(--muted)">Check boxes above, then submit to create RFP Canvases</span>
+    </div>
+  </div></div>`;
+  container._prospects = prospects;
+  document.getElementById('prospects-section').style.display = 'none';
+}
+
+function toggleT1Card(id, checked) {
+  const card = document.getElementById('t1c-' + id);
+  if (card) card.classList.toggle('t1-interested', checked);
+}
+
+function toggleProspect(id, checked) {
+  toggleT1Card(id, checked);
+}
+
+async function submitT1Interested() {
+  const container = document.getElementById('track1-opps-container');
+  const prospects = container._prospects || [];
+  if (prospects.length === 0) return;
+  const btn = document.getElementById('submit-interested-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Saving…';
+  let canvasCount = 0;
+  for (const p of prospects) {
+    const cb = document.getElementById('cb-' + p.id);
+    if (cb && cb.checked) {
+      await atUpdate(CONFIG.TABLES.OPPORTUNITIES, p.id, { interest: 'Yes' });
+      await createCanvas(p.id, p.fields.title);
+      await logToMemory(p.id, 'interest-yes');
+      canvasCount++;
+    } else {
+      await atUpdate(CONFIG.TABLES.OPPORTUNITIES, p.id, { interest: 'No' });
+      await logToMemory(p.id, 'no-interest');
+    }
+  }
+  btn.innerHTML = '<i class="ti ti-check"></i> Submit Interested';
+  btn.disabled = false;
+  showToast(`Done — ${canvasCount} canvas${canvasCount !== 1 ? 'es' : ''} created, rest logged to memory`, 'success');
+  await loadProspects();
+}
+
+async function submitInterested() {
+  await submitT1Interested();
+}
+function renderReport() {
+  const label = document.getElementById('report-date-label');
+  const todayBadge = document.getElementById('today-badge');
+  const content = document.getElementById('report-content');
+  if (allReports.length === 0) { label.textContent = 'No reports yet'; todayBadge.style.display = 'none'; return; }
+  const report = allReports[currentReportIndex];
+  const [yr, mo, dy] = report.fields.report_date.split('-').map(Number);
+  const d = new Date(yr, mo - 1, dy);
+  label.textContent = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  todayBadge.style.display = currentReportIndex === 0 ? 'inline-block' : 'none';
+  let html = '';
+  const clean = s => s.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{1F300}-\u{1F9FF}⚠️🚨🏘️🚗🏗️🌿🗓️📋🔗]/gu, '').replace(/\s{2,}/g,' ');
+  if (report.fields.track1_html) { html += `<div class="track-header t1"><span class="track-number">01</span> Active RFPs</div><div class="track-body">${clean(report.fields.track1_html)}</div>`; }
+  if (currentReportIndex === 0) { html += `<div id="track1-opps-container"></div>`; }
+  if (report.fields.track2_html) { html += `<div class="track-header t2"><span class="track-number" style="color:var(--info)">02</span> Emerging Issues</div><div class="track-body">${clean(report.fields.track2_html)}</div>`; }
+  if (report.fields.track3_html) { html += `<div class="track-header t3"><span class="track-number" style="color:var(--warning)">03</span> Prime Firm Activity</div><div class="track-body">${clean(report.fields.track3_html)}</div>`; }
+  content.innerHTML = `<div class="report-reading-col">${html || '<div class="empty-state"><i class="ti ti-report-search"></i><div class="empty-state-title">No content</div></div>'}</div>`;
+}
+async function navReport(dir) {
+  const newIdx = currentReportIndex + dir;
+  if (newIdx < 0 || newIdx >= allReports.length) return;
+  currentReportIndex = newIdx;
+  renderReport();
+  if (currentReportIndex === 0) {
+    await loadProspects();
+    await loadTrack2Items();
+  } else {
+    document.getElementById('track2-interested-section').style.display = 'none';
+  }
+}
+async function triggerManualRun() {
+  const btn = document.getElementById('rerun-btn');
+  btn.innerHTML = '<span class="spinner"></span> Waking up runner…';
+  btn.disabled = true;
+  showToast('Waking up runner — may take 60–90 seconds on first call…', 'success');
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 180000); // 3 min timeout
+    const res = await fetch('https://mors-runner.onrender.com/run', {
+      method: 'POST',
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+    btn.innerHTML = '<span class="spinner"></span> Saving report…';
+    const data = await res.json();
+    if (data.success) {
+      showToast('Report complete! Loading…', 'success');
+      await loadReport();
+    } else {
+      showToast('Runner error: ' + (data.error || 'unknown'), 'error');
+    }
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      showToast('Runner timed out — check back in a minute and refresh', 'error');
+    } else {
+      showToast('Could not reach runner: ' + err.message, 'error');
+    }
+  }
+  btn.innerHTML = '<i class="ti ti-refresh"></i> Re-run now';
+  btn.disabled = false;
+}
+
+async function setInterest(oppId, val) {
+  await atUpdate(CONFIG.TABLES.OPPORTUNITIES, oppId, { interest: val });
+  if (val === 'Yes') { await createCanvas(oppId); await logToMemory(oppId, 'interest-yes'); showToast('Interest marked — RFP Canvas created', 'success'); }
+  else { await logToMemory(oppId, 'no-interest'); showToast('Logged as no interest', ''); }
+  const opp = allOpportunities.find(o => o.id === oppId);
+  if (opp) opp.fields.interest = val;
+  const card = document.getElementById('opp-' + oppId);
+  if (card) {
+    card.classList.toggle('interested', val === 'Yes');
+    card.classList.toggle('not-interested', val === 'No');
+    card.querySelectorAll('.int-btn').forEach(b => b.classList.remove('active'));
+    const activeBtn = card.querySelector(`.int-btn.${val.toLowerCase()}`);
+    if (activeBtn) activeBtn.classList.add('active');
+  }
+}
+async function createCanvas(oppId, oppTitle) {
+  const opp = allOpportunities.find(o => o.id === oppId);
+  const title = oppTitle || (opp && opp.fields.title) || 'Untitled Opportunity';
+  const existing = allCanvases.find(c => c.fields.canvas_title === title);
+  if (existing) return;
+  const canvas = await atCreate(CONFIG.TABLES.RFP_CANVAS, {
+    canvas_title: title,
+    canvas_type: 'RFP',
+    pursuit_status: '2 — Building team',
+    active: true,
+    created_by: currentUser ? currentUser.name : 'MORS',
+    created_at: new Date().toISOString(),
+    notes_log: JSON.stringify([]),
+    files_list: JSON.stringify([])
+  });
+  if (canvas && canvas.id) allCanvases.push(canvas);
+}
+
+async function loadPipeline() {
+  const [oppsRes, canvasRes] = await Promise.all([
+    atFetch(CONFIG.TABLES.OPPORTUNITIES, `?filterByFormula={interest}="Yes"&sort[0][field]=deadline&sort[0][direction]=asc`),
+    atFetch(CONFIG.TABLES.RFP_CANVAS, '')
+  ]);
+  allOpportunities = oppsRes.records || [];
+  allCanvases = canvasRes.records || [];
+  renderPipeline(allOpportunities);
+}
+function renderPipeline(opps) {
+  const el = document.getElementById('pipeline-content');
+  if (opps.length === 0) { el.innerHTML = '<div class="empty-state"><i class="ti ti-filter"></i><div class="empty-state-title">Nothing here yet</div><p>Mark opportunities as Interest = Yes in Today\'s Report.</p></div>'; return; }
+  const canvasMap = {};
+  allCanvases.forEach(c => { canvasMap[c.fields.canvas_title] = c; });
+  let html = '<table class="pipeline-table"><thead><tr><th>Opportunity</th><th>Agency</th><th>Track</th><th>Deadline</th><th>Status</th><th></th></tr></thead><tbody>';
+  opps.forEach(o => {
+    const f = o.fields;
+    const canvas = canvasMap[f.title];
+    const status = canvas ? canvas.fields.pursuit_status : '—';
+    const statusNum = status ? status.charAt(0) : '';
+    const dl = f.deadline ? new Date(f.deadline) : null;
+    const dlStr = dl ? dl.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
+    const isUrgent = dl && (dl - new Date()) < 10 * 86400000;
+    const shortTitle = (f.title||'—').length > 80 ? (f.title||'—').slice(0,80)+'…' : (f.title||'—');
+    const safeTitle = (f.title||'Untitled').replace(/\\/g,'').replace(/'/g,'’').slice(0,60);
+    const canvasBtn = canvas
+      ? `<button class="btn btn-ghost btn-sm" onclick="openCanvas('${canvas.id}')"><i class="ti ti-layout-board"></i> Canvas</button>`
+      : `<button class="btn btn-ghost btn-sm" onclick="makePipelineCanvas('${o.id}','${safeTitle}')"><i class="ti ti-plus"></i> Create Canvas</button>`;
+    const rowClick = canvas ? 'openCanvas(\'' + canvas.id + '\')' : '';
+    const trackPill = f.track ? '<span style="font-size:11px;background:var(--bg3);padding:3px 8px;border-radius:4px;color:var(--muted)">' + f.track + '</span>' : '—';
+    const statusPill = statusNum ? '<span class="status-pill status-' + statusNum + '">' + status + '</span>' : '—';
+    html += '<tr style="cursor:' + (canvas ? 'pointer' : 'default') + '" onclick="' + rowClick + '">'
+      + '<td><div style="font-weight:600;color:#111">' + shortTitle + '</div><div style="font-size:11px;color:var(--muted);margin-top:2px">' + (f.agency||'') + '</div></td>'
+      + '<td style="color:var(--muted);font-size:12px">' + (f.geo_tier||'—') + '</td>'
+      + '<td>' + trackPill + '</td>'
+      + '<td><span class="' + (isUrgent ? 'date-chip urgent' : 'date-chip') + '"><i class="ti ti-calendar" style="font-size:12px"></i>' + dlStr + '</span></td>'
+      + '<td>' + statusPill + '</td>'
+      + '<td onclick="event.stopPropagation()">' + canvasBtn + '</td></tr>';
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+function filterPipeline(status) {
+  if (status === 'all') { renderPipeline(allOpportunities); return; }
+  const canvasMap = {};
+  allCanvases.forEach(c => { canvasMap[c.fields.canvas_title] = c; });
+  renderPipeline(allOpportunities.filter(o => { const c = canvasMap[o.fields.title]; return c && c.fields.pursuit_status && c.fields.pursuit_status.startsWith(status); }));
+}
+
+async function loadCanvasList() {
+  const res = await atFetch(CONFIG.TABLES.RFP_CANVAS, '?sort[0][field]=created_at&sort[0][direction]=desc');
+  allCanvases = res.records || [];
+  filterCanvas('active');
+}
+function filterCanvas(mode) {
+  const shown = mode === 'active' ? allCanvases.filter(c => c.fields.active) : allCanvases;
+  const el = document.getElementById('canvas-list-content');
+  if (shown.length === 0) { el.innerHTML = '<div class="empty-state"><i class="ti ti-layout-board"></i><div class="empty-state-title">No canvases</div><p>Canvases appear when you mark a lead as Interest = Yes.</p></div>'; return; }
+  const statusColors = {'2':'status-2','3':'status-3','4':'status-4'};
+  let html = '';
+  shown.forEach(c => {
+    const f = c.fields;
+    const statusNum = f.pursuit_status ? f.pursuit_status.charAt(0) : '';
+    const pd = f.proposal_due ? new Date(f.proposal_due).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : 'TBD';
+    const isPotential = f.canvas_type === 'Potential Project';
+    html += `<div class="card" style="cursor:pointer" onclick="openCanvas('${c.id}')"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><div class="opp-agency">${f.issuer_agency||'Agency TBD'}</div><div class="card-title">${f.canvas_title||'Untitled Canvas'}</div><div class="card-meta">Created by ${f.created_by||'—'} · Proposal due: ${pd}</div></div><div style="display:flex;gap:8px;align-items:center;flex-shrink:0">${isPotential?'<span class="badge" style="background:var(--info);color:#fff;font-size:11px">Potential Project</span>':''}${statusNum?`<span class="status-pill status-${statusNum}">${f.pursuit_status}</span>`:''}${!f.active?'<span class="badge badge-gray">Inactive</span>':''}<i class="ti ti-arrow-right" style="color:var(--muted)"></i></div></div></div>`;
+  });
+  el.innerHTML = html;
+}
+function openCanvas(canvasId) {
+  currentCanvasId = canvasId;
+  const canvas = allCanvases.find(c => c.id === canvasId);
+  if (!canvas) return;
+  const f = canvas.fields;
+  document.getElementById('canvas-page-title').innerHTML = f.canvas_title || 'RFP <span>Canvas</span>';
+  document.getElementById('canvas-page-subtitle').textContent = f.issuer_agency || '';
+  document.getElementById('canvas-status-select').value = f.pursuit_status ? f.pursuit_status.charAt(0) : '2';
+  document.getElementById('canvas-inactive-badge').style.display = f.active ? 'none' : 'inline-block';
+  renderCanvasGrid(canvas);
+  showPage('canvas');
+  document.getElementById('nav-canvas-list').classList.add('active');
+}
+function renderCanvasGrid(canvas) {
+  const f = canvas.fields;
+  const notes = safeJSON(f.notes_log, []);
+  const pd = f.proposal_due ? `<input class="field-input" type="date" value="${f.proposal_due}" onchange="updateCanvasField('proposal_due',this.value)">` : `<input class="field-input" type="date" onchange="updateCanvasField('proposal_due',this.value)">`;
+  const qd = f.questions_due ? `<input class="field-input" type="date" value="${f.questions_due}" onchange="updateCanvasField('questions_due',this.value)">` : `<input class="field-input" type="date" onchange="updateCanvasField('questions_due',this.value)">`;
+  const notesHtml = notes.length ? notes.map(n => `<div class="note-entry"><div class="note-author">${n.author}</div><div class="note-date">${new Date(n.date).toLocaleString()}</div><div class="note-text">${n.text}</div></div>`).join('') : '<div style="color:var(--muted);font-size:13px">No notes yet.</div>';
+  document.getElementById('canvas-grid').innerHTML = `
+    <div class="canvas-main">
+      <div class="canvas-section">
+        <div class="canvas-section-title">Notes log</div>
+        <div id="canvas-notes">${notesHtml}</div>
+        <div style="margin-top:14px">
+          <textarea class="field-input" id="new-note-text" rows="3" placeholder="Add a note..."></textarea>
+          <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="addNote()"><i class="ti ti-plus"></i> Add note</button>
+        </div>
+      </div>
+      <div class="canvas-section">
+        <div class="canvas-section-title">Files</div>
+        <div id="canvas-files"></div>
+        <div class="upload-zone" onclick="document.getElementById('file-upload-input').click()">
+          <i class="ti ti-upload" style="font-size:20px;margin-bottom:6px;display:block"></i>
+          Click to upload RFP documents, addenda, or related files
+        </div>
+        <input type="file" id="file-upload-input" style="display:none" multiple onchange="handleFileUpload(this.files)">
+      </div>
+    </div>
+    <div class="canvas-sidebar-panel">
+      <div class="canvas-section">
+        <div class="canvas-section-title">Key dates</div>
+        <div class="field-group"><div class="field-label">Proposal due</div>${pd}</div>
+        <div class="field-group"><div class="field-label">Questions due</div>${qd}</div>
+      </div>
+      <div class="canvas-section">
+        <div class="canvas-section-title">Issuer info ${f.issuer_ai_populated?'<span class="badge badge-lime" style="font-size:9px">AI filled</span>':''}</div>
+        <div class="field-group"><div class="field-label">Agency</div><input class="field-input" value="${f.issuer_agency||''}" onchange="updateCanvasField('issuer_agency',this.value)" placeholder="Agency name"></div>
+        <div class="field-group"><div class="field-label">Department</div><input class="field-input" value="${f.issuer_dept||''}" onchange="updateCanvasField('issuer_dept',this.value)" placeholder="Department"></div>
+        <div class="field-group"><div class="field-label">Contact name</div><input class="field-input" value="${f.issuer_contact_name||''}" onchange="updateCanvasField('issuer_contact_name',this.value)" placeholder="Name"></div>
+        <div class="field-group"><div class="field-label">Contact email</div><input class="field-input" value="${f.issuer_contact_email||''}" onchange="updateCanvasField('issuer_contact_email',this.value)" placeholder="email@agency.gov"></div>
+        <div class="field-group"><div class="field-label">Contact phone</div><input class="field-input" value="${f.issuer_contact_phone||''}" onchange="updateCanvasField('issuer_contact_phone',this.value)" placeholder="(415) 555-0100"></div>
+        <div class="field-group"><div class="field-label">Address</div><textarea class="field-input" rows="2" onchange="updateCanvasField('issuer_address',this.value)" placeholder="Mailing address">${f.issuer_address||''}</textarea></div>
+      </div>
+      <div class="canvas-section">
+        <div class="canvas-section-title">Pursuit info</div>
+        <div class="field-group"><div class="field-label">Potential Prime</div><input class="field-input" value="${f.potential_prime||''}" onchange="updateCanvasField('potential_prime',this.value)" placeholder="Firm name"></div>
+      </div>
+      <div class="canvas-section">
+        <div class="canvas-section-title">Team notes</div>
+        <textarea class="field-input" rows="4" onchange="updateCanvasField('team_notes',this.value)" placeholder="Potential team firms, notes on teaming strategy...">${f.team_notes||''}</textarea>
+      </div>
+    </div>`;
+}
+async function addNote() {
+  const text = document.getElementById('new-note-text').value.trim();
+  if (!text) return;
+  const canvas = allCanvases.find(c => c.id === currentCanvasId);
+  const notes = safeJSON(canvas.fields.notes_log, []);
+  notes.push({ author: currentUser.name, date: new Date().toISOString(), text });
+  await atUpdate(CONFIG.TABLES.RFP_CANVAS, currentCanvasId, { notes_log: JSON.stringify(notes) });
+  canvas.fields.notes_log = JSON.stringify(notes);
+  document.getElementById('new-note-text').value = '';
+  document.getElementById('canvas-notes').innerHTML = notes.map(n => `<div class="note-entry"><div class="note-author">${n.author}</div><div class="note-date">${new Date(n.date).toLocaleString()}</div><div class="note-text">${n.text}</div></div>`).join('');
+  showToast('Note saved', 'success');
+}
+function openAddRFP() {
+  const m = document.getElementById('add-rfp-modal');
+  m.style.display = 'flex';
+  ['title','agency','url','scope','due','value','prime'].forEach(f => {
+    const el = document.getElementById('add-rfp-' + f);
+    if (el) el.value = '';
+  });
+  document.getElementById('add-rfp-pursuit').value = 'Prime';
+  document.getElementById('add-rfp-tier').value = 'Tier 1';
+}
+function closeAddRFP() {
+  document.getElementById('add-rfp-modal').style.display = 'none';
+}
+async function submitAddRFP() {
+  const title = document.getElementById('add-rfp-title').value.trim();
+  const agency = document.getElementById('add-rfp-agency').value.trim();
+  if (!title) { showToast('Project title is required', 'error'); return; }
+  const btn = document.querySelector('#add-rfp-modal .btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Creating…';
+  try {
+    const canvas = await atCreate(CONFIG.TABLES.RFP_CANVAS, {
+      canvas_title:   title,
+      issuer_agency:  agency,
+      source_url:     document.getElementById('add-rfp-url').value.trim(),
+      scope:          document.getElementById('add-rfp-scope').value.trim(),
+      proposal_due:   document.getElementById('add-rfp-due').value || null,
+      est_value:      document.getElementById('add-rfp-value').value.trim(),
+      pursuit_type:   document.getElementById('add-rfp-pursuit').value,
+      geo_tier:       document.getElementById('add-rfp-tier').value,
+      potential_prime:document.getElementById('add-rfp-prime').value.trim(),
+      canvas_type:    'RFP',
+      pursuit_status: '2 — Building team',
+      active:         true,
+      created_by:     currentUser.name,
+      created_at:     new Date().toISOString(),
+      notes_log:      JSON.stringify([]),
+      files_list:     JSON.stringify([])
+    });
+    allCanvases.unshift(canvas);
+    closeAddRFP();
+    showToast('RFP Canvas created', 'success');
+    openCanvas(canvas.id);
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+    btn.disabled = false; btn.innerHTML = '<i class="ti ti-plus"></i> Create Canvas';
+  }
+}
+async function updateCanvasField(field, value) {
+  await atUpdate(CONFIG.TABLES.RFP_CANVAS, currentCanvasId, { [field]: value });
+  const canvas = allCanvases.find(c => c.id === currentCanvasId);
+  if (canvas) canvas.fields[field] = value;
+}
+async function updateCanvasStatus(val) {
+  const statusMap = { '2': '2 — Building team', '3': '3 — No go', '4': '4 — Submitting' };
+  const status = statusMap[val];
+  const isActive = val !== '3';
+  await atUpdate(CONFIG.TABLES.RFP_CANVAS, currentCanvasId, { pursuit_status: status, active: isActive });
+  const canvas = allCanvases.find(c => c.id === currentCanvasId);
+  if (canvas) { canvas.fields.pursuit_status = status; canvas.fields.active = isActive; }
+  document.getElementById('canvas-inactive-badge').style.display = isActive ? 'none' : 'inline-block';
+  showToast(`Status updated to ${status}`, 'success');
+}
+function handleFileUpload(fileList) {
+  showToast('File upload ready — server endpoint needed to save to /mors/uploads/', '');
+}
+
+async function loadContacts() {
+  const res = await atFetch(CONFIG.TABLES.CONTACTS, '?sort[0][field]=name&sort[0][direction]=asc');
+  allContacts = res.records || [];
+  renderContacts(allContacts);
+}
+function renderContacts(contacts) {
+  const el = document.getElementById('contacts-content');
+  if (contacts.length === 0) { el.innerHTML = '<div class="empty-state"><i class="ti ti-users"></i><div class="empty-state-title">No contacts yet</div><p>Add contacts manually.</p></div>'; return; }
+  const typeColors = {'Client — direct':'badge-lime','Client — sub':'badge-green','Prior client':'badge-blue','Agency contact':'badge-gray','Prime firm':'badge-purple','Sub / partner':'badge-orange'};
+  let html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">';
+  contacts.forEach(c => {
+    const f = c.fields;
+    const initials = (f.name||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    html += `<div class="card"><div style="display:flex;align-items:center;gap:12px;margin-bottom:12px"><div style="width:40px;height:40px;border-radius:50%;background:rgba(200,241,53,.15);display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:16px;font-weight:700;color:var(--lime);flex-shrink:0">${initials}</div><div><div style="font-weight:500;font-size:14px">${f.name||'—'}</div><div style="font-size:12px;color:var(--muted)">${f.title||''}${f.org?' · '+f.org:''}</div></div></div>${f.relationship_type?`<span class="badge ${typeColors[f.relationship_type]||'badge-gray'}">${f.relationship_type}</span>`:''}${f.prior_client?'<span class="badge badge-lime">Prior client</span>':''}<div style="margin-top:10px;font-size:12px;color:var(--muted)">${f.email?`<div><i class="ti ti-mail" style="font-size:12px;margin-right:4px"></i>${f.email}</div>`:''}${f.phone?`<div style="margin-top:2px"><i class="ti ti-phone" style="font-size:12px;margin-right:4px"></i>${f.phone}</div>`:''}</div></div>`;
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+function searchContacts(query) {
+  const q = query.toLowerCase();
+  renderContacts(allContacts.filter(c => (c.fields.name||'').toLowerCase().includes(q)||(c.fields.org||'').toLowerCase().includes(q)||(c.fields.email||'').toLowerCase().includes(q)));
+}
+function showAddContact() { document.getElementById('modal-contact').classList.add('visible'); }
+async function saveContact() {
+  const fields = { name: document.getElementById('c-name').value.trim(), title: document.getElementById('c-title').value.trim(), org: document.getElementById('c-org').value.trim(), email: document.getElementById('c-email').value.trim(), phone: document.getElementById('c-phone').value.trim(), relationship_type: document.getElementById('c-type').value, notes: document.getElementById('c-notes').value.trim(), added_by: currentUser.name, added_date: new Date().toISOString().split('T')[0] };
+  if (!fields.name) { showToast('Name is required', 'error'); return; }
+  const rec = await atCreate(CONFIG.TABLES.CONTACTS, fields);
+  allContacts.push(rec);
+  renderContacts(allContacts);
+  closeModal('modal-contact');
+  showToast('Contact saved', 'success');
+  ['c-name','c-title','c-org','c-email','c-phone','c-notes'].forEach(id => document.getElementById(id).value = '');
+}
+
+async function loadPrimes() {
+  const res = await atFetch(CONFIG.TABLES.PRIME_FIRMS, '?sort[0][field]=firm_name&sort[0][direction]=asc');
+  allPrimes = res.records || [];
+  renderPrimes();
+}
+function renderPrimes() {
+  const el = document.getElementById('primes-content');
+  if (allPrimes.length === 0) { el.innerHTML = '<div class="empty-state"><i class="ti ti-building"></i><div class="empty-state-title">No prime firms yet</div><p>Add firms as you encounter them in reports.</p></div>'; return; }
+  const statusColors = {'Watch':'badge-orange','Active target':'badge-blue','Teamed':'badge-lime'};
+  let html = '<div style="display:flex;flex-direction:column;gap:10px">';
+  allPrimes.forEach(p => {
+    const f = p.fields;
+    html += `<div class="card"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><div class="card-title">${f.firm_name||'—'}</div><div style="font-size:12px;color:var(--muted);margin-top:2px">${f.sector_focus||''}${f.geo_presence?' · '+f.geo_presence:''}</div></div>${f.teaming_status?`<span class="badge ${statusColors[f.teaming_status]||'badge-gray'}">${f.teaming_status}</span>`:''}</div>${f.recent_wins?`<div style="margin-top:10px;font-size:13px;color:#bbb;line-height:1.5">${f.recent_wins}</div>`:''}${f.teaming_notes?`<div style="margin-top:8px;font-size:12px;color:var(--muted)">${f.teaming_notes}</div>`:''}${f.key_contact_name?`<div style="margin-top:10px;font-size:12px;color:var(--muted)"><i class="ti ti-user" style="font-size:12px;margin-right:4px"></i>${f.key_contact_name}${f.key_contact_email?' · '+f.key_contact_email:''}</div>`:''}</div>`;
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+function showAddPrime() { document.getElementById('modal-prime').classList.add('visible'); }
+async function savePrime() {
+  const fields = { firm_name: document.getElementById('p-name').value.trim(), sector_focus: document.getElementById('p-sector').value.trim(), geo_presence: document.getElementById('p-geo').value.trim(), recent_wins: document.getElementById('p-wins').value.trim(), teaming_status: document.getElementById('p-status').value, teaming_notes: document.getElementById('p-notes').value.trim(), key_contact_name: document.getElementById('p-contact-name').value.trim(), key_contact_email: document.getElementById('p-contact-email').value.trim(), added_date: new Date().toISOString().split('T')[0] };
+  if (!fields.firm_name) { showToast('Firm name is required', 'error'); return; }
+  const rec = await atCreate(CONFIG.TABLES.PRIME_FIRMS, fields);
+  allPrimes.push(rec);
+  renderPrimes();
+  closeModal('modal-prime');
+  showToast('Prime firm saved', 'success');
+}
+
+async function loadMemory() {
+  const res = await atFetch(CONFIG.TABLES.PROJECT_MEMORY, '?sort[0][field]=last_seen&sort[0][direction]=desc');
+  allMemory = res.records || [];
+  renderMemory();
+}
+function renderMemory() {
+  const yes = allMemory.filter(m => m.fields.pursuit_signal === 'interest-yes');
+  const no = allMemory.filter(m => m.fields.pursuit_signal === 'no-interest');
+  const sectors = [...new Set(allMemory.map(m => m.fields.sector).filter(Boolean))];
+  document.getElementById('mem-total').textContent = allMemory.length;
+  document.getElementById('mem-interest').textContent = yes.length;
+  document.getElementById('mem-noint').textContent = no.length;
+  document.getElementById('mem-sectors').textContent = sectors.length;
+  const el = document.getElementById('memory-content');
+  if (allMemory.length === 0) { el.innerHTML = '<div class="empty-state"><i class="ti ti-brain"></i><div class="empty-state-title">Memory is empty</div><p>Start marking leads as Interest = Yes.</p></div>'; return; }
+  let html = '<div style="display:flex;flex-direction:column;gap:8px">';
+  allMemory.forEach(m => {
+    const f = m.fields;
+    const isYes = f.pursuit_signal === 'interest-yes';
+    html += `<div class="card" style="padding:14px 18px;border-left:3px solid ${isYes?'var(--lime)':'var(--border2)'}"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><div style="font-size:14px;font-weight:500">${f.project_type||'—'}</div><div style="font-size:12px;color:var(--muted);margin-top:2px">${[f.sector,f.agency_type,f.geo_tier].filter(Boolean).join(' · ')}</div>${f.keywords?`<div style="font-size:11px;color:var(--muted);margin-top:4px;font-style:italic">${f.keywords}</div>`:''}</div><div style="text-align:right;flex-shrink:0"><span class="badge ${isYes?'badge-lime':'badge-gray'}">${isYes?'Interest yes':'No interest'}</span>${f.last_seen?`<div style="font-size:11px;color:var(--muted);margin-top:4px">${new Date(f.last_seen).toLocaleDateString()}</div>`:''}</div></div></div>`;
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+async function logToMemory(oppId, signal) {
+  const opp = allOpportunities.find(o => o.id === oppId);
+  if (!opp) return;
+  const f = opp.fields;
+  await atCreate(CONFIG.TABLES.PROJECT_MEMORY, { project_type: f.title||'', sector: (f.track||'').includes('1')?'planning/environment':'emerging issue', agency_type: f.agency||'', geo_tier: f.geo_tier||'', keywords: f.keywords_matched||'', pursuit_signal: signal, frequency_count: 1, last_seen: new Date().toISOString().split('T')[0], source_opp_title: f.title||'' });
+}
+
+async function makePipelineCanvas(oppId, title) {
+  const canvasTitle = title || 'Untitled';
+  const existing = allCanvases.find(c => c.fields.canvas_title === canvasTitle);
+  if (existing) { openCanvas(existing.id); return; }
+  const canvas = await atCreate(CONFIG.TABLES.RFP_CANVAS, {
+    canvas_title: canvasTitle,
+    canvas_type: 'RFP',
+    pursuit_status: '2 — Building team',
+    active: true,
+    created_by: currentUser ? currentUser.name : 'MORS',
+    created_at: new Date().toISOString(),
+    notes_log: JSON.stringify([]),
+    files_list: JSON.stringify([])
+  });
+  if (canvas && canvas.id) {
+    allCanvases.push(canvas);
+    showToast('RFP Canvas created', 'success');
+    openCanvas(canvas.id);
+  } else {
+    const msg = (canvas && canvas.error) ? canvas.error.message : 'Airtable rejected the request';
+    showToast('Canvas error: ' + msg, 'error');
+  }
+}
+function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function safeJSON(str, fallback) { try { return JSON.parse(str); } catch { return fallback; } }
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show' + (type ? ' ' + type : '');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 3500);
+}
+function closeModal(id) { document.getElementById(id).classList.remove('visible'); }
+
+(async function boot() {
+  try {
+    const cfg = await fetch('https://mors-runner.onrender.com/config').then(r => r.json());
+    CONFIG.AIRTABLE_TOKEN = cfg.airtable_token;
+    CONFIG.BASE_ID = cfg.base_id;
+  } catch(e) {
+    document.getElementById('login-error').textContent = 'Could not reach MORS server. Try again in a moment.';
+  }
+  const saved = localStorage.getItem('mors_user');
+  if (saved) { try { currentUser = JSON.parse(saved); launchApp(); } catch { localStorage.removeItem('mors_user'); } }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('visible')); });
+  document.getElementById('login-password').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  document.getElementById('reg-password').addEventListener('keydown', e => { if (e.key === 'Enter') doRegister(); });
+})();
+</script>
+</body>
+</html>

@@ -664,6 +664,12 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok", service: "MORS Runner", timestamp: new Date().toISOString() });
 });
 
+app.get("/config", (req, res) => {
+  res.json({ airtable_token: AIRTABLE_TOKEN, base_id: AIRTABLE_BASE_ID });
+});
+
+app.use(express.static("public"));
+
 app.post("/test-run", async (req, res) => {
   res.json({ success: true, status: "Test run started — check Airtable in 3-4 minutes" });
   const { today, cutoffStr } = getDateContext();
