@@ -1187,14 +1187,14 @@ function filterCanvas(mode) {
     const raw = (f.canvas_title||'Untitled Canvas').replace(/&amp;/g,'&');
     const dash = raw.search(/ [—–] /);
     const shortTitle = dash > 0 ? raw.slice(0, dash) : (raw.length > 80 ? raw.slice(0,80)+'…' : raw);
-    html += `<div class="card" style="cursor:pointer" onclick="openCanvas('${c.id}')">
+    html += `<div class="card" style="cursor:pointer;padding:18px 22px" onclick="openCanvas('${c.id}')">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
         <div style="min-width:0">
-          <div class="opp-agency" style="text-transform:none;font-size:12px">${f.issuer_agency||'Agency TBD'}</div>
-          <div style="font-family:'Noto Serif KR',serif;font-size:16px;font-weight:700;color:#111;margin:2px 0 4px">${shortTitle}</div>
-          <div class="card-meta">Proposal due: ${pd}${statusNum ? ` · <span class="status-pill status-${statusNum}">${f.pursuit_status}</span>`:''}</div>
+          <div style="font-family:'Noto Serif KR',serif;font-size:0.85rem;font-weight:700;color:var(--brand);text-transform:none;letter-spacing:0;margin-bottom:4px">${f.issuer_agency||'Agency TBD'}</div>
+          <div style="font-family:'Source Sans 3',Arial,sans-serif;font-size:1.15rem;font-weight:600;color:#000;line-height:1.4;margin-bottom:6px">${shortTitle}</div>
+          <div style="font-family:'Source Sans 3',Arial,sans-serif;font-size:0.9rem;color:#555">Due: ${pd}${statusNum ? ` &nbsp;·&nbsp; <span class="status-pill status-${statusNum}">${f.pursuit_status}</span>`:''}</div>
         </div>
-        <i class="ti ti-arrow-right" style="color:var(--muted);flex-shrink:0"></i>
+        <i class="ti ti-arrow-right" style="color:var(--muted);flex-shrink:0;font-size:18px"></i>
       </div>
     </div>`;
   });
