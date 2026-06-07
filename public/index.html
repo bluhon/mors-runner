@@ -885,8 +885,21 @@ async function loadProspects() {
     }
     const alreadyYes = f.interest === 'Yes';
     const alreadyNo  = f.interest === 'No';
-    const scope = f.scope ? f.scope.replace(/<[^>]+>/g,'').trim() : '';
-    const scopeShort = scope.length > 120 ? scope.slice(0,120) + '…' : scope;
+    const fullText = (f.title || '').replace(/<[^>]+>/g,'').trim();
+    // Split on em dash or " — " to separate short name from description
+    const dashIdx = fullText.search(/ [—–-] /);
+    let displayTitle, scope;
+    if (dashIdx > 0 && dashIdx < 120) {
+      displayTitle = fullText.slice(0, dashIdx);
+      scope = fullText.slice(dashIdx + 3);
+    } else if (fullText.length > 80) {
+      displayTitle = fullText.slice(0, 80) + '…';
+      scope = fullText.slice(80);
+    } else {
+      displayTitle = fullText;
+      scope = f.scope ? f.scope.replace(/<[^>]+>/g,'').trim() : '';
+    }
+    const scopeShort = scope.length > 160 ? scope.slice(0, 160) + '…' : scope;
     const value = f.estimated_value ? `<span><i class="ti ti-currency-dollar" style="font-size:11px"></i> ${f.estimated_value}</span>` : '';
     const type  = f.opportunity_type ? `<span>${f.opportunity_type}</span>` : '';
     const srcCell = f.source_url
@@ -896,7 +909,7 @@ async function loadProspects() {
       <td><input type="checkbox" class="t1-cb" id="cb-${p.id}" ${alreadyYes?'checked':''} onchange="toggleT1Card('${p.id}', this.checked)"></td>
       <td>
         <div class="t1-row-agency">${f.agency || ''}</div>
-        <div class="t1-row-title">${f.title || 'Untitled Opportunity'}</div>
+        <div class="t1-row-title">${displayTitle}</div>
         ${scopeShort ? `<div class="t1-row-scope">${scopeShort}</div>` : ''}
         ${f.estimated_value ? `<div class="t1-row-value">${f.estimated_value}</div>` : ''}
       </td>
