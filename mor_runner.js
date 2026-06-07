@@ -93,8 +93,7 @@ async function runMORSReport() {
           report_date: reportDate,
           track1_html,
           track2_html,
-          track3_html,
-          status: "complete"
+          track3_html
         }
       })
     }
