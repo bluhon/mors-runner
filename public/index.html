@@ -1123,6 +1123,7 @@ function openCanvas(canvasId) {
 }
 function renderCanvasGrid(canvas) {
   const f = canvas.fields;
+  const files = safeJSON(f.files_list, []);
   const notes = safeJSON(f.notes_log, []);
   const pd = f.proposal_due ? `<input class="field-input" type="date" value="${f.proposal_due}" onchange="updateCanvasField('proposal_due',this.value)">` : `<input class="field-input" type="date" onchange="updateCanvasField('proposal_due',this.value)">`;
   const qd = f.questions_due ? `<input class="field-input" type="date" value="${f.questions_due}" onchange="updateCanvasField('questions_due',this.value)">` : `<input class="field-input" type="date" onchange="updateCanvasField('questions_due',this.value)">`;
@@ -1171,6 +1172,7 @@ function renderCanvasGrid(canvas) {
         <textarea class="field-input" rows="4" onchange="updateCanvasField('team_notes',this.value)" placeholder="Potential team firms, notes on teaming strategy...">${f.team_notes||''}</textarea>
       </div>
     </div>`;
+  renderCanvasFiles(files);
 }
 async function addNote() {
   const text = document.getElementById('new-note-text').value.trim();
@@ -1246,8 +1248,41 @@ async function updateCanvasStatus(val) {
   document.getElementById('canvas-inactive-badge').style.display = isActive ? 'none' : 'inline-block';
   showToast(`Status updated to ${status}`, 'success');
 }
-function handleFileUpload(fileList) {
-  showToast('File upload ready — server endpoint needed to save to /mors/uploads/', '');
+async function handleFileUpload(fileList) {
+  const canvas = allCanvases.find(c => c.id === currentCanvasId);
+  if (!canvas) return;
+  const files = safeJSON(canvas.fields.files_list, []);
+  let uploaded = 0;
+  for (const file of Array.from(fileList)) {
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+      showToast('Uploading ' + file.name + '…', '');
+      const res = await fetch('https://bluhon.com/mors/upload.php', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (data.error) { showToast('Upload error: ' + data.error, 'error'); continue; }
+      files.push({ name: data.name, url: data.url, size: data.size, date: new Date().toISOString(), by: currentUser.name });
+      uploaded++;
+    } catch(e) { showToast('Upload failed: ' + file.name, 'error'); }
+  }
+  if (uploaded > 0) {
+    await atUpdate(CONFIG.TABLES.RFP_CANVAS, currentCanvasId, { files_list: JSON.stringify(files) });
+    canvas.fields.files_list = JSON.stringify(files);
+    renderCanvasFiles(files);
+    showToast(uploaded + ' file(s) uploaded', 'success');
+  }
+  document.getElementById('file-upload-input').value = '';
+}
+
+function renderCanvasFiles(files) {
+  const el = document.getElementById('canvas-files');
+  if (!el) return;
+  if (!files || files.length === 0) { el.innerHTML = ''; return; }
+  el.innerHTML = files.map(f => {
+    const kb = f.size ? (f.size > 1048576 ? (f.size/1048576).toFixed(1)+'MB' : Math.ceil(f.size/1024)+'KB') : '';
+    const dt = f.date ? new Date(f.date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+    return `<div class="file-entry"><i class="ti ti-file"></i><a class="file-name" href="${f.url}" target="_blank" rel="noopener">${escHtml(f.name)}</a><span class="file-date">${kb}${dt?' · '+dt:''}</span></div>`;
+  }).join('');
 }
 
 async function loadContacts() {
