@@ -250,9 +250,11 @@ html, body {
 
 .card-title {
   font-family: var(--bl-font-heading) !important;
-  font-size: 1.3rem !important;
-  font-weight: 700 !important;
+  font-size: 1.15rem !important;
+  font-weight: 600 !important;
   color: #000 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
 }
 
 .card-body {
