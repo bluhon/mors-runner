@@ -1331,7 +1331,7 @@ async function handleFileUpload(fileList) {
     fd.append('file', file);
     try {
       showToast('Uploading ' + file.name + '…', '');
-      const res = await fetch('https://mors-runner.onrender.com/upload', { method: 'POST', body: fd });
+      const res = await fetch('https://bluhon.com/mors/upload.php', { method: 'POST', body: fd });
       const data = await res.json();
       if (data.error) { showToast('Upload error: ' + data.error, 'error'); continue; }
       files.push({ name: data.name, url: data.url, size: data.size, date: new Date().toISOString(), by: currentUser.name });
