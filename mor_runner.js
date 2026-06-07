@@ -535,6 +535,7 @@ OUTPUT FORMAT — use exactly these delimiters:
   // ── Save report ───────────────────────────────────────────────────────────
   const saved = await atPost(AIRTABLE_REPORTS_TABLE, {
     report_date: reportDate,
+    run_timestamp: new Date().toISOString(),
     track1_html,
     track2_html,
     track3_html,
