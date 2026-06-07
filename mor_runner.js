@@ -297,6 +297,112 @@ async function atPost(tableId, fields) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Geographic rotation — cycles through Bay Area zones + Tier 2/3/4 over time
+// ─────────────────────────────────────────────────────────────────────────────
+function getISOWeek(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
+
+function getGeoFocus() {
+  const now = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
+  const dow = now.getDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri
+  const week = getISOWeek(now);
+
+  if (dow === 1) {
+    return {
+      label: "Monday — SF + North Bay (Marin, Sonoma, Napa)",
+      instructions: `TODAY'S GEOGRAPHIC FOCUS — MONDAY: Search exhaustively within these jurisdictions only for Track 1:
+- City & County of San Francisco (all departments: Planning, DPW, SFPUC, Rec & Parks, OEWD, Port, Airport, SFMTA)
+- Marin County + all Marin cities (Belvedere, Corte Madera, Fairfax, Larkspur, Mill Valley, Novato, Ross, San Anselmo, San Rafael, Sausalito, Tiburon) + Marin Municipal Water District, Marin Transit
+- Sonoma County + all Sonoma cities (Cloverdale, Cotati, Healdsburg, Petaluma, Rohnert Park, Santa Rosa, Sebastopol, Sonoma, Windsor) + Sonoma Water, SMART
+- Napa County + all Napa cities (American Canyon, Calistoga, Napa, St. Helena, Yountville)
+Also check caleprocure.ca.gov and PlanetBids filtering to these agencies. Track 2 news: also focus on SF + North Bay.`
+  };
+
+  } else if (dow === 2) {
+    return {
+      label: "Tuesday — Alameda County",
+      instructions: `TODAY'S GEOGRAPHIC FOCUS — TUESDAY: Search exhaustively within these jurisdictions only for Track 1:
+- Alameda County government (Community Development Agency, Public Works, General Services)
+- All Alameda County cities: Alameda, Albany, Berkeley, Dublin, Emeryville, Fremont, Hayward, Livermore, Newark, Oakland, Piedmont, Pleasanton, San Leandro, Union City
+- Regional agencies based in / serving Alameda County: AC Transit, BART, EBMUD, EBRPD, ACTC (Alameda CTC), LAVTA, Tri Delta Transit, Zone 7 Water Agency, DSRSD, ACWD, Livermore-Amador Valley Water Management Agency
+Also check caleprocure.ca.gov and PlanetBids filtering to these agencies. Track 2 news: focus on Alameda County.`
+    };
+
+  } else if (dow === 3) {
+    return {
+      label: "Wednesday — Contra Costa + Solano",
+      instructions: `TODAY'S GEOGRAPHIC FOCUS — WEDNESDAY: Search exhaustively within these jurisdictions only for Track 1:
+- Contra Costa County government (DCD, Public Works, Flood Control, Health Services) + all CoCo cities: Antioch, Brentwood, Clayton, Concord, Danville, El Cerrito, Hercules, Lafayette, Martinez, Moraga, Oakley, Orinda, Pinole, Pittsburg, Pleasant Hill, Richmond, San Pablo, San Ramon, Walnut Creek
+- Contra Costa agencies: CCTA (Contra Costa Transportation Authority), CCWD (Contra Costa Water District), CCJPA, Delta Diablo, ECCFPD
+- Solano County government + all Solano cities: Benicia, Dixon, Fairfield, Rio Vista, Suisun City, Vacaville, Vallejo
+- Solano agencies: SolTrans, Solano Transportation Authority, North Bay Water Recycling Program
+Also check caleprocure.ca.gov and PlanetBids filtering to these agencies. Track 2 news: focus on Contra Costa + Solano.`
+    };
+
+  } else if (dow === 4) {
+    return {
+      label: "Thursday — Santa Clara + San Mateo",
+      instructions: `TODAY'S GEOGRAPHIC FOCUS — THURSDAY: Search exhaustively within these jurisdictions only for Track 1:
+- Santa Clara County government + all SCC cities: Campbell, Cupertino, Gilroy, Los Altos, Los Altos Hills, Los Gatos, Milpitas, Monte Sereno, Morgan Hill, Mountain View, Palo Alto, San Jose, Santa Clara, Saratoga, Sunnyvale
+- Santa Clara agencies: VTA (Valley Transportation Authority), SCVWD (Santa Clara Valley Water District), SCVOSA, Santa Clara Valley Habitat Agency
+- San Mateo County government + all SM cities: Atherton, Belmont, Brisbane, Burlingame, Colma, Daly City, East Palo Alto, Foster City, Half Moon Bay, Hillsborough, Menlo Park, Millbrae, Pacifica, Portola Valley, Redwood City, San Bruno, San Carlos, San Mateo, South San Francisco, Woodside
+- San Mateo agencies: SamTrans, Caltrain/JPB, BAWSCA, CCWD, Peninsula Clean Energy
+Also check caleprocure.ca.gov and PlanetBids filtering to these agencies. Track 2 news: focus on Santa Clara + San Mateo.`
+    };
+
+  } else if (dow === 5) {
+    const fridaySlot = week % 3;
+    if (fridaySlot === 0) {
+      return {
+        label: "Friday — Regional Bay Area agencies + Tier 2 peek",
+        instructions: `TODAY'S GEOGRAPHIC FOCUS — FRIDAY (Regional): Search these regional / multi-county agencies for Track 1:
+- MTC (Metropolitan Transportation Commission), ABAG, BCDC, BAAQMD, WETA, SFCJPA, BAHFA
+- SF Bay Restoration Authority, SF Bay Joint Venture, SFEI
+- All 9-county LAFCOs, all Bay Area Groundwater GSAs
+- Caltrans District 4 and District 7
+- Then do a TIER 2 PEEK: Central / North Coast California (San Luis Obispo north to Eureka) — search caleprocure.ca.gov and county portals for Santa Barbara, San Luis Obispo, Monterey, Santa Cruz, Santa Barbara, San Benito, Mendocino, Humboldt counties
+Track 2 news: regional Bay Area + statewide policy news.`
+      };
+    } else if (fridaySlot === 1) {
+      return {
+        label: "Friday — Tier 3: Southern California",
+        instructions: `TODAY'S GEOGRAPHIC FOCUS — FRIDAY (Tier 3 — Southern California): Search SoCal jurisdictions for Track 1:
+- Los Angeles County + City of LA (major departments), plus key LA cities: Long Beach, Pasadena, Burbank, Glendale, Santa Monica, Culver City, El Monte, Pomona, Torrance, Carson, Inglewood, Downey
+- LA County agencies: Metro (LA Metro), LADWP, LA County Flood Control, LA Sanitation, LACMTA
+- Orange County + key OC cities: Anaheim, Santa Ana, Irvine, Huntington Beach, Garden Grove, Fullerton, Costa Mesa, Westminster
+- San Diego County + City of San Diego + SANDAG, MTS, NCTD
+- Inland Empire: San Bernardino County, Riverside County, key cities (Riverside, San Bernardino, Rancho Cucamonga, Ontario)
+- SCAG (Southern California Association of Governments), SANBAG, WRCOG, CVAG
+- Search caleprocure.ca.gov filtering to these Southern California agencies
+Track 2 news: Southern California focus.`
+      };
+    } else {
+      return {
+        label: "Friday — Tier 4: Nevada + Oregon",
+        instructions: `TODAY'S GEOGRAPHIC FOCUS — FRIDAY (Tier 4 — Nevada + Oregon): Search opportunistically for Track 1:
+- Nevada: Clark County + City of Las Vegas, Henderson, North Las Vegas, Reno, Sparks, Washoe County, Carson City, Nevada DOT, Regional Transportation Commission of Southern Nevada (RTC), Regional Transportation Commission of Washoe County, Nevada Division of State Lands, Southern Nevada Water Authority
+- Oregon: Portland Metro, City of Portland (BES, Planning), Multnomah County, Clackamas County, Washington County, TriMet, Eugene/Lane County, Salem/Marion County, Oregon DOT, Oregon DEQ, Oregon Department of Land Conservation and Development (DLCD)
+- Focus on: public engagement, facilitation, consensus building, environmental planning scopes
+- Note: These are lowest priority geographies — only flag truly strong fits (engagement/facilitation primary scope, competitive value estimate)
+Track 2 news: Nevada + Oregon public controversy and planning news.`
+      };
+    }
+
+  } else {
+    // Weekend fallback (shouldn't trigger via cron but just in case)
+    return {
+      label: "Default — Full Bay Area",
+      instructions: `Search all Tier 1 Bay Area geographies broadly per the system prompt.`
+    };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 function getDateContext() {
@@ -334,8 +440,10 @@ async function runClaudeSearch(userPrompt) {
 async function runMORSReport() {
   const { today, cutoffStr } = getDateContext();
   const reportDate = new Date().toISOString().split("T")[0];
+  const geo = getGeoFocus();
 
-  console.log(`[${new Date().toISOString()}] Starting MORS report for ${today} — Call 1: Tracks 1+2`);
+  console.log(`[${new Date().toISOString()}] Starting MORS report for ${today} — ${geo.label}`);
+  console.log(`[${new Date().toISOString()}] Call 1: Tracks 1+2`);
 
   // ── Call 1: Track 1 (RFPs) + Track 2 (Emerging Issues) ───────────────────
   const text1 = await runClaudeSearch(`Today is ${today}.
@@ -344,16 +452,18 @@ Run MORS Tracks 1 and 2 only. Search thoroughly.
 
 CRITICAL DATE FILTER: Only include RFPs issued after ${cutoffStr} (last 45 days).
 
+${geo.instructions}
+
 TRACK 1 INSTRUCTIONS:
 - Search caleprocure.ca.gov using: "public engagement", "community outreach", "facilitation", "consensus", "strategic plan", "organizational assessment"
-- Then search PlanetBids for Bay Area agencies
-- Then search individual agency sites: SFMTA, BART, MTC, ABAG, BCDC, EBMUD, SFPUC, SCVWD, VTA, WETA
-- Then search key county procurement portals: Alameda, Contra Costa, Marin, San Mateo, Santa Clara
-- Find at least 5 real, verifiable opportunities
+- Search PlanetBids filtering to today's geographic focus agencies
+- Search individual agency procurement pages for today's geographic focus
+- Find at least 5 real, verifiable opportunities from today's geographic zone
+- If today's zone yields fewer than 5, supplement with high-priority Tier 1 opportunities from any Bay Area county
 - Flag prior Bluhon clients: ABAG ✅, BCDC ✅, SF Regional Water Board ✅, Cities of Berkeley/Oakland/Palo Alto/San Jose/San Mateo/Redwood City/Livermore/Novato/Half Moon Bay/Danville ✅, Contra Costa County ✅, Alameda County ✅, Marin County ✅, Santa Clara County ✅, Sonoma County ✅
 
 TRACK 2 INSTRUCTIONS:
-- Search Bay Area and California news from the past 72 hours
+- Search news from the past 72 hours focused on today's geographic zone (but include major statewide items)
 - Look for: projects entering CEQA, community opposition, governance disputes, facility siting conflicts, agricultural/mining controversies
 - Note the specific Bluhon service needed and who to call
 
