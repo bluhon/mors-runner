@@ -9,7 +9,8 @@ const AIRTABLE_REPORTS_TABLE  = "tblnaSbxkGaoscwZj";
 const AIRTABLE_OPPS_TABLE     = "tbleIossei7FDqi9H";
 const AIRTABLE_TRACK2_TABLE   = "tbl4f7N5EoaKRwRXK";
 const AIRTABLE_MEMORY_TABLE   = "tblNgcBpooPK9wOkD";  // PROJECT_MEMORY
-const AIRTABLE_SOURCES_TABLE  = "tblsQwva2y8ABugYH";  // SEARCH_SOURCES
+const AIRTABLE_SOURCES_TABLE  = "tblsQwva2y8ABugYH";  // SEARCH_SOURCES (procurement portals)
+const AIRTABLE_MEDIA_TABLE    = process.env.AIRTABLE_MEDIA_TABLE || ''; // MEDIA_SOURCES — set once table is created
 
 // Portal credentials — from Render environment variables
 const FINDRFP_LOGIN       = process.env.FINDRFP_LOGIN       || process.env.FINDRFP_LOGIN || '';
@@ -363,6 +364,95 @@ async function fetchSearchSources() {
   } catch (err) {
     console.warn(`[fetchSearchSources] Failed: ${err.message}`);
     return [];
+  }
+}
+
+async function fetchMediaSources() {
+  // Hardcoded comprehensive Bay Area + Tier 2 media list — used as fallback and baseline
+  const HARDCODED_MEDIA = [
+    // ── Tier 1 Bay Area ──
+    { name: 'SF Chronicle',           url: 'https://www.sfchronicle.com',              track: 'Track 2', geo: 'Bay Area' },
+    { name: 'SF Examiner',            url: 'https://www.sfexaminer.com',               track: 'Track 2', geo: 'San Francisco' },
+    { name: 'Mission Local',          url: 'https://missionlocal.org',                 track: 'Track 2', geo: 'San Francisco' },
+    { name: 'Hoodline SF',            url: 'https://hoodline.com',                     track: 'Track 2', geo: 'San Francisco' },
+    { name: 'East Bay Times',         url: 'https://www.eastbaytimes.com',             track: 'Track 2', geo: 'East Bay' },
+    { name: 'Berkeleyside',           url: 'https://www.berkeleyside.org',             track: 'Track 2', geo: 'Berkeley' },
+    { name: 'The Oaklandside',        url: 'https://oaklandside.org',                  track: 'Track 2', geo: 'Oakland' },
+    { name: 'Alameda Sun',            url: 'https://www.alamedasun.com',               track: 'Track 2', geo: 'Alameda' },
+    { name: 'Marin Independent Journal', url: 'https://www.marinij.com',              track: 'Track 2', geo: 'Marin' },
+    { name: 'Marin Post',             url: 'https://marinpost.org',                    track: 'Track 2', geo: 'Marin' },
+    { name: 'Novato Advance',         url: 'https://www.novatoadvance.com',            track: 'Track 2', geo: 'Novato' },
+    { name: 'San Jose Mercury News',  url: 'https://www.mercurynews.com',              track: 'Track 2', geo: 'South Bay' },
+    { name: 'San Jose Spotlight',     url: 'https://sanjosespotlight.com',             track: 'Track 2', geo: 'San Jose' },
+    { name: 'The Palo Alto Weekly',   url: 'https://www.paloaltoonline.com',           track: 'Track 2', geo: 'Palo Alto' },
+    { name: 'Mountain View Voice',    url: 'https://www.mv-voice.com',                 track: 'Track 2', geo: 'Mountain View' },
+    { name: 'Sunnyvale Sun',          url: 'https://svcnews.com',                      track: 'Track 2', geo: 'Sunnyvale' },
+    { name: 'Daily Post (Palo Alto)', url: 'https://padailypost.com',                  track: 'Track 2', geo: 'South Bay' },
+    { name: 'The Daily Californian',  url: 'https://www.dailycal.org',                 track: 'Track 2', geo: 'Berkeley' },
+    { name: 'Richmond Standard',      url: 'https://richmondstandard.com',             track: 'Track 2', geo: 'Richmond' },
+    { name: 'Contra Costa Times',     url: 'https://www.eastbaytimes.com/tag/contra-costa', track: 'Track 2', geo: 'Contra Costa' },
+    { name: 'East County Today (CCC)', url: 'https://eastcountytoday.net',             track: 'Track 2', geo: 'East Contra Costa' },
+    { name: 'Antioch Herald',         url: 'https://www.antiochherald.com',            track: 'Track 2', geo: 'Antioch' },
+    { name: 'Livermore Independent',  url: 'https://www.livermorenewsindependent.com', track: 'Track 2', geo: 'Livermore' },
+    { name: 'Valley Times (Pleasanton)', url: 'https://www.eastbaytimes.com/tag/pleasanton', track: 'Track 2', geo: 'Tri-Valley' },
+    { name: 'Half Moon Bay Review',   url: 'https://www.hmbreview.com',                track: 'Track 2', geo: 'Half Moon Bay' },
+    { name: 'San Mateo Daily Journal', url: 'https://www.smdailyjournal.com',          track: 'Track 2', geo: 'San Mateo' },
+    { name: 'Redwood City Pulse',     url: 'https://www.redwoodcitypulse.com',         track: 'Track 2', geo: 'Redwood City' },
+    { name: 'Peninsula Press',        url: 'https://peninsulapress.com',               track: 'Track 2', geo: 'Peninsula' },
+    { name: 'Napa Valley Register',   url: 'https://napavalleyregister.com',           track: 'Track 2', geo: 'Napa' },
+    { name: 'Sonoma Index-Tribune',   url: 'https://www.sonomanews.com',               track: 'Track 2', geo: 'Sonoma' },
+    { name: 'Santa Rosa Press Democrat', url: 'https://www.pressdemocrat.com',         track: 'Track 2', geo: 'Sonoma' },
+    { name: 'North Bay Business Journal', url: 'https://www.northbaybusinessjournal.com', track: 'Track 2', geo: 'North Bay' },
+    // ── Tier 2 geographies ──
+    { name: 'Sacramento Bee',         url: 'https://www.sacbee.com',                   track: 'Track 2', geo: 'Sacramento' },
+    { name: 'Sacramento Business Journal', url: 'https://www.bizjournals.com/sacramento', track: 'Track 2', geo: 'Sacramento' },
+    { name: 'CapRadio News',          url: 'https://www.capradio.org/news',             track: 'Track 2', geo: 'Sacramento' },
+    { name: 'Fresno Bee',             url: 'https://www.fresnobee.com',                 track: 'Track 2', geo: 'Fresno' },
+    { name: 'Stockton Record',        url: 'https://www.recordnet.com',                 track: 'Track 2', geo: 'Stockton' },
+    { name: 'Bakersfield Californian', url: 'https://www.bakersfield.com',              track: 'Track 2', geo: 'Bakersfield' },
+    { name: 'Salinas Californian',    url: 'https://www.thecalifornian.com',            track: 'Track 2', geo: 'Salinas' },
+    { name: 'Santa Cruz Sentinel',    url: 'https://www.santacruzsentinel.com',         track: 'Track 2', geo: 'Santa Cruz' },
+    { name: 'Monterey Herald',        url: 'https://www.montereyherald.com',            track: 'Track 2', geo: 'Monterey' },
+    // ── Agency Board / Governing Body ──
+    { name: 'MTC/ABAG Agendas',       url: 'https://mtc.ca.gov/whats-happening/meetings', track: 'Track 4', geo: 'Bay Area' },
+    { name: 'SF BOS Agendas',         url: 'https://sfgov.org/bos/agendas',             track: 'Track 4', geo: 'San Francisco' },
+    { name: 'Oakland City Council',   url: 'https://www.oaklandca.gov/topics/city-council-agendas', track: 'Track 4', geo: 'Oakland' },
+    { name: 'Berkeley City Council',  url: 'https://www.cityofberkeley.info/city-council-meetings', track: 'Track 4', geo: 'Berkeley' },
+    { name: 'Alameda County BOS',     url: 'https://www.acgov.org/board',               track: 'Track 4', geo: 'Alameda County' },
+    { name: 'Contra Costa BOS',       url: 'https://www.contracosta.ca.gov/agendas',    track: 'Track 4', geo: 'Contra Costa' },
+    { name: 'Marin County BOS',       url: 'https://www.marincounty.org/depts/bs/board-agendas', track: 'Track 4', geo: 'Marin' },
+    { name: 'Santa Clara County BOS', url: 'https://www.sccgov.org/sites/bos/Pages/bos-agendas.aspx', track: 'Track 4', geo: 'Santa Clara' },
+    { name: 'Sonoma County BOS',      url: 'https://sonomacounty.ca.gov/boardofSupervisors', track: 'Track 4', geo: 'Sonoma' },
+    { name: 'San Mateo County BOS',   url: 'https://www.smcgov.org/board-supervisors',  track: 'Track 4', geo: 'San Mateo' },
+    { name: 'Napa County BOS',        url: 'https://www.countyofnapa.org/agendas',      track: 'Track 4', geo: 'Napa' },
+    { name: 'San Jose City Council',  url: 'https://www.sanjoseca.gov/your-government/departments/city-clerk/city-council/agendas-minutes', track: 'Track 4', geo: 'San Jose' },
+    { name: 'Richmond City Council',  url: 'https://www.ci.richmond.ca.us/agendacenter', track: 'Track 4', geo: 'Richmond' },
+    { name: 'Palo Alto City Council', url: 'https://www.cityofpaloalto.org/city-council', track: 'Track 4', geo: 'Palo Alto' },
+    // ── Firm / contract news ──
+    { name: 'Engineering News-Record', url: 'https://www.enr.com',                     track: 'Track 3', geo: 'National' },
+    { name: 'Planetizen',             url: 'https://www.planetizen.com',                track: 'Track 3', geo: 'National' },
+    { name: 'SF Business Times',      url: 'https://www.bizjournals.com/sanfrancisco',  track: 'Track 3', geo: 'Bay Area' },
+    { name: 'Silicon Valley BJ',      url: 'https://www.bizjournals.com/sanjose',       track: 'Track 3', geo: 'South Bay' },
+    { name: 'GovWin / Deltek',        url: 'https://iq.govwin.com',                    track: 'Track 3', geo: 'National' },
+    { name: 'GovConWire',             url: 'https://www.govconwire.com',                track: 'Track 3', geo: 'National' },
+  ];
+
+  if (!AIRTABLE_MEDIA_TABLE) return HARDCODED_MEDIA;
+
+  try {
+    const formula = encodeURIComponent(`{active}=TRUE()`);
+    const data = await atGet(AIRTABLE_MEDIA_TABLE, `?filterByFormula=${formula}&maxRecords=500`);
+    const records = data.records || [];
+    if (records.length === 0) return HARDCODED_MEDIA;
+    return records.map(r => ({
+      name:  r.fields.source_name || '',
+      url:   r.fields.url         || '',
+      track: r.fields.track       || 'Track 2',
+      geo:   r.fields.geography   || ''
+    })).filter(s => s.name);
+  } catch (err) {
+    console.warn(`[fetchMediaSources] Failed — using hardcoded list: ${err.message}`);
+    return HARDCODED_MEDIA;
   }
 }
 
@@ -832,10 +922,11 @@ async function runMORSReport() {
 
   console.log(`[${new Date().toISOString()}] Starting MORS report for ${today} — ${geo.label}`);
 
-  // ── Fetch memory patterns, search sources, and scrape Tier B portals in parallel
-  const [memoryPatterns, searchSources, findrfpOpps, opengovOpps, bonfireOpps, planetbidsOpps] = await Promise.all([
+  // ── Fetch memory patterns, search sources, media sources, and scrape Tier B portals in parallel
+  const [memoryPatterns, searchSources, mediaSources, findrfpOpps, opengovOpps, bonfireOpps, planetbidsOpps] = await Promise.all([
     fetchProjectMemory(),
     fetchSearchSources(),
+    fetchMediaSources(),
     scrapeFindrfp(),
     scrapeOpengov(),
     scrapeBonfire(),
@@ -887,10 +978,25 @@ TRACK 1 INSTRUCTIONS:
 - If today's zone yields fewer than 5, supplement with high-priority Tier 1 opportunities from any Bay Area county
 - Flag prior Bluhon clients: ABAG ✅, BCDC ✅, SF Regional Water Board ✅, Cities of Berkeley/Oakland/Palo Alto/San Jose/San Mateo/Redwood City/Livermore/Novato/Half Moon Bay/Danville ✅, Contra Costa County ✅, Alameda County ✅, Marin County ✅, Santa Clara County ✅, Sonoma County ✅${sourcesInjection}
 
-TRACK 2 INSTRUCTIONS:
-- Search news from the past 72 hours focused on today's geographic zone (but include major statewide items)
-- Look for: projects entering CEQA, community opposition, governance disputes, facility siting conflicts, agricultural/mining controversies
-- Note the specific Bluhon service needed and who to call
+TRACK 2 INSTRUCTIONS — LOCAL CONFLICTS & EMERGING ISSUES:
+Search local Bay Area and Tier 2 geography news outlets from the past 72 hours. Focus on SPECIFIC LOCAL CONFLICTS, NOT statewide legislation or policy.
+
+PROHIBITED results: Do NOT include statewide legislation, Sacramento bills, or abstract policy debates.
+REQUIRED format: Every item must name a SPECIFIC PLACE, specific PROJECT OR DISPUTE, and specific PARTIES involved.
+
+Search these local outlets by priority (today's geographic focus first):
+Bay Area core: Berkeleyside, The Oaklandside, Mission Local, Marin Post, Marin IJ, East Bay Times, San Jose Spotlight, Palo Alto Weekly, Berkeleyside, Richmond Standard, East County Today (CCC), Half Moon Bay Review, Redwood City Pulse
+Regional: San Jose Mercury News, SF Chronicle, SF Examiner, Santa Rosa Press Democrat, North Bay Business Journal, San Mateo Daily Journal, Napa Valley Register, Sonoma Index-Tribune
+Tier 2: Sacramento Bee, Fresno Bee, Santa Cruz Sentinel, Monterey Herald, Salinas Californian
+
+For each item found, identify:
+- The SPECIFIC project, facility, permit, or local dispute (land use, CEQA, facility siting, infrastructure, environmental)
+- WHO is in conflict (community groups, agencies, developers, environmental orgs)
+- WHERE exactly (city/county/neighborhood)
+- WHY Bluhon is relevant (public engagement, facilitation, CEQA, conflict resolution, stakeholder assessment)
+- Who at the agency Bluhon should contact
+
+Find 5–8 items. Prioritize: land use conflicts, CEQA disputes, facility siting (waste, water, energy), housing EIR opposition, port/airport/transit project community conflict, water rights disputes, agricultural land conflicts.
 
 OUTPUT FORMAT — you MUST output ALL THREE sections below in this exact order. Do not skip any section.
 
@@ -910,18 +1016,54 @@ OUTPUT FORMAT — you MUST output ALL THREE sections below in this exact order. 
 
   console.log(`[${new Date().toISOString()}] Call 1 complete — Call 2: Tracks 3+4`);
 
-  // ── Call 2: Track 3 (Prime Firms) + Track 4 (Competitors) ────────────────
+  // Build media source injection strings by track
+  const t2Media = mediaSources.filter(s => s.track === 'Track 2').map(s => `${s.name} (${s.url})`).join(', ');
+  const t3Media = mediaSources.filter(s => s.track === 'Track 3').map(s => `${s.name} (${s.url})`).join(', ');
+  const t4Media = mediaSources.filter(s => s.track === 'Track 4').map(s => `${s.name} (${s.url})`).join(', ');
+
+  // ── Call 2: Track 3 (Contract Awards + Firm News) + Track 4 (Governing Body Pipeline) ───
   const prompt2 = `Today is ${today}.
 
-Run MORS Tracks 3 and 4 only.
+Run MORS Tracks 3 and 4 only. Search thoroughly using real-time web search.
 
-TRACK 3 INSTRUCTIONS:
-- Search for recent California contract wins and job postings from: AECOM, WSP, HDR, Jacobs, ICF, HNTB, Parsons, Stantec, Arup, Fehr & Peers, Kimley-Horn, GHD, EPS
-- Focus on contracts that include public engagement sub-scopes where Bluhon could team
+TRACK 3 INSTRUCTIONS — CONTRACT AWARDS & PRIME FIRM INTELLIGENCE:
+Goal: Find recent (past 30 days) California contract awards, RFP wins, and firm moves relevant to Bluhon teaming opportunities.
 
-TRACK 4 INSTRUCTIONS:
-- Search for recent activity from direct competitors: MIG, PlaceWorks, Circlepoint, Raimi+Associates, Rincon Consultants, Mintier Harnish, CONCUR
-- Look for recent wins, new hires, press releases, and gaps Bluhon could fill
+SOURCES TO CHECK:
+- Bay Area county and city board of supervisors/city council meeting minutes and agendas (past 30 days) for contract awards
+- Engineering News-Record (enr.com) — California project awards
+- SF Business Times / Silicon Valley Business Journal — contract and project announcements
+- GovConWire — government contract awards
+- Planetizen — planning contract news
+- Firm press releases, LinkedIn announcements, and news coverage
+${t3Media ? `Additional sources: ${t3Media}` : ''}
+
+PRIME FIRMS to track for teaming: AECOM, WSP, HDR, Jacobs, ICF, HNTB, Parsons, Stantec, Arup, Fehr & Peers, Kimley-Horn, GHD, EPS Group, Atkins, Burns & McDonnell, Mott MacDonald, ARCADIS, Dudek, Iteris, Toole Design
+For each award found: name the firm, the agency, contract value if known, scope (especially if it includes public engagement, facilitation, or community outreach sub-scope), and whether Bluhon could team on the next phase or similar work.
+
+DIRECT COMPETITORS to monitor: MIG, PlaceWorks, Circlepoint, Raimi+Associates, Rincon Consultants, Mintier Harnish, CONCUR, Design, Community & Environment (DC&E), Civic Edge, Stakeholder Communications Group
+For competitors: look for wins, new hires, office openings, LinkedIn activity, or press mentions that reveal where they are targeting.
+
+Find 4–6 items total. Format each with: firm name as heading, contract/award details, Bluhon angle on a new line.
+
+TRACK 4 INSTRUCTIONS — GOVERNING BODY PIPELINE (pre-RFP signals):
+Goal: Identify projects being DISCUSSED at Bay Area governing bodies that will likely produce RFPs in 3–18 months.
+
+SOURCES TO CHECK — scan agendas and minutes from the past 14 days:
+${t4Media ? t4Media : 'MTC/ABAG, SF BOS, Oakland City Council, Berkeley City Council, Alameda County BOS, Contra Costa County BOS, Marin County BOS, Santa Clara County BOS, Sonoma County BOS, San Mateo County BOS, San Jose City Council, Richmond City Council, Palo Alto City Council'}
+
+WHAT TO LOOK FOR in agenda packets and staff reports:
+- Authorization to issue an RFP (most immediate — flag these ⭐)
+- Approval of study or assessment scope that will require outside consultants
+- Budget allocation for a new planning, engagement, or environmental project
+- Direction to staff to initiate a stakeholder process or master plan
+- Approval of grants or federal funding for projects requiring public involvement
+- Discussion of EIR or CEQA process authorization
+- Community task force or advisory committee formation
+
+For each item: name the governing body, meeting date, agenda item title, what was discussed/directed, estimated timeline to RFP, and the specific Bluhon service that fits.
+
+Find 4–6 items. Prioritize items closest to issuing an RFP. Flag ⭐ if RFP authorization was granted.
 
 OUTPUT FORMAT — use exactly these delimiters:
 
