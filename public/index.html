@@ -425,12 +425,15 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
         <div class="page-subtitle">Active and inactive project workspaces</div>
       </div>
       <div class="page-body">
-        <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
+        <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;max-width:800px">
           <button class="btn btn-ghost btn-sm" onclick="filterCanvas('active')">Active</button>
-          <button class="btn btn-ghost btn-sm" onclick="filterCanvas('all')">All including closed</button>
+          <button class="btn btn-ghost btn-sm" onclick="filterCanvas('2')">Building Team</button>
+          <button class="btn btn-ghost btn-sm" onclick="filterCanvas('4')">Submitting</button>
+          <button class="btn btn-ghost btn-sm" onclick="filterCanvas('3')">No-Go</button>
+          <button class="btn btn-ghost btn-sm" onclick="filterCanvas('all')">All</button>
           <button class="btn btn-sm" style="background:var(--brand);color:#fff;margin-left:auto" onclick="openAddRFP()"><i class="ti ti-plus"></i> Add RFP</button>
         </div>
-        <div id="canvas-list-content">
+        <div id="canvas-list-content" style="max-width:800px">
           <div class="empty-state">
             <i class="ti ti-layout-board"></i>
             <div class="empty-state-title">No canvases yet</div>
@@ -1135,17 +1138,31 @@ async function loadCanvasList() {
   filterCanvas('active');
 }
 function filterCanvas(mode) {
-  const shown = mode === 'active' ? allCanvases.filter(c => c.fields.active) : allCanvases;
+  let shown;
+  if (mode === 'active') shown = allCanvases.filter(c => c.fields.active);
+  else if (mode === 'all') shown = allCanvases;
+  else shown = allCanvases.filter(c => c.fields.pursuit_status && c.fields.pursuit_status.startsWith(mode));
   const el = document.getElementById('canvas-list-content');
   if (shown.length === 0) { el.innerHTML = '<div class="empty-state"><i class="ti ti-layout-board"></i><div class="empty-state-title">No canvases</div><p>Canvases appear when you mark a lead as Interest = Yes.</p></div>'; return; }
-  const statusColors = {'2':'status-2','3':'status-3','4':'status-4'};
   let html = '';
   shown.forEach(c => {
     const f = c.fields;
     const statusNum = f.pursuit_status ? f.pursuit_status.charAt(0) : '';
     const pd = f.proposal_due ? new Date(f.proposal_due).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : 'TBD';
-    const isPotential = f.canvas_type === 'Potential Project';
-    html += `<div class="card" style="cursor:pointer" onclick="openCanvas('${c.id}')"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><div class="opp-agency">${f.issuer_agency||'Agency TBD'}</div><div class="card-title">${(f.canvas_title||'Untitled Canvas').slice(0,90)}${(f.canvas_title||'').length>90?'…':''}</div><div class="card-meta">Created by ${f.created_by||'—'} · Proposal due: ${pd}</div></div><div style="display:flex;gap:8px;align-items:center;flex-shrink:0">${isPotential?'<span class="badge" style="background:var(--info);color:#fff;font-size:11px">Potential Project</span>':''}${statusNum?`<span class="status-pill status-${statusNum}">${f.pursuit_status}</span>`:''}${!f.active?'<span class="badge badge-gray">Inactive</span>':''}<i class="ti ti-arrow-right" style="color:var(--muted)"></i></div></div></div>`;
+    // Show only the short title (before " — ")
+    const raw = (f.canvas_title||'Untitled Canvas').replace(/&amp;/g,'&');
+    const dash = raw.search(/ [—–] /);
+    const shortTitle = dash > 0 ? raw.slice(0, dash) : (raw.length > 80 ? raw.slice(0,80)+'…' : raw);
+    html += `<div class="card" style="cursor:pointer" onclick="openCanvas('${c.id}')">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div style="min-width:0">
+          <div class="opp-agency" style="text-transform:none;font-size:12px">${f.issuer_agency||'Agency TBD'}</div>
+          <div style="font-family:'Noto Serif KR',serif;font-size:16px;font-weight:700;color:#111;margin:2px 0 4px">${shortTitle}</div>
+          <div class="card-meta">Proposal due: ${pd}${statusNum ? ` · <span class="status-pill status-${statusNum}">${f.pursuit_status}</span>`:''}</div>
+        </div>
+        <i class="ti ti-arrow-right" style="color:var(--muted);flex-shrink:0"></i>
+      </div>
+    </div>`;
   });
   el.innerHTML = html;
 }
