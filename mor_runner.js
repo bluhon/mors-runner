@@ -479,7 +479,7 @@ TRACK 2 INSTRUCTIONS:
 - Look for: projects entering CEQA, community opposition, governance disputes, facility siting conflicts, agricultural/mining controversies
 - Note the specific Bluhon service needed and who to call
 
-OUTPUT FORMAT — use exactly these delimiters:
+OUTPUT FORMAT — you MUST output ALL THREE sections below in this exact order. Do not skip any section.
 
 ---TRACK1_START---
 [HTML table]
@@ -490,7 +490,8 @@ OUTPUT FORMAT — use exactly these delimiters:
 ---TRACK2_END---
 
 ---OPPORTUNITIES_JSON_START---
-[JSON array of Track 1 opportunities]
+[JSON array — one object per Track 1 row, REQUIRED, do not omit this section]
+[{"title":"...","agency":"...","deadline":"YYYY-MM-DD or null","track":"Track 1","scope":"...","source_url":"https://...","pursuit_type":"Prime or Sub/Team","prior_client":false,"geo_tier":"Tier 1"}]
 ---OPPORTUNITIES_JSON_END---`);
 
   console.log(`[${new Date().toISOString()}] Call 1 complete — Call 2: Tracks 3+4`);
