@@ -1002,8 +1002,10 @@ async function loadProspects() {
           <button onclick="sendToPipeline('${p.id}')" style="font-family:'Source Sans 3',Arial,sans-serif;font-size:0.9rem;font-weight:600;background:var(--brand);color:#fff;border:none;border-radius:6px;padding:6px 16px;cursor:pointer">→ Pipeline</button>
           <div style="position:relative;display:inline-block" id="reject-wrap-${p.id}">
             <button onclick="toggleRejectMenu('${p.id}')" style="font-family:'Source Sans 3',Arial,sans-serif;font-size:0.9rem;font-weight:500;background:#fff;color:#666;border:1px solid #ccc;border-radius:6px;padding:6px 14px;cursor:pointer">Reject ▾</button>
-            <div id="reject-menu-${p.id}" style="display:none;position:absolute;top:100%;left:0;z-index:50;background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.1);min-width:180px;padding:6px 0;margin-top:4px">
-              ${rejectReasons.map(r => `<div onclick="rejectOpp('${p.id}','${r.replace(/'/g,"\\'")}','${safeTitle}','${safeAgency}','${safeUrl}')" style="font-family:'Source Sans 3',Arial,sans-serif;font-size:0.95rem;padding:8px 16px;cursor:pointer;color:#333" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background=''">${r}</div>`).join('')}
+            <div id="reject-menu-${p.id}" style="display:none;position:absolute;top:100%;left:0;z-index:50;background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.12);min-width:220px;padding:10px 14px 12px;margin-top:4px">
+              <div style="font-family:'Roboto Condensed',Arial,sans-serif;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#888;margin-bottom:8px">Select all that apply</div>
+              ${rejectReasons.map(r => `<label style="display:flex;align-items:center;gap:8px;font-family:'Source Sans 3',Arial,sans-serif;font-size:0.95rem;color:#333;padding:4px 0;cursor:pointer"><input type="checkbox" class="reject-cb-${p.id}" value="${r.replace(/"/g,'&quot;')}" style="accent-color:var(--brand);width:15px;height:15px"> ${r}</label>`).join('')}
+              <button onclick="confirmReject('${p.id}','${safeTitle}','${safeAgency}','${safeUrl}')" style="margin-top:10px;width:100%;font-family:'Source Sans 3',Arial,sans-serif;font-size:0.9rem;font-weight:600;background:#d44;color:#fff;border:none;border-radius:6px;padding:7px 0;cursor:pointer">Confirm Reject</button>
             </div>
           </div>
         </div>
@@ -1736,27 +1738,30 @@ async function sendToPipeline(oppId) {
   if (row) { row.style.transition = 'opacity 0.4s'; row.style.opacity = '0'; setTimeout(() => row.remove(), 420); }
 }
 
-async function rejectOpp(oppId, reason, title, agency, sourceUrl) {
-  // Close menu
+async function confirmReject(oppId, title, agency, sourceUrl) {
+  const checkboxes = document.querySelectorAll(`.reject-cb-${oppId}:checked`);
+  const reasons = Array.from(checkboxes).map(cb => cb.value);
+  if (reasons.length === 0) { showToast('Select at least one reason', ''); return; }
+  // Close menu and fade row
   const menu = document.getElementById('reject-menu-' + oppId);
   if (menu) menu.style.display = 'none';
-  // Fade out row
   const row = document.getElementById('t1c-' + oppId);
   if (row) { row.style.transition = 'opacity 0.35s'; row.style.opacity = '0'; setTimeout(() => row.remove(), 360); }
-  // Write learning pattern to PROJECT_MEMORY via runner, then hard-delete from Airtable
-  try {
-    await fetch('https://mors-runner.onrender.com/feedback', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ opp_id: oppId, reason, title, agency, source_url: sourceUrl })
-    });
-  } catch(e) { console.warn('Feedback POST failed:', e.message); }
+  // Write each reason as a separate learning pattern
+  for (const reason of reasons) {
+    try {
+      await fetch('https://mors-runner.onrender.com/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ opp_id: oppId, reason, title, agency, source_url: sourceUrl })
+      });
+    } catch(e) { console.warn('Feedback POST failed:', e.message); }
+  }
   // Hard delete from Airtable — keep database clean
   await atDelete(CONFIG.TABLES.OPPORTUNITIES, oppId);
-  // Remove from local array
   const container = document.getElementById('track1-opps-container');
   if (container._prospects) container._prospects = container._prospects.filter(x => x.id !== oppId);
-  showToast(`Rejected (${reason}) — runner will learn from this`, 'success');
+  showToast(`Rejected (${reasons.join(', ')}) — runner will learn from this`, 'success');
 }
 
 // ─── Search Sources ───────────────────────────────────────────────────────────
