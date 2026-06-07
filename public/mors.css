@@ -3,24 +3,11 @@
    Upload to: bluhon.com/mors/mors.css
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@200;300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@300;400;500;600;700&display=swap');
 
-/* ── Bluhon design tokens (from bluhon.com) ── */
-:root {
-  --bl-color-black:  #000000;
-  --bl-color-gray:   #333333;
-  --bl-color-accent: #048BC9;
-
-  --bl-font-body:    "Source Sans 3", Arial, sans-serif;
-  --bl-font-heading: "Noto Serif KR", "Times New Roman", serif;
-  --bl-font-label:   "Roboto Condensed", Arial, sans-serif;
-
-  --bl-font-size-base:    16px;
-  --bl-line-height-base:  1.6;
-}
+/* ── Base ── */
 
 html, body {
   font-family: "Source Sans 3", Arial, sans-serif !important;
@@ -31,53 +18,17 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ── Heading scale — scoped to Track 1 list only ── */
-
-.t1-list h2,
-.t1-list h3,
-.t1-list h4 {
-  text-transform: none !important;
-  letter-spacing: 0 !important;
-  padding: 0 !important;
-}
-
-.t1-list h2 {
-  font-family: var(--bl-font-heading) !important;
-  font-weight: 700 !important;
-  font-size: 0.95rem !important;
-  color: var(--bl-color-accent) !important;
-  line-height: 1.2 !important;
-  margin: 0 0 2px !important;
-}
-
-.t1-list h3 {
-  font-family: var(--bl-font-body) !important;
-  font-weight: 700 !important;
-  font-size: 1.0rem !important;
-  color: var(--bl-color-black) !important;
-  line-height: 1.3 !important;
-  margin: 0 0 5px !important;
-}
-
-.t1-list p {
-  font-family: var(--bl-font-body) !important;
-  font-size: 0.88rem !important;
-  line-height: 1.5 !important;
-  color: #555 !important;
-  margin: 0 0 3px !important;
-}
-
 /* ── Sidebar ── */
 
 .sidebar-wordmark {
-  font-family: var(--bl-font-heading) !important;
+  font-family: "Noto Serif KR", "Times New Roman", serif !important;
   font-size: 2.4rem !important;
   font-weight: 700 !important;
-  color: var(--bl-color-accent) !important;
+  color: #048BC9 !important;
 }
 
 .sidebar-section {
-  font-family: var(--bl-font-label) !important;
+  font-family: "Roboto Condensed", Arial, sans-serif !important;
   font-size: 0.7rem !important;
   font-weight: 700 !important;
   letter-spacing: 0.14em !important;
@@ -86,74 +37,104 @@ html, body {
 }
 
 .sidebar-user {
-  font-family: var(--bl-font-body) !important;
+  font-family: "Source Sans 3", Arial, sans-serif !important;
   font-size: 0.9rem !important;
-  font-weight: 500 !important;
-  color: var(--bl-color-gray) !important;
+  font-weight: 400 !important;
+  color: #555 !important;
 }
 
 .nav-item {
-  font-family: var(--bl-font-body) !important;
+  font-family: "Source Sans 3", Arial, sans-serif !important;
   font-size: 0.95rem !important;
   font-weight: 500 !important;
-  color: var(--bl-color-gray) !important;
+  color: #333 !important;
 }
 
 .nav-item.active {
-  color: var(--bl-color-accent) !important;
+  color: #048BC9 !important;
   font-weight: 600 !important;
 }
 
 /* ── Page headers ── */
 
 .page-title {
-  font-family: var(--bl-font-heading) !important;
+  font-family: "Noto Serif KR", "Times New Roman", serif !important;
   font-size: clamp(1.4rem, 1.2rem + 0.8vw, 1.9rem) !important;
   font-weight: 700 !important;
   line-height: 1.2 !important;
-  color: var(--bl-color-accent) !important;
+  letter-spacing: 0 !important;
+  color: #048BC9 !important;
 }
 
 .page-subtitle {
-  font-family: var(--bl-font-body) !important;
+  font-family: "Source Sans 3", Arial, sans-serif !important;
   font-size: 0.95rem !important;
   font-weight: 400 !important;
+  color: #555 !important;
+}
+
+/* ── Cards ── */
+
+.card-title {
+  font-family: "Noto Serif KR", "Times New Roman", serif !important;
+  font-size: 1.1rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  color: #000 !important;
+}
+
+.card-body {
+  font-family: "Source Sans 3", Arial, sans-serif !important;
+  font-size: 1.0rem !important;
+  line-height: 1.6 !important;
+  color: #333 !important;
+}
+
+.card-meta {
+  font-family: "Source Sans 3", Arial, sans-serif !important;
+  font-size: 0.85rem !important;
   color: #555 !important;
 }
 
 /* ── Track 1 opportunity list ── */
 
 .t1-list h2 {
-  font-family: var(--bl-font-heading) !important;
-  font-size: 1.0rem !important;
+  font-family: "Noto Serif KR", "Times New Roman", serif !important;
+  font-size: 0.85rem !important;
   font-weight: 700 !important;
-  color: var(--bl-color-accent) !important;
+  color: #048BC9 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
   margin: 0 0 3px !important;
   line-height: 1.2 !important;
 }
 
 .t1-list h3 {
-  font-family: var(--bl-font-body) !important;
-  font-size: 1.0rem !important;
-  font-weight: 700 !important;
-  color: var(--bl-color-black) !important;
+  font-family: "Source Sans 3", Arial, sans-serif !important;
+  font-size: 1.15rem !important;
+  font-weight: 600 !important;
+  color: #000 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
   margin: 0 0 6px !important;
-  line-height: 1.3 !important;
+  line-height: 1.4 !important;
 }
 
-.t1-list p {
-  font-family: var(--bl-font-body) !important;
-  font-size: 0.9rem !important;
-  line-height: 1.55 !important;
-  color: #444 !important;
+.t1-list p,
+.opp-scope {
+  font-family: "Source Sans 3", Arial, sans-serif !important;
+  font-size: 1.0rem !important;
+  line-height: 1.6 !important;
+  color: #333 !important;
   margin: 0 0 3px !important;
 }
 
 .t1-list th {
-  font-family: var(--bl-font-label) !important;
+  font-family: "Roboto Condensed", Arial, sans-serif !important;
   font-size: 0.75rem !important;
   font-weight: 700 !important;
-  color: var(--bl-color-accent) !important;
+  color: #048BC9 !important;
   text-transform: uppercase !important;
   letter-spacing: 0.1em !important;
 }
@@ -161,222 +142,139 @@ html, body {
 /* ── Report reading ── */
 
 .track-header {
-  font-family: var(--bl-font-heading) !important;
+  font-family: "Noto Serif KR", "Times New Roman", serif !important;
   font-size: 1.9rem !important;
   font-weight: 700 !important;
   color: #000 !important;
 }
 
 .track-body {
-  font-family: var(--bl-font-body) !important;
+  font-family: "Source Sans 3", Arial, sans-serif !important;
   font-size: 1.05rem !important;
-  line-height: 1.8 !important;
-  color: #333 !important;
+  line-height: 1.6 !important;
+  color: #000 !important;
   font-weight: 400 !important;
 }
 
-.track-body p,
-.track-body div {
+.track-body h3 {
+  font-family: "Source Sans 3", Arial, sans-serif !important;
   font-size: 1.05rem !important;
-  line-height: 1.8 !important;
-  color: #333 !important;
-  margin-bottom: 1em !important;
+  font-weight: 700 !important;
+  color: #000 !important;
+  line-height: 1.4 !important;
+  margin: 0 0 4px !important;
+  padding: 0 !important;
+}
+
+.track-body p {
+  font-family: "Source Sans 3", Arial, sans-serif !important;
+  font-size: 1.05rem !important;
+  line-height: 1.6 !important;
+  color: #000 !important;
+  margin: 0 0 4px !important;
 }
 
 .track-body li {
+  font-family: "Source Sans 3", Arial, sans-serif !important;
   font-size: 1.05rem !important;
-  line-height: 1.8 !important;
+  line-height: 1.6 !important;
   color: #333 !important;
   margin-bottom: 8px !important;
 }
 
-.track-body strong, .track-body b {
+.track-body strong,
+.track-body b {
   font-weight: 700 !important;
-  color: var(--bl-color-black) !important;
+  color: #000 !important;
 }
 
 .track-body th {
-  font-family: var(--bl-font-label) !important;
+  font-family: "Roboto Condensed", Arial, sans-serif !important;
   font-size: 0.85rem !important;
   font-weight: 700 !important;
-  color: var(--bl-color-accent) !important;
+  color: #048BC9 !important;
 }
 
 .track-body td {
-  font-size: 0.9rem !important;
-  color: var(--bl-color-gray) !important;
-  font-weight: 400 !important;
-  line-height: 1.55 !important;
-  max-width: 320px !important;
-  overflow: hidden !important;
+  font-family: "Source Sans 3", Arial, sans-serif !important;
+  font-size: 1.0rem !important;
+  color: #333 !important;
+  line-height: 1.6 !important;
 }
 
-.track-body td p {
-  margin: 0 !important;
-  display: -webkit-box !important;
-  -webkit-line-clamp: 5 !important;
-  -webkit-box-orient: vertical !important;
-  overflow: hidden !important;
-}
-
-.track-body table {
-  display: block !important;
-  overflow-x: auto !important;
-  max-width: 100% !important;
-}
-
-.track-body td:empty,
-.track-body th:empty {
-  display: none !important;
-}
-
-/* Reading column width */
 .report-reading-col {
   max-width: 800px !important;
 }
 
-/* ── Pipeline table ── */
+/* ── Field labels (canvas, forms) ── */
 
-.pipeline-table th {
-  font-family: var(--bl-font-label) !important;
-  font-size: 0.85rem !important;
+.field-label,
+.form-label {
+  font-family: "Roboto Condensed", Arial, sans-serif !important;
+  font-size: 0.75rem !important;
   font-weight: 700 !important;
-  color: var(--bl-color-accent) !important;
+  color: #048BC9 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
 }
 
-.pipeline-table td {
-  font-family: var(--bl-font-body) !important;
-  font-size: 0.95rem !important;
+.field-value,
+.field-input,
+.form-input {
+  font-family: "Source Sans 3", Arial, sans-serif !important;
+  font-size: 1.0rem !important;
   font-weight: 400 !important;
-  color: var(--bl-color-gray) !important;
+  color: #000 !important;
 }
 
 /* ── Canvas ── */
 
 .canvas-section-title {
-  font-family: var(--bl-font-heading) !important;
+  font-family: "Noto Serif KR", "Times New Roman", serif !important;
   font-size: 1.4rem !important;
   font-weight: 700 !important;
-  color: var(--bl-color-accent) !important;
+  color: #048BC9 !important;
   text-transform: none !important;
   margin-bottom: 16px !important;
-}
-
-.field-label,
-.form-label,
-.login-field label {
-  font-family: var(--bl-font-label) !important;
-  font-size: 0.85rem !important;
-  font-weight: 700 !important;
-  color: var(--bl-color-accent) !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.08em !important;
-  display: block !important;
-  margin-bottom: 5px !important;
-}
-
-.field-value {
-  font-family: var(--bl-font-body) !important;
-  font-size: 1.0rem !important;
-  font-weight: 400 !important;
-  color: var(--bl-color-black) !important;
-}
-
-.field-input,
-.form-input {
-  font-family: var(--bl-font-body) !important;
-  font-size: 1.0rem !important;
-  font-weight: 400 !important;
-  color: var(--bl-color-black) !important;
 }
 
 /* ── Notes ── */
 
 .note-author {
-  font-family: var(--bl-font-label) !important;
+  font-family: "Roboto Condensed", Arial, sans-serif !important;
   font-size: 1.0rem !important;
   font-weight: 700 !important;
-  color: var(--bl-color-accent) !important;
+  color: #048BC9 !important;
 }
 
 .note-date {
+  font-family: "Source Sans 3", Arial, sans-serif !important;
   font-size: 0.85rem !important;
   color: #555 !important;
 }
 
 .note-text {
-  font-family: var(--bl-font-body) !important;
+  font-family: "Source Sans 3", Arial, sans-serif !important;
   font-size: 1.0rem !important;
-  font-weight: 400 !important;
-  color: var(--bl-color-gray) !important;
-  line-height: 1.7 !important;
-}
-
-/* ── Cards ── */
-
-.card-title {
-  font-family: var(--bl-font-heading) !important;
-  font-size: 1.1rem !important;
-  font-weight: 600 !important;
-  color: var(--bl-color-black) !important;
-  text-transform: none !important;
-  letter-spacing: 0 !important;
-}
-
-.card-body {
-  font-family: var(--bl-font-body) !important;
-  font-size: 1.0rem !important;
-  color: var(--bl-color-gray) !important;
-}
-
-.card-meta {
-  font-family: var(--bl-font-body) !important;
-  font-size: 0.85rem !important;
-  color: #555 !important;
-}
-
-/* ── Modals ── */
-
-.modal-title {
-  font-family: var(--bl-font-heading) !important;
-  font-size: 1.5rem !important;
-  font-weight: 700 !important;
-  color: var(--bl-color-accent) !important;
-}
-
-/* ── Report nav ── */
-
-.report-date-label {
-  font-family: var(--bl-font-heading) !important;
-  font-size: 1.1rem !important;
-  font-weight: 700 !important;
-  color: var(--bl-color-black) !important;
-}
-
-/* ── Login ── */
-
-.login-logo {
-  font-family: var(--bl-font-heading) !important;
-  font-size: 3.5rem !important;
-  font-weight: 700 !important;
-  color: var(--bl-color-accent) !important;
+  line-height: 1.6 !important;
+  color: #333 !important;
 }
 
 /* ── Buttons ── */
 
 .btn {
-  font-family: var(--bl-font-body) !important;
+  font-family: "Source Sans 3", Arial, sans-serif !important;
   font-size: 0.9rem !important;
   font-weight: 600 !important;
 }
 
-/* ── Empty states ── */
+/* ── Login ── */
 
-.empty-state-title {
-  font-family: var(--bl-font-heading) !important;
-  font-size: 1.4rem !important;
+.login-logo {
+  font-family: "Noto Serif KR", "Times New Roman", serif !important;
+  font-size: 3.5rem !important;
   font-weight: 700 !important;
-  color: var(--bl-color-black) !important;
+  color: #048BC9 !important;
 }
 
 /* ── Mobile: collapsible sidebar ── */
