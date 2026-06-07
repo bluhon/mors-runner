@@ -25,8 +25,9 @@
 html, body {
   font-family: "Source Sans 3", Arial, sans-serif !important;
   font-size: 16px !important;
-  line-height: 1.8 !important;
-  color: #000 !important;
+  line-height: 1.6 !important;
+  color: #000000 !important;
+  font-optical-sizing: auto !important;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -168,23 +169,24 @@ html, body {
 
 .track-body {
   font-family: var(--bl-font-body) !important;
-  font-size: 1.0rem !important;
-  line-height: 1.75 !important;
-  color: var(--bl-color-gray) !important;
+  font-size: 1.05rem !important;
+  line-height: 1.8 !important;
+  color: #333 !important;
   font-weight: 400 !important;
 }
 
-.track-body p {
-  font-size: 1.0rem !important;
-  line-height: 1.75 !important;
-  color: var(--bl-color-gray) !important;
+.track-body p,
+.track-body div {
+  font-size: 1.05rem !important;
+  line-height: 1.8 !important;
+  color: #333 !important;
   margin-bottom: 1em !important;
 }
 
 .track-body li {
-  font-size: 1.0rem !important;
-  line-height: 1.7 !important;
-  color: var(--bl-color-gray) !important;
+  font-size: 1.05rem !important;
+  line-height: 1.8 !important;
+  color: #333 !important;
   margin-bottom: 8px !important;
 }
 
