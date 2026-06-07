@@ -551,14 +551,12 @@ OUTPUT FORMAT — use exactly these delimiters:
   for (const opp of opps) {
     try {
       await atPost(AIRTABLE_OPPS_TABLE, {
-        title:       opp.title,
-        agency:      opp.agency,
-        deadline:    opp.deadline,
-        track:       "Track 1",
-        scope:       opp.scope,
-        source_url:  opp.source_url,
-        report_date: reportDate,
-        created_at:  new Date().toISOString()
+        title:      opp.title,
+        agency:     opp.agency,
+        deadline:   opp.deadline || null,
+        track:      "Track 1",
+        scope:      opp.scope,
+        source_url: opp.source_url
       });
       oppCount++;
     } catch(e) {
@@ -718,7 +716,7 @@ OUTPUT FORMAT — use exactly these delimiters:
       let opps = [];
       try { opps = JSON.parse(oppsMatch[1].trim().replace(/^```json\s*/, '').replace(/```\s*$/, '')); } catch(e) {}
       for (const opp of opps) {
-        try { await atPost(AIRTABLE_OPPS_TABLE, { title: opp.title||'Untitled', agency: opp.agency||'', deadline: opp.deadline||null, track: 'Track 1', scope: opp.scope||'', source_url: opp.source_url||'', report_date: reportDate, created_at: new Date().toISOString() }); } catch(e) {}
+        try { await atPost(AIRTABLE_OPPS_TABLE, { title: opp.title||'Untitled', agency: opp.agency||'', deadline: opp.deadline||null, track: 'Track 1', scope: opp.scope||'', source_url: opp.source_url||'' }); } catch(e) {}
       }
     }
     if (track2_html && track2_html !== "<p>No Track 2 data.</p>") {
