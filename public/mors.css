@@ -24,8 +24,8 @@
 
 html, body {
   font-family: var(--bl-font-body) !important;
-  font-size: var(--bl-font-size-base) !important;
-  line-height: var(--bl-line-height-base) !important;
+  font-size: 16px !important;
+  line-height: 1.6 !important;
   color: var(--bl-color-gray) !important;
   -webkit-font-smoothing: antialiased;
 }
