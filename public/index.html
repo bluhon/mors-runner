@@ -1168,7 +1168,7 @@ function filterCanvas(mode) {
   let shown;
   if (mode === 'active') shown = allCanvases.filter(c => c.fields.active);
   else if (mode === 'all') shown = allCanvases;
-  else shown = allCanvases.filter(c => c.fields.pursuit_status && c.fields.pursuit_status.startsWith(mode));
+  else shown = allCanvases.filter(c => c.fields.pursuit_status && (c.fields.pursuit_status.startsWith(mode) || c.fields.pursuit_status.toLowerCase().includes(mode === '2' ? 'building' : mode === '3' ? 'no' : 'submit')));
   const el = document.getElementById('canvas-list-content');
   if (shown.length === 0) { el.innerHTML = '<div class="empty-state"><i class="ti ti-layout-board"></i><div class="empty-state-title">No canvases</div><p>Canvases appear when you mark a lead as Interest = Yes.</p></div>'; return; }
   let html = '';
