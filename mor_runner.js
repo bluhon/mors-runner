@@ -10,7 +10,7 @@ const AIRTABLE_OPPS_TABLE     = "tbleIossei7FDqi9H";
 const AIRTABLE_TRACK2_TABLE   = "tbl4f7N5EoaKRwRXK";
 const AIRTABLE_MEMORY_TABLE   = "tblNgcBpooPK9wOkD";  // PROJECT_MEMORY
 const AIRTABLE_SOURCES_TABLE  = "tblsQwva2y8ABugYH";  // SEARCH_SOURCES (procurement portals)
-const AIRTABLE_MEDIA_TABLE    = process.env.AIRTABLE_MEDIA_TABLE || ''; // MEDIA_SOURCES — set once table is created
+const AIRTABLE_MEDIA_TABLE    = "tblANGqT4L4Yt1MFl"; // MEDIA_SOURCES
 
 // Portal credentials — from Render environment variables
 const FINDRFP_LOGIN       = process.env.FINDRFP_LOGIN       || process.env.FINDRFP_LOGIN || '';
@@ -414,10 +414,17 @@ async function fetchMediaSources() {
     { name: 'Santa Cruz Sentinel',    url: 'https://www.santacruzsentinel.com',         track: 'Track 2', geo: 'Santa Cruz' },
     { name: 'Monterey Herald',        url: 'https://www.montereyherald.com',            track: 'Track 2', geo: 'Monterey' },
     // ── Agency Board / Governing Body ──
+    // ── Agency Boards (state, regional, federal, special districts) ──
     { name: 'MTC/ABAG Agendas',       url: 'https://mtc.ca.gov/whats-happening/meetings', track: 'Track 4', geo: 'Bay Area' },
-    { name: 'SF BOS Agendas',         url: 'https://sfgov.org/bos/agendas',             track: 'Track 4', geo: 'San Francisco' },
-    { name: 'Oakland City Council',   url: 'https://www.oaklandca.gov/topics/city-council-agendas', track: 'Track 4', geo: 'Oakland' },
-    { name: 'Berkeley City Council',  url: 'https://www.cityofberkeley.info/city-council-meetings', track: 'Track 4', geo: 'Berkeley' },
+    { name: 'BAAQMD Board',           url: 'https://www.baaqmd.gov/about-the-air-district/board-of-directors', track: 'Track 4', geo: 'Bay Area' },
+    { name: 'East Bay Regional Parks Board', url: 'https://www.ebparks.org/about/board', track: 'Track 4', geo: 'East Bay' },
+    { name: 'BCDC Agendas',           url: 'https://bcdc.ca.gov/meetings/',              track: 'Track 4', geo: 'Bay Area' },
+    { name: 'SF Bay RWQCB',           url: 'https://www.waterboards.ca.gov/sanfranciscobay/board_info/agendas/', track: 'Track 4', geo: 'Bay Area' },
+    { name: 'CA Coastal Commission',  url: 'https://www.coastal.ca.gov/meetings.html',  track: 'Track 4', geo: 'Statewide' },
+    { name: 'SFPUC Commission',       url: 'https://sfpuc.org/about-us/commissions-and-advisory-bodies', track: 'Track 4', geo: 'San Francisco' },
+    { name: 'BART Board',             url: 'https://www.bart.gov/about/bod/agendas',    track: 'Track 4', geo: 'Bay Area' },
+    { name: 'Caltrans District 4',    url: 'https://dot.ca.gov/caltrans-near-me/district-4', track: 'Track 4', geo: 'Bay Area' },
+    // ── County Boards ──
     { name: 'Alameda County BOS',     url: 'https://www.acgov.org/board',               track: 'Track 4', geo: 'Alameda County' },
     { name: 'Contra Costa BOS',       url: 'https://www.contracosta.ca.gov/agendas',    track: 'Track 4', geo: 'Contra Costa' },
     { name: 'Marin County BOS',       url: 'https://www.marincounty.org/depts/bs/board-agendas', track: 'Track 4', geo: 'Marin' },
@@ -425,9 +432,17 @@ async function fetchMediaSources() {
     { name: 'Sonoma County BOS',      url: 'https://sonomacounty.ca.gov/boardofSupervisors', track: 'Track 4', geo: 'Sonoma' },
     { name: 'San Mateo County BOS',   url: 'https://www.smcgov.org/board-supervisors',  track: 'Track 4', geo: 'San Mateo' },
     { name: 'Napa County BOS',        url: 'https://www.countyofnapa.org/agendas',      track: 'Track 4', geo: 'Napa' },
+    { name: 'SF BOS',                 url: 'https://sfgov.org/bos/agendas',             track: 'Track 4', geo: 'San Francisco' },
+    // ── City Boards ──
+    { name: 'Oakland City Council',   url: 'https://www.oaklandca.gov/topics/city-council-agendas', track: 'Track 4', geo: 'Oakland' },
+    { name: 'Berkeley City Council',  url: 'https://www.cityofberkeley.info/city-council-meetings', track: 'Track 4', geo: 'Berkeley' },
     { name: 'San Jose City Council',  url: 'https://www.sanjoseca.gov/your-government/departments/city-clerk/city-council/agendas-minutes', track: 'Track 4', geo: 'San Jose' },
     { name: 'Richmond City Council',  url: 'https://www.ci.richmond.ca.us/agendacenter', track: 'Track 4', geo: 'Richmond' },
     { name: 'Palo Alto City Council', url: 'https://www.cityofpaloalto.org/city-council', track: 'Track 4', geo: 'Palo Alto' },
+    { name: 'San Mateo City Council', url: 'https://www.cityofsanmateo.org/agendacenter', track: 'Track 4', geo: 'San Mateo' },
+    { name: 'Novato City Council',    url: 'https://www.cityofnovato.org/agendacenter',  track: 'Track 4', geo: 'Novato' },
+    { name: 'Livermore City Council', url: 'https://www.cityoflivermore.net/agendacenter', track: 'Track 4', geo: 'Livermore' },
+    { name: 'Danville Town Council',  url: 'https://www.danville.ca.gov/agendacenter',  track: 'Track 4', geo: 'Danville' },
     // ── Firm / contract news ──
     { name: 'Engineering News-Record', url: 'https://www.enr.com',                     track: 'Track 3', geo: 'National' },
     { name: 'Planetizen',             url: 'https://www.planetizen.com',                track: 'Track 3', geo: 'National' },
