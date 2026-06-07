@@ -158,11 +158,11 @@ html, body {
 
 .track-body h3 {
   font-family: "Source Sans 3", Arial, sans-serif !important;
-  font-size: 1.05rem !important;
+  font-size: 1.25rem !important;
   font-weight: 700 !important;
   color: #000 !important;
-  line-height: 1.4 !important;
-  margin: 0 0 4px !important;
+  line-height: 1.35 !important;
+  margin: 0 0 6px !important;
   padding: 0 !important;
 }
 
