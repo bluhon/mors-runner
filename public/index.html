@@ -723,6 +723,12 @@ async function atUpdate(tableId, recordId, fields) {
   });
   return res.json();
 }
+async function atDelete(tableId, recordId) {
+  await fetch(`https://api.airtable.com/v0/${CONFIG.BASE_ID}/${tableId}/${recordId}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${CONFIG.AIRTABLE_TOKEN}` }
+  });
+}
 
 function showRegister() {
   document.getElementById('login-screen').style.display = 'none';
@@ -981,20 +987,24 @@ async function loadProspects() {
     const srcCell = f.source_url
       ? `<div class="t1-link"><a href="${f.source_url}" target="_blank"><i class="ti ti-external-link"></i> Source</a></div>`
       : '<div class="t1-link" style="color:var(--muted);font-size:12px">—</div>';
+    const safeTitle = (f.title||'').replace(/'/g,"\\'").replace(/"/g,'&quot;').slice(0,80);
+    const safeAgency = (f.agency||'').replace(/'/g,"\\'").slice(0,60);
+    const safeUrl = (f.source_url||'').replace(/'/g,"\\'");
+    const rejectReasons = ['Not an RFP','Not in scope','Not in geography','Due date past','Low budget','No interest'];
     return `<tr class="${alreadyYes?'t1-interested':''}" id="t1c-${p.id}">
-      <td><input type="checkbox" class="t1-cb" id="cb-${p.id}" ${alreadyYes?'checked':''} onchange="toggleT1Card('${p.id}', this.checked)"></td>
+      <td></td>
       <td>
         <div class="t1-row-agency">${agency}</div>
         <div class="t1-row-title">${displayTitle}</div>
         ${scopeShort ? `<div class="t1-row-scope">${scopeShort}</div>` : ''}
         ${f.estimated_value ? `<div class="t1-row-value">${f.estimated_value}</div>` : ''}
-        <div id="feedback-row-${p.id}" style="margin-top:8px">
-          <span onclick="showFeedbackPicker('${p.id}')" style="font-size:0.85rem;color:#aaa;cursor:pointer;text-decoration:underline;text-underline-offset:2px">Not relevant</span>
-          <div id="feedback-picker-${p.id}" style="display:none;margin-top:6px;display:none">
-            <span style="font-size:0.85rem;color:var(--muted);margin-right:6px">Why not?</span>
-            ${['Not an RFP','Not in scope','Not in geography','Due date past','Low budget','No interest'].map(r =>
-              `<span onclick="submitFeedback('${p.id}','${r.replace(/'/g,"\\'")}','${(f.title||'').replace(/'/g,"\\'").replace(/"/g,'&quot;').slice(0,80)}','${(f.agency||'').replace(/'/g,"\\'").slice(0,60)}','${(f.source_url||'').replace(/'/g,"\\'")}')" style="display:inline-block;font-size:0.85rem;padding:3px 10px;border-radius:20px;border:1px solid var(--border2);color:var(--muted);cursor:pointer;margin-right:4px;margin-bottom:4px;background:var(--bg2)">${r}</span>`
-            ).join('')}
+        <div style="display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap">
+          <button onclick="sendToPipeline('${p.id}')" style="font-family:'Source Sans 3',Arial,sans-serif;font-size:0.9rem;font-weight:600;background:var(--brand);color:#fff;border:none;border-radius:6px;padding:6px 16px;cursor:pointer">→ Pipeline</button>
+          <div style="position:relative;display:inline-block" id="reject-wrap-${p.id}">
+            <button onclick="toggleRejectMenu('${p.id}')" style="font-family:'Source Sans 3',Arial,sans-serif;font-size:0.9rem;font-weight:500;background:#fff;color:#666;border:1px solid #ccc;border-radius:6px;padding:6px 14px;cursor:pointer">Reject ▾</button>
+            <div id="reject-menu-${p.id}" style="display:none;position:absolute;top:100%;left:0;z-index:50;background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.1);min-width:180px;padding:6px 0;margin-top:4px">
+              ${rejectReasons.map(r => `<div onclick="rejectOpp('${p.id}','${r.replace(/'/g,"\\'")}','${safeTitle}','${safeAgency}','${safeUrl}')" style="font-family:'Source Sans 3',Arial,sans-serif;font-size:0.95rem;padding:8px 16px;cursor:pointer;color:#333" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background=''">${r}</div>`).join('')}
+            </div>
           </div>
         </div>
       </td>
@@ -1005,7 +1015,7 @@ async function loadProspects() {
   container.innerHTML = `<div style="margin-top:8px">
     <table class="t1-list">
       <thead><tr>
-        <th></th>
+        <th style="width:0;padding:0"></th>
         <th>Opportunity</th>
         <th>Link</th>
         <th style="text-align:right">Due</th>
@@ -1698,25 +1708,55 @@ async function makePipelineCanvas(oppId, title) {
   }
 }
 // ─── Feedback / Learning Loop ────────────────────────────────────────────────
-function showFeedbackPicker(oppId) {
-  const picker = document.getElementById('feedback-picker-' + oppId);
-  if (picker) picker.style.display = picker.style.display === 'none' ? 'block' : 'none';
+function toggleRejectMenu(oppId) {
+  // Close any other open menus first
+  document.querySelectorAll('[id^="reject-menu-"]').forEach(m => {
+    if (m.id !== 'reject-menu-' + oppId) m.style.display = 'none';
+  });
+  const menu = document.getElementById('reject-menu-' + oppId);
+  if (menu) menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+// Close reject menus when clicking outside
+document.addEventListener('click', e => {
+  if (!e.target.closest('[id^="reject-wrap-"]')) {
+    document.querySelectorAll('[id^="reject-menu-"]').forEach(m => m.style.display = 'none');
+  }
+});
+
+async function sendToPipeline(oppId) {
+  const container = document.getElementById('track1-opps-container');
+  const prospects = container._prospects || [];
+  const p = prospects.find(x => x.id === oppId);
+  if (!p) return;
+  const row = document.getElementById('t1c-' + oppId);
+  if (row) row.classList.add('t1-interested');
+  await atUpdate(CONFIG.TABLES.OPPORTUNITIES, oppId, { interest: 'Yes' });
+  await createCanvas(oppId, p.fields.title);
+  showToast('Added to Pipeline — RFP Canvas created', 'success');
+  if (row) { row.style.transition = 'opacity 0.4s'; row.style.opacity = '0'; setTimeout(() => row.remove(), 420); }
 }
 
-async function submitFeedback(oppId, reason, title, agency, sourceUrl) {
-  // Immediately hide card with fade
+async function rejectOpp(oppId, reason, title, agency, sourceUrl) {
+  // Close menu
+  const menu = document.getElementById('reject-menu-' + oppId);
+  if (menu) menu.style.display = 'none';
+  // Fade out row
   const row = document.getElementById('t1c-' + oppId);
   if (row) { row.style.transition = 'opacity 0.35s'; row.style.opacity = '0'; setTimeout(() => row.remove(), 360); }
+  // Write learning pattern to PROJECT_MEMORY via runner, then hard-delete from Airtable
   try {
     await fetch('https://mors-runner.onrender.com/feedback', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ opp_id: oppId, reason, title, agency, source_url: sourceUrl })
     });
-  } catch(e) {
-    console.warn('Feedback submit failed:', e.message);
-  }
-  showToast('Feedback recorded — runner will learn from this', 'success');
+  } catch(e) { console.warn('Feedback POST failed:', e.message); }
+  // Hard delete from Airtable — keep database clean
+  await atDelete(CONFIG.TABLES.OPPORTUNITIES, oppId);
+  // Remove from local array
+  const container = document.getElementById('track1-opps-container');
+  if (container._prospects) container._prospects = container._prospects.filter(x => x.id !== oppId);
+  showToast(`Rejected (${reason}) — runner will learn from this`, 'success');
 }
 
 // ─── Search Sources ───────────────────────────────────────────────────────────
