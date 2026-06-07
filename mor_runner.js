@@ -11,9 +11,15 @@ const AIRTABLE_TRACK2_TABLE   = "tbl4f7N5EoaKRwRXK";
 const AIRTABLE_MEMORY_TABLE   = "tblNgcBpooPK9wOkD";  // PROJECT_MEMORY
 const AIRTABLE_SOURCES_TABLE  = "tblsQwva2y8ABugYH";  // SEARCH_SOURCES
 
-// FindRFP.com credentials — set these as Render env vars
-const FINDRFP_EMAIL    = process.env.FINDRFP_EMAIL    || '';
-const FINDRFP_PASSWORD = process.env.FINDRFP_PASSWORD || '';
+// Portal credentials — from Render environment variables
+const FINDRFP_LOGIN       = process.env.FINDRFP_LOGIN       || process.env.FINDRFP_LOGIN || '';
+const FINDRFP_PASSWORD    = process.env.FINDRFP_PASSWORD    || '';
+const OPENGOV_LOGIN       = process.env.OPENGOV_LOGIN       || '';
+const OPENGOV_PASSWORD    = process.env.OPENGOV_PASSWORD    || '';
+const BONFIRE_LOGIN       = process.env.BONFIRE_LOGIN       || '';
+const BONFIRE_PASSWORD    = process.env.BONFIRE_PASSWORD    || '';
+const PLANETBIDS_LOGIN    = process.env.PLANETBIDS_LOGIN    || '';
+const PLANETBIDS_PASSWORD = process.env.PLANETBIDS_PASSWORD || '';
 
 const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 const app = express();
@@ -371,7 +377,7 @@ const FINDRFP_KEYWORDS = [
 ];
 
 async function scrapeFindrfp() {
-  if (!FINDRFP_EMAIL || !FINDRFP_PASSWORD) {
+  if (!FINDRFP_LOGIN || !FINDRFP_PASSWORD) {
     console.log('[FindRFP] No credentials — skipping');
     return [];
   }
@@ -398,7 +404,7 @@ async function scrapeFindrfp() {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
         'Referer': 'https://www.findrfp.com/login'
       },
-      body: new URLSearchParams({ email: FINDRFP_EMAIL, password: FINDRFP_PASSWORD, _token: csrf })
+      body: new URLSearchParams({ email: FINDRFP_LOGIN, password: FINDRFP_PASSWORD, _token: csrf })
     });
     // Capture session cookie from login response
     const sessionCookie = [cookies, loginRes.headers.get('set-cookie') || '']
@@ -465,6 +471,206 @@ async function scrapeFindrfp() {
     console.warn(`[FindRFP] Scraper error: ${err.message}`);
     return [];
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OpenGov authenticated scraper
+// Searches procurement.opengov.com for California RFPs
+// ─────────────────────────────────────────────────────────────────────────────
+async function scrapeOpengov() {
+  if (!OPENGOV_LOGIN || !OPENGOV_PASSWORD) { console.log('[OpenGov] No credentials — skipping'); return []; }
+  try {
+    console.log('[OpenGov] Logging in...');
+    // OpenGov uses OAuth/JWT — POST to their auth endpoint
+    const authRes = await fetch('https://procurement.opengov.com/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
+      body: JSON.stringify({ email: OPENGOV_LOGIN, password: OPENGOV_PASSWORD })
+    });
+    const authData = await authRes.json();
+    const token = authData.token || authData.access_token || authData.data?.token || '';
+    if (!token) {
+      // Fallback: try session-based login
+      console.warn('[OpenGov] JWT auth failed — trying session login');
+      return await scrapeOpengovSession();
+    }
+    console.log('[OpenGov] Authenticated — searching...');
+    const opps = [];
+    const keywords = ['public engagement', 'community outreach', 'facilitation', 'strategic plan'];
+    for (const kw of keywords) {
+      try {
+        const res = await fetch(`https://procurement.opengov.com/api/procurement/opportunities?q=${encodeURIComponent(kw)}&state=CA&status=open&per_page=20`, {
+          headers: { 'Authorization': `Bearer ${token}`, 'User-Agent': 'Mozilla/5.0' }
+        });
+        const data = await res.json();
+        const items = data.data || data.opportunities || data.results || [];
+        for (const item of items) {
+          const title = item.title || item.name || '';
+          const agency = item.department || item.agency || item.organization || '';
+          const deadline = item.close_date || item.due_date || item.deadline || null;
+          const id = item.id || item.slug || '';
+          const source_url = id ? `https://procurement.opengov.com/portal/${id}` : 'https://procurement.opengov.com';
+          if (title && !opps.find(o => o.title === title)) {
+            const deadlineDate = deadline ? new Date(deadline) : null;
+            if (!deadlineDate || deadlineDate > new Date()) {
+              opps.push({ title, agency, deadline: deadlineDate ? deadlineDate.toISOString().split('T')[0] : null, scope: kw, source_url, via: 'OpenGov' });
+            }
+          }
+        }
+        await new Promise(r => setTimeout(r, 600));
+      } catch(e) { console.warn(`[OpenGov] Search "${kw}" failed: ${e.message}`); }
+    }
+    console.log(`[OpenGov] Found ${opps.length} opportunities`);
+    return opps;
+  } catch(err) { console.warn(`[OpenGov] Error: ${err.message}`); return []; }
+}
+
+async function scrapeOpengovSession() {
+  // Session-based fallback — search the public portal filtered to CA
+  try {
+    const res = await fetch('https://procurement.opengov.com/opportunities?state=CA&keywords=engagement+facilitation&status=open', {
+      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json, text/html' }
+    });
+    const text = await res.text();
+    // Parse any JSON embedded in the page
+    const jsonMatch = text.match(/window\.__INITIAL_STATE__\s*=\s*({[\s\S]+?});<\/script>/);
+    if (!jsonMatch) return [];
+    const state = JSON.parse(jsonMatch[1]);
+    const items = state?.opportunities?.list || state?.data?.opportunities || [];
+    return items.slice(0, 15).map(item => ({
+      title: item.title || '',
+      agency: item.department || '',
+      deadline: item.close_date ? new Date(item.close_date).toISOString().split('T')[0] : null,
+      scope: 'public engagement',
+      source_url: `https://procurement.opengov.com/portal/${item.id || ''}`,
+      via: 'OpenGov'
+    })).filter(o => o.title);
+  } catch(e) { return []; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Bonfire authenticated scraper
+// Searches multiple Bay Area agency subdomains with one login
+// ─────────────────────────────────────────────────────────────────────────────
+const BONFIRE_SUBDOMAINS = [
+  'baaqmd', 'mtc', 'vendor', 'weta',
+  'alamedacounty', 'contracosta', 'marinwater', 'sfpuc',
+  'samtrans', 'scvwd', 'ebmud', 'bart'
+];
+
+async function scrapeBonfire() {
+  if (!BONFIRE_LOGIN || !BONFIRE_PASSWORD) { console.log('[Bonfire] No credentials — skipping'); return []; }
+  const opps = [];
+  try {
+    console.log('[Bonfire] Authenticating...');
+    // Bonfire uses per-subdomain auth — start with vendor portal then search public opportunities
+    // First try the public opportunities API which is accessible after auth on vendor portal
+    const loginRes = await fetch('https://vendor.bonfirehub.com/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
+      body: JSON.stringify({ email: BONFIRE_LOGIN, password: BONFIRE_PASSWORD })
+    });
+    const loginData = await loginRes.json();
+    const token = loginData.token || loginData.access_token || '';
+    const authHeader = token ? { 'Authorization': `Bearer ${token}` } : {};
+
+    for (const subdomain of BONFIRE_SUBDOMAINS) {
+      try {
+        const res = await fetch(`https://${subdomain}.bonfirehub.com/opportunities?status=open`, {
+          headers: { ...authHeader, 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' }
+        });
+        if (!res.ok) continue;
+        const data = await res.json();
+        const items = data.opportunities || data.data || data.results || [];
+        for (const item of items) {
+          const title = item.title || item.name || '';
+          const deadline = item.closingDate || item.closing_date || item.dueDate || null;
+          const deadlineDate = deadline ? new Date(deadline) : null;
+          if (!title || (deadlineDate && deadlineDate < new Date())) continue;
+          if (!opps.find(o => o.title === title)) {
+            opps.push({
+              title,
+              agency: item.organization || item.department || subdomain.toUpperCase(),
+              deadline: deadlineDate ? deadlineDate.toISOString().split('T')[0] : null,
+              scope: item.category || item.type || '',
+              source_url: item.url || `https://${subdomain}.bonfirehub.com/opportunities/${item.id || ''}`,
+              via: 'Bonfire'
+            });
+          }
+        }
+        await new Promise(r => setTimeout(r, 400));
+      } catch(e) { console.warn(`[Bonfire] ${subdomain} failed: ${e.message}`); }
+    }
+    console.log(`[Bonfire] Found ${opps.length} opportunities`);
+    return opps;
+  } catch(err) { console.warn(`[Bonfire] Error: ${err.message}`); return []; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PlanetBids authenticated scraper
+// Searches California agencies on the PlanetBids platform
+// ─────────────────────────────────────────────────────────────────────────────
+async function scrapePlanetbids() {
+  if (!PLANETBIDS_LOGIN || !PLANETBIDS_PASSWORD) { console.log('[PlanetBids] No credentials — skipping'); return []; }
+  try {
+    console.log('[PlanetBids] Logging in...');
+    // PlanetBids uses form-based auth
+    const loginPage = await fetch('https://www.planetbids.com/portal/portal.cfm', {
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    });
+    const cookies = (loginPage.headers.get('set-cookie') || '').split(',').map(c => c.split(';')[0].trim()).join('; ');
+
+    const loginRes = await fetch('https://www.planetbids.com/portal/portal.cfm', {
+      method: 'POST',
+      redirect: 'manual',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Cookie': cookies,
+        'User-Agent': 'Mozilla/5.0',
+        'Referer': 'https://www.planetbids.com/portal/portal.cfm'
+      },
+      body: new URLSearchParams({
+        action: 'login',
+        email: PLANETBIDS_LOGIN,
+        password: PLANETBIDS_PASSWORD
+      })
+    });
+    const sessionCookies = [cookies, loginRes.headers.get('set-cookie') || '']
+      .join('; ').split(',').map(c => c.split(';')[0].trim()).filter(Boolean).join('; ');
+
+    // Search for open bids in California
+    const keywords = ['public engagement', 'facilitation', 'outreach', 'strategic plan', 'community engagement'];
+    const opps = [];
+    for (const kw of keywords.slice(0, 4)) {
+      try {
+        const res = await fetch(`https://www.planetbids.com/portal/portal.cfm?action=search&state=CA&keyword=${encodeURIComponent(kw)}&status=open`, {
+          headers: { 'Cookie': sessionCookies, 'User-Agent': 'Mozilla/5.0' }
+        });
+        const html = await res.text();
+        const rowMatches = html.match(/<tr[^>]*class="[^"]*bid[^"]*row[^"]*"[^>]*>([\s\S]*?)<\/tr>/gi) || [];
+        for (const row of rowMatches.slice(0, 10)) {
+          const cells = (row.match(/<td[^>]*>([\s\S]*?)<\/td>/gi) || []).map(td => td.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim());
+          const linkMatch = row.match(/href="([^"]*bid[^"]*)"[^>]*>([^<]{5,})</i);
+          const title = linkMatch ? linkMatch[2].trim() : cells[1] || '';
+          const agency = cells[0] || '';
+          const dueDateRaw = cells[3] || cells[2] || '';
+          const dateMatch = dueDateRaw.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
+          let deadline = null;
+          if (dateMatch) {
+            const d = new Date(dateMatch[1]);
+            if (!isNaN(d) && d > new Date()) deadline = d.toISOString().split('T')[0];
+          }
+          if (title && !opps.find(o => o.title === title)) {
+            const urlPath = linkMatch ? linkMatch[1] : '';
+            opps.push({ title, agency, deadline, scope: kw, source_url: urlPath.startsWith('http') ? urlPath : `https://www.planetbids.com${urlPath}`, via: 'PlanetBids' });
+          }
+        }
+        await new Promise(r => setTimeout(r, 700));
+      } catch(e) { console.warn(`[PlanetBids] Search "${kw}" failed: ${e.message}`); }
+    }
+    console.log(`[PlanetBids] Found ${opps.length} opportunities`);
+    return opps;
+  } catch(err) { console.warn(`[PlanetBids] Error: ${err.message}`); return []; }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -627,10 +833,13 @@ async function runMORSReport() {
   console.log(`[${new Date().toISOString()}] Starting MORS report for ${today} — ${geo.label}`);
 
   // ── Fetch memory patterns, search sources, and scrape Tier B portals in parallel
-  const [memoryPatterns, searchSources, findrfpOpps] = await Promise.all([
+  const [memoryPatterns, searchSources, findrfpOpps, opengovOpps, bonfireOpps, planetbidsOpps] = await Promise.all([
     fetchProjectMemory(),
     fetchSearchSources(),
-    scrapeFindrfp()
+    scrapeFindrfp(),
+    scrapeOpengov(),
+    scrapeBonfire(),
+    scrapePlanetbids()
   ]);
 
   // Build dynamic system prompt additions
@@ -790,6 +999,28 @@ OUTPUT FORMAT — use exactly these delimiters:
     }
   }
   if (findrfpCount > 0) console.log(`[${new Date().toISOString()}] Saved ${findrfpCount} FindRFP opportunities`);
+
+  // ── Save portal-scraped opportunities ─────────────────────────────────────
+  const portalOpps = [
+    ...opengovOpps.map(o => ({ ...o, tag: '[via OpenGov]' })),
+    ...bonfireOpps.map(o => ({ ...o, tag: '[via Bonfire]' })),
+    ...planetbidsOpps.map(o => ({ ...o, tag: '[via PlanetBids]' }))
+  ];
+  let portalCount = 0;
+  for (const opp of portalOpps) {
+    try {
+      await atPost(AIRTABLE_OPPS_TABLE, {
+        title:      `${opp.title} ${opp.tag}`,
+        agency:     opp.agency,
+        deadline:   opp.deadline || null,
+        track:      "1 — Active RFP",
+        scope:      opp.scope,
+        source_url: opp.source_url
+      });
+      portalCount++;
+    } catch(e) { console.warn(`Portal opp save failed (${opp.title}):`, e.message); }
+  }
+  if (portalCount > 0) console.log(`[${new Date().toISOString()}] Saved ${portalCount} portal opportunities (OpenGov/Bonfire/PlanetBids)`);
 
   // ── Parse and save Track 2 items individually ─────────────────────────────
   if (track2_html && track2_html !== "<p>No Track 2 data.</p>") {
