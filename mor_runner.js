@@ -544,38 +544,28 @@ OUTPUT FORMAT — use exactly these delimiters:
   });
   console.log(`[${new Date().toISOString()}] Report saved — ID: ${saved.id}`);
 
-  // ── Save individual opportunities ─────────────────────────────────────────
-  console.log(`[${new Date().toISOString()}] Opportunities JSON found: ${!!oppsMatch}`);
-  if (oppsMatch) {
-    let opps = [];
+  // ── Save individual opportunities — parsed from Track 1 HTML table ───────
+  const opps = parseTrack1Opps(track1_html, reportDate);
+  console.log(`[${new Date().toISOString()}] Parsed ${opps.length} opportunities from Track 1 HTML`);
+  let oppCount = 0;
+  for (const opp of opps) {
     try {
-      const jsonStr = oppsMatch[1].trim().replace(/^```json\s*/, '').replace(/```\s*$/, '');
-      console.log(`[${new Date().toISOString()}] JSON preview: ${jsonStr.slice(0, 200)}`);
-      opps = JSON.parse(jsonStr);
-      console.log(`[${new Date().toISOString()}] Parsed ${opps.length} opportunities`);
+      await atPost(AIRTABLE_OPPS_TABLE, {
+        title:       opp.title,
+        agency:      opp.agency,
+        deadline:    opp.deadline,
+        track:       "Track 1",
+        scope:       opp.scope,
+        source_url:  opp.source_url,
+        report_date: reportDate,
+        created_at:  new Date().toISOString()
+      });
+      oppCount++;
     } catch(e) {
-      console.warn("Could not parse opportunities JSON:", e.message);
+      console.warn(`Opp save failed (${opp.title}):`, e.message);
     }
-    let oppCount = 0;
-    for (const opp of opps) {
-      try {
-        await atPost(AIRTABLE_OPPS_TABLE, {
-          title:        opp.title        || "Untitled",
-          agency:       opp.agency       || "",
-          deadline:     opp.deadline     || null,
-          track:        opp.track        || "Track 1",
-          scope:        opp.scope        || "",
-          source_url:   opp.source_url   || "",
-          report_date:  reportDate,
-          created_at:   new Date().toISOString()
-        });
-        oppCount++;
-      } catch(e) {
-        console.warn(`Opp save failed (${opp.title}):`, e.message);
-      }
-    }
-    console.log(`[${new Date().toISOString()}] Saved ${oppCount} opportunities`);
   }
+  console.log(`[${new Date().toISOString()}] Saved ${oppCount} opportunities`);
 
   // ── Parse and save Track 2 items individually ─────────────────────────────
   if (track2_html && track2_html !== "<p>No Track 2 data.</p>") {
@@ -601,6 +591,35 @@ OUTPUT FORMAT — use exactly these delimiters:
   }
 
   return saved;
+}
+
+// Parse Track 1 HTML table rows into opportunity objects
+function parseTrack1Opps(html, reportDate) {
+  const opps = [];
+  const rowMatches = html.match(/<tr[^>]*>([\s\S]*?)<\/tr>/gi) || [];
+  for (const row of rowMatches) {
+    const cells = (row.match(/<td[^>]*>([\s\S]*?)<\/td>/gi) || [])
+      .map(td => td.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
+    if (cells.length < 2) continue; // skip header rows
+    const agency = cells[0] || '';
+    const title  = cells[1] || '';
+    const due    = cells[2] || '';
+    const scope  = cells[3] || '';
+    const type   = cells[4] || '';
+    // Extract URL from the row
+    const urlMatch = row.match(/href="([^"]+)"/i);
+    const source_url = urlMatch ? urlMatch[1] : '';
+    // Parse deadline — look for date patterns
+    const dateMatch = due.match(/(\d{4}-\d{2}-\d{2})|(\w+ \d{1,2},? \d{4})/);
+    let deadline = null;
+    if (dateMatch) {
+      const parsed = new Date(dateMatch[0]);
+      if (!isNaN(parsed)) deadline = parsed.toISOString().split('T')[0];
+    }
+    if (!agency && !title) continue;
+    opps.push({ title: title || 'Untitled', agency, deadline, scope: scope || type, source_url });
+  }
+  return opps;
 }
 
 // Parse Track 2 HTML list items into structured objects
