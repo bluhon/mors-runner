@@ -979,6 +979,35 @@ async function submitT1Interested() {
 async function submitInterested() {
   await submitT1Interested();
 }
+function formatTrackItems(html) {
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  const items = tmp.querySelectorAll('li');
+  if (!items.length) return `<div style="font-family:'Source Sans 3',Arial,sans-serif;font-size:1.0rem;line-height:1.75;color:#333;">${html}</div>`;
+  let out = '';
+  items.forEach((li, i) => {
+    const strong = li.querySelector('strong, b');
+    let title = '';
+    let body = li.innerHTML;
+    if (strong) {
+      title = strong.textContent.trim();
+      strong.remove();
+      body = li.innerHTML.trim().replace(/^[:\-–—\s]+/, '');
+    }
+    const linkMatch = body.match(/(<a\s[^>]*>.*?<\/a>)/i);
+    let sourceLink = '';
+    if (linkMatch) {
+      sourceLink = linkMatch[1];
+      body = body.replace(linkMatch[0], '').replace(/source\s*:/i, '').trim().replace(/[,.\s]+$/, '');
+    }
+    out += `<div style="margin-bottom:28px;${i > 0 ? 'padding-top:24px;border-top:1px solid #e8e8e8;' : ''}">`;
+    if (title) out += `<div style="font-family:'Noto Serif KR','Times New Roman',serif;font-size:1.2rem;font-weight:700;color:#000;line-height:1.3;margin-bottom:8px;">${title}</div>`;
+    if (body) out += `<div style="font-family:'Source Sans 3',Arial,sans-serif;font-size:1.0rem;line-height:1.75;color:#333;margin-bottom:6px;">${body}</div>`;
+    if (sourceLink) out += `<div style="margin-top:6px;">${sourceLink}</div>`;
+    out += `</div>`;
+  });
+  return out;
+}
 function renderReport() {
   const label = document.getElementById('report-date-label');
   const todayBadge = document.getElementById('today-badge');
@@ -998,8 +1027,8 @@ function renderReport() {
     .replace(/\s*font-size:[^;;"']*/gi, '')
     .replace(/\s*color:[^;;"']*/gi, '');
   html += `<div class="track-header t1"><span class="track-number">01</span> Active RFPs</div><div id="track1-opps-container"></div>`;
-  if (report.fields.track2_html) { html += `<div class="track-header t2"><span class="track-number" style="color:var(--info)">02</span> Emerging Issues</div><div class="track-body">${clean(report.fields.track2_html)}</div>`; }
-  if (report.fields.track3_html) { html += `<div class="track-header t3"><span class="track-number" style="color:var(--warning)">03</span> Prime Firm Activity</div><div class="track-body">${clean(report.fields.track3_html)}</div>`; }
+  if (report.fields.track2_html) { html += `<div class="track-header t2"><span class="track-number" style="color:var(--info)">02</span> Emerging Issues</div><div class="track-body">${formatTrackItems(clean(report.fields.track2_html))}</div>`; }
+  if (report.fields.track3_html) { html += `<div class="track-header t3"><span class="track-number" style="color:var(--warning)">03</span> Prime Firm Activity</div><div class="track-body">${formatTrackItems(clean(report.fields.track3_html))}</div>`; }
   content.innerHTML = `<div class="report-reading-col">${html || '<div class="empty-state"><i class="ti ti-report-search"></i><div class="empty-state-title">No content</div></div>'}</div>`;
 }
 async function navReport(dir) {
