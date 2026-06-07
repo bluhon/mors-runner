@@ -1021,7 +1021,13 @@ async function createCanvas(oppId, oppTitle) {
   const title = oppTitle || (opp && opp.fields.title) || 'Untitled Opportunity';
   const existing = allCanvases.find(c => c.fields.canvas_title === title);
   if (existing) return;
-  const canvas = await atCreate(CONFIG.TABLES.RFP_CANVAS, { canvas_title: title });
+  const canvas = await atCreate(CONFIG.TABLES.RFP_CANVAS, {
+    canvas_title: title,
+    active: true,
+    created_by: currentUser ? currentUser.name : 'MORS',
+    notes_log: '[]',
+    files_list: '[]'
+  });
   if (canvas && canvas.id) allCanvases.push(canvas);
 }
 
@@ -1333,7 +1339,13 @@ async function makePipelineCanvas(oppId, title) {
   const canvasTitle = title || 'Untitled';
   const existing = allCanvases.find(c => c.fields.canvas_title === canvasTitle);
   if (existing) { openCanvas(existing.id); return; }
-  const canvas = await atCreate(CONFIG.TABLES.RFP_CANVAS, { canvas_title: canvasTitle });
+  const canvas = await atCreate(CONFIG.TABLES.RFP_CANVAS, {
+    canvas_title: canvasTitle,
+    active: true,
+    created_by: currentUser ? currentUser.name : 'MORS',
+    notes_log: '[]',
+    files_list: '[]'
+  });
   if (canvas && canvas.id) {
     allCanvases.push(canvas);
     showToast('RFP Canvas created', 'success');
