@@ -642,6 +642,73 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok", service: "MORS Runner", timestamp: new Date().toISOString() });
 });
 
+app.post("/test-run", async (req, res) => {
+  res.json({ success: true, status: "Test run started — check Airtable in 3-4 minutes" });
+  const { today, cutoffStr } = getDateContext();
+  const reportDate = new Date().toISOString().split("T")[0];
+  console.log(`[${new Date().toISOString()}] TEST RUN starting — SF + Marin + Oakland only`);
+  try {
+    const text = await runClaudeSearch(`Today is ${today}.
+
+This is a TEST run — search only these 3 jurisdictions for Track 1:
+- City & County of San Francisco (Planning, DPW, SFPUC)
+- Marin County + City of San Rafael + City of Novato
+- City of Oakland + Alameda County
+
+Search caleprocure.ca.gov and PlanetBids for these agencies only.
+Find at least 3 real verifiable opportunities.
+Flag prior Bluhon clients: ABAG ✅, Cities of Oakland/Novato ✅, Marin County ✅
+
+Also do a brief Track 2: 3 emerging issues from SF Bay Area news in past 48 hours.
+
+CRITICAL DATE FILTER: Only include RFPs issued after ${cutoffStr}.
+
+OUTPUT FORMAT — use exactly these delimiters:
+
+---TRACK1_START---
+[HTML table]
+---TRACK1_END---
+
+---TRACK2_START---
+[HTML unordered list]
+---TRACK2_END---
+
+---OPPORTUNITIES_JSON_START---
+[JSON array]
+---OPPORTUNITIES_JSON_END---`);
+
+    const track1Match = text.match(/---TRACK1_START---([\s\S]*?)---TRACK1_END---/);
+    const track2Match = text.match(/---TRACK2_START---([\s\S]*?)---TRACK2_END---/);
+    const oppsMatch   = text.match(/---OPPORTUNITIES_JSON_START---([\s\S]*?)---OPPORTUNITIES_JSON_END---/);
+    const track1_html = track1Match ? track1Match[1].trim() : "<p>No Track 1 data.</p>";
+    const track2_html = track2Match ? track2Match[1].trim() : "<p>No Track 2 data.</p>";
+
+    const saved = await atPost(AIRTABLE_REPORTS_TABLE, {
+      report_date: reportDate, track1_html, track2_html,
+      track3_html: "<p>Test run — Tracks 3+4 skipped.</p>",
+      track4_html: "<p>Test run — Tracks 3+4 skipped.</p>"
+    });
+    console.log(`[${new Date().toISOString()}] TEST RUN report saved — ID: ${saved.id}`);
+
+    if (oppsMatch) {
+      let opps = [];
+      try { opps = JSON.parse(oppsMatch[1].trim().replace(/^```json\s*/, '').replace(/```\s*$/, '')); } catch(e) {}
+      for (const opp of opps) {
+        try { await atPost(AIRTABLE_OPPS_TABLE, { title: opp.title||'Untitled', agency: opp.agency||'', deadline: opp.deadline||null, track: 'Track 1', scope: opp.scope||'', source_url: opp.source_url||'', report_date: reportDate, created_at: new Date().toISOString() }); } catch(e) {}
+      }
+    }
+    if (track2_html && track2_html !== "<p>No Track 2 data.</p>") {
+      const items = parseTrack2Items(track2_html);
+      for (const item of items) {
+        try { await atPost(AIRTABLE_TRACK2_TABLE, { headline: item.headline||'', summary: item.summary||'', bluhon_angle: item.bluhon_angle||'', source_url: item.source_url||'', report_date: reportDate, geo_focus: 'Test — SF+Marin+Oakland', interested: false }); } catch(e) {}
+      }
+    }
+    console.log(`[${new Date().toISOString()}] TEST RUN complete`);
+  } catch(err) {
+    console.error("Test run failed:", err.message);
+  }
+});
+
 // Cron: 9:30am PT Mon-Fri
 cron.schedule("30 9 * * 1-5", () => {
   console.log("Cron triggered: running MORS report");
