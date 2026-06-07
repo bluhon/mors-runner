@@ -668,11 +668,11 @@ app.get("/config", (req, res) => {
   res.json({ airtable_token: AIRTABLE_TOKEN, base_id: AIRTABLE_BASE_ID });
 });
 
-// File upload — store on Render disk, serve via /files/
+// File upload — write to /tmp (writable on Render), serve via /files/
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-const uploadDir = './public/files';
+const uploadDir = '/tmp/mors-files';
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 const storage = multer.diskStorage({
   destination: uploadDir,
@@ -682,6 +682,8 @@ const storage = multer.diskStorage({
   }
 });
 const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } });
+
+app.use('/files', express.static(uploadDir));
 
 app.post('/upload', upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file received' });
