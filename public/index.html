@@ -1308,6 +1308,56 @@ async function updateCanvasField(field, value) {
   await atUpdate(CONFIG.TABLES.RFP_CANVAS, currentCanvasId, { [field]: value });
   const canvas = allCanvases.find(c => c.id === currentCanvasId);
   if (canvas) canvas.fields[field] = value;
+  // Auto-sync issuer contact → Contacts table
+  const contactFields = ['issuer_contact_name','issuer_contact_email','issuer_contact_phone','issuer_agency','issuer_dept','issuer_address'];
+  if (contactFields.includes(field) && canvas) {
+    await syncCanvasContact(canvas.fields);
+  }
+  // Auto-sync potential prime → Prime Firms table
+  if (field === 'potential_prime' && value) {
+    await syncCanvasPrime(value, canvas ? canvas.fields : {});
+  }
+}
+
+async function syncCanvasContact(f) {
+  const name = f.issuer_contact_name;
+  const email = f.issuer_contact_email;
+  if (!name && !email) return;
+  // Find existing contact by email or name+org
+  const existing = allContacts.find(c =>
+    (email && c.fields.email && c.fields.email.toLowerCase() === email.toLowerCase()) ||
+    (!email && name && c.fields.name === name && c.fields.org === f.issuer_agency)
+  );
+  const contactData = {
+    name: name || existing?.fields.name || '',
+    email: email || existing?.fields.email || '',
+    phone: f.issuer_contact_phone || existing?.fields.phone || '',
+    org: f.issuer_agency || existing?.fields.org || '',
+    title: f.issuer_dept || existing?.fields.title || '',
+    relationship_type: 'Agency contact',
+    added_by: currentUser ? currentUser.name : 'MORS',
+    added_date: new Date().toISOString().split('T')[0]
+  };
+  if (existing) {
+    await atUpdate(CONFIG.TABLES.CONTACTS, existing.id, contactData);
+    existing.fields = { ...existing.fields, ...contactData };
+    showToast('Contact record updated', '');
+  } else if (name || email) {
+    const rec = await atCreate(CONFIG.TABLES.CONTACTS, contactData);
+    if (rec && rec.id) { allContacts.push(rec); showToast('Contact added to Contacts', 'success'); }
+  }
+}
+
+async function syncCanvasPrime(firmName, canvasFields) {
+  if (!firmName) return;
+  const existing = allPrimes.find(p => p.fields.firm_name && p.fields.firm_name.toLowerCase() === firmName.toLowerCase());
+  if (existing) return; // already in Prime Firms
+  const rec = await atCreate(CONFIG.TABLES.PRIME_FIRMS, {
+    firm_name: firmName,
+    teaming_status: 'Watch',
+    teaming_notes: `Added from canvas: ${canvasFields.canvas_title || ''}`
+  });
+  if (rec && rec.id) { allPrimes.push(rec); showToast(`"${firmName}" added to Prime Firms`, 'success'); }
 }
 async function updateCanvasStatus(val) {
   const statusMap = { '2': '2 — Building team', '3': '3 — No go', '4': '4 — Submitting' };
