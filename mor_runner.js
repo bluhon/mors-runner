@@ -981,7 +981,15 @@ async function runMORSReport() {
 
 Run MORS Tracks 1 and 2 only. Search thoroughly.
 
-CRITICAL DATE FILTER: Only include RFPs issued after ${cutoffStr} (last 45 days).
+CRITICAL DATE FILTER: Only include RFPs issued after ${cutoffStr} (last 45 days). Before including any result, verify the issue date or posting date on the source page. If you cannot confirm the posting date is within 45 days, EXCLUDE it.
+
+CRITICAL SOLICITATION FILTER: Only include ACTUAL PROCUREMENT SOLICITATIONS — RFPs, RFQs, IFBs, SOQs, Notices of Intent to Solicit. Do NOT include:
+- News articles or press releases about a project
+- Agency web pages describing a program or process
+- Project announcement pages for public consumption
+- Meeting agendas or staff reports discussing a future project
+- Any page that does not have a formal bid/proposal submission deadline
+If a result is a news article or project announcement rather than an active procurement, EXCLUDE it entirely from Track 1.
 
 ${geo.instructions}
 
@@ -1507,8 +1515,10 @@ app.post("/feedback", async (req, res) => {
 
     // Critical reasons get strong instructional language injected into system prompt
     let description;
-    if (reason === 'Not an RFP') {
-      description = `CRITICAL: "${title}" (${agency}) was flagged as NOT an RFP — it was a news article, meeting agenda, or announcement, not an actual procurement solicitation. Track 1 must ONLY include open solicitations with a procurement URL, RFP/RFQ number, or direct bid portal link. Do not include news coverage or project announcements.`;
+    if (reason === 'News / Article (not a solicitation)') {
+      description = `CRITICAL: "${title}" (${agency}) was flagged as a NEWS ARTICLE or PROJECT ANNOUNCEMENT — not an actual procurement solicitation. This is the most common Track 1 error. Track 1 must ONLY include open solicitations (RFP/RFQ/IFB/SOQ) with a formal submission deadline and a procurement portal link. Agency web pages, press releases, project announcements, and news articles about public engagement processes must NEVER appear in Track 1.`;
+    } else if (reason === 'Not an RFP') {
+      description = `CRITICAL: "${title}" (${agency}) was flagged as NOT an RFP — it was a meeting agenda, announcement, or non-procurement document, not an actual solicitation. Track 1 must ONLY include open solicitations with a procurement URL, RFP/RFQ number, or direct bid portal link.`;
     } else if (reason === 'Due date past') {
       description = `CRITICAL: "${title}" (${agency}) was flagged because the due date had already passed. Always verify the proposal deadline is in the future before including any opportunity in Track 1. Expired RFPs are useless and waste the user's time.`;
     } else {

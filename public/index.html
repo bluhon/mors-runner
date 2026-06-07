@@ -992,7 +992,7 @@ async function loadProspects() {
     const safeTitle = (f.title||'').replace(/'/g,"\\'").replace(/"/g,'&quot;').slice(0,80);
     const safeAgency = (f.agency||'').replace(/'/g,"\\'").slice(0,60);
     const safeUrl = (f.source_url||'').replace(/'/g,"\\'");
-    const rejectReasons = ['Not an RFP','Not in scope','Not in geography','Due date past','Low budget','No interest'];
+    const rejectReasons = ['News / Article (not a solicitation)','Not an RFP','Not in scope','Not in geography','Due date past','Low budget','No interest'];
     return `<tr class="${alreadyYes?'t1-interested':''}" id="t1c-${p.id}">
       <td></td>
       <td>
