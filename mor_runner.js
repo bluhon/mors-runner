@@ -7,6 +7,7 @@ const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
 const AIRTABLE_BASE_ID = "appallyGF2B2bkpIU";
 const AIRTABLE_REPORTS_TABLE  = "tblnaSbxkGaoscwZj";
 const AIRTABLE_OPPS_TABLE     = "tbleIossei7FDqi9H";
+const AIRTABLE_TRACK2_TABLE   = "tbl4f7N5EoaKRwRXK";
 
 const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 const app = express();
@@ -571,7 +572,57 @@ OUTPUT FORMAT — use exactly these delimiters:
     console.log(`[${new Date().toISOString()}] Saved ${oppCount} opportunities`);
   }
 
+  // ── Parse and save Track 2 items individually ─────────────────────────────
+  if (track2_html && track2_html !== "<p>No Track 2 data.</p>") {
+    const items = parseTrack2Items(track2_html);
+    let t2Count = 0;
+    for (const item of items) {
+      try {
+        await atPost(AIRTABLE_TRACK2_TABLE, {
+          headline:     item.headline    || "Untitled",
+          summary:      item.summary     || "",
+          bluhon_angle: item.bluhon_angle || "",
+          source_url:   item.source_url  || "",
+          report_date:  reportDate,
+          geo_focus:    geo.label,
+          interested:   false
+        });
+        t2Count++;
+      } catch(e) {
+        console.warn(`Track2 item save failed (${item.headline}):`, e.message);
+      }
+    }
+    console.log(`[${new Date().toISOString()}] Saved ${t2Count} Track 2 items`);
+  }
+
   return saved;
+}
+
+// Parse Track 2 HTML list items into structured objects
+function parseTrack2Items(html) {
+  const items = [];
+  // Match each <li>...</li>
+  const liMatches = html.match(/<li>([\s\S]*?)<\/li>/gi) || [];
+  for (const li of liMatches) {
+    const stripped = li.replace(/<li>/i, '').replace(/<\/li>/i, '');
+    // Headline is in <strong>...</strong>
+    const headlineMatch = stripped.match(/<strong>([\s\S]*?)<\/strong>/i);
+    const headline = headlineMatch ? headlineMatch[1].replace(/<[^>]+>/g, '').trim() : '';
+    // Bluhon angle is after <em>Bluhon angle:</em>
+    const angleMatch = stripped.match(/<em>Bluhon angle:<\/em>([\s\S]*?)(?:Source:|$)/i);
+    const bluhon_angle = angleMatch ? angleMatch[1].replace(/<[^>]+>/g, '').trim() : '';
+    // Source URL
+    const urlMatch = stripped.match(/href="([^"]+)"/i);
+    const source_url = urlMatch ? urlMatch[1] : '';
+    // Summary is everything between headline and bluhon angle
+    const summaryRaw = stripped
+      .replace(/<strong>[\s\S]*?<\/strong>/i, '')
+      .replace(/<em>Bluhon angle:<\/em>[\s\S]*/i, '')
+      .replace(/<[^>]+>/g, '')
+      .trim();
+    items.push({ headline, summary: summaryRaw, bluhon_angle, source_url });
+  }
+  return items;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
