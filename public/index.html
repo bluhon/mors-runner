@@ -878,10 +878,10 @@ async function loadProspects() {
     return `<tr class="${alreadyYes?'t1-interested':alreadyNo?'t1-no-interest':''}" id="t1c-${p.id}">
       <td><input type="checkbox" class="t1-cb" id="cb-${p.id}" ${alreadyYes?'checked':''} ${alreadyNo?'disabled':''} onchange="toggleT1Card('${p.id}', this.checked)"></td>
       <td>
-        <div class="t1-row-agency">${f.agency || ''}</div>
-        <div class="t1-row-title">${f.title || 'Untitled Opportunity'}</div>
-        ${scopeShort ? `<div class="t1-row-scope">${scopeShort}</div>` : ''}
-        ${(value||type) ? `<div class="t1-row-meta">${value}${type}</div>` : ''}
+        <h2 style="margin:0 0 2px">${f.agency || ''}</h2>
+        <h3 style="margin:0 0 6px">${f.title || 'Untitled Opportunity'}</h3>
+        ${scopeShort ? `<p style="margin:0 0 4px;font-size:15px;color:#333;line-height:1.6">${scopeShort}</p>` : ''}
+        ${f.estimated_value ? `<p style="margin:0;font-size:15px;color:#048BC9;font-weight:600">${f.estimated_value}</p>` : ''}
       </td>
       <td>${srcCell}</td>
       <td><div class="t1-due-date ${urgentClass}">${dlStr}</div></td>
