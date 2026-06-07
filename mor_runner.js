@@ -544,11 +544,14 @@ OUTPUT FORMAT — use exactly these delimiters:
   console.log(`[${new Date().toISOString()}] Report saved — ID: ${saved.id}`);
 
   // ── Save individual opportunities ─────────────────────────────────────────
+  console.log(`[${new Date().toISOString()}] Opportunities JSON found: ${!!oppsMatch}`);
   if (oppsMatch) {
     let opps = [];
     try {
       const jsonStr = oppsMatch[1].trim().replace(/^```json\s*/, '').replace(/```\s*$/, '');
+      console.log(`[${new Date().toISOString()}] JSON preview: ${jsonStr.slice(0, 200)}`);
       opps = JSON.parse(jsonStr);
+      console.log(`[${new Date().toISOString()}] Parsed ${opps.length} opportunities`);
     } catch(e) {
       console.warn("Could not parse opportunities JSON:", e.message);
     }
