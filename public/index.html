@@ -1152,12 +1152,12 @@ function openCanvas(canvasId) {
   const canvas = allCanvases.find(c => c.id === canvasId);
   if (!canvas) return;
   const f = canvas.fields;
-  const rawTitle = f.canvas_title || 'RFP Canvas';
-  const decodedTitle = rawTitle.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&#39;/g,"'").replace(/&quot;/g,'"');
-  document.getElementById('canvas-page-title').textContent = decodedTitle.length > 120 ? decodedTitle.slice(0,120) + '…' : decodedTitle;
-  const opp = allOpportunities.find(o => o.fields.title === f.canvas_title);
-  const sourceUrl = opp && opp.fields.source_url;
-  document.getElementById('canvas-page-subtitle').innerHTML = (f.issuer_agency || '') + (sourceUrl ? ` &nbsp;·&nbsp; <a href="${escHtml(sourceUrl)}" target="_blank" rel="noopener" style="color:#048BC9;font-weight:700"><i class="ti ti-external-link"></i> View RFP</a>` : '');
+  const raw = (f.canvas_title || 'RFP Canvas').replace(/&amp;/g,'&').replace(/&#39;/g,"'").replace(/&quot;/g,'"');
+  // Split at " — " to get short title only
+  const dashIdx = raw.search(/ [—–] /);
+  const shortTitle = dashIdx > 0 ? raw.slice(0, dashIdx) : (raw.length > 100 ? raw.slice(0,100)+'…' : raw);
+  document.getElementById('canvas-page-title').textContent = shortTitle;
+  document.getElementById('canvas-page-subtitle').textContent = f.issuer_agency || '';
   document.getElementById('canvas-status-select').value = f.pursuit_status ? f.pursuit_status.charAt(0) : '2';
   document.getElementById('canvas-inactive-badge').style.display = f.active ? 'none' : 'inline-block';
   renderCanvasGrid(canvas);
@@ -1171,15 +1171,19 @@ function renderCanvasGrid(canvas) {
   const pd = f.proposal_due ? `<input class="field-input" type="date" value="${f.proposal_due}" onchange="updateCanvasField('proposal_due',this.value)">` : `<input class="field-input" type="date" onchange="updateCanvasField('proposal_due',this.value)">`;
   const qd = f.questions_due ? `<input class="field-input" type="date" value="${f.questions_due}" onchange="updateCanvasField('questions_due',this.value)">` : `<input class="field-input" type="date" onchange="updateCanvasField('questions_due',this.value)">`;
   const notesHtml = notes.length ? notes.map(n => `<div class="note-entry"><div class="note-author">${n.author}</div><div class="note-date">${new Date(n.date).toLocaleString()}</div><div class="note-text">${n.text}</div></div>`).join('') : '<div style="color:var(--muted);font-size:13px">No notes yet.</div>';
-  const descHtml = f.team_notes
-    ? `<div class="canvas-section" style="margin-bottom:0">
-        <div class="field-label">RFP Description</div>
-        <div style="font-size:15px;color:#333;line-height:1.6;margin-top:4px">${f.team_notes}</div>
-       </div>`
-    : '';
+  const opp = allOpportunities.find(o => o.fields.title === f.canvas_title);
+  const sourceUrl = (opp && opp.fields.source_url) || f.source_url || '';
+  // Extract description from canvas_title if it contains " — "
+  const rawTitle = (f.canvas_title||'').replace(/&amp;/g,'&').replace(/&#39;/g,"'");
+  const dashIdx = rawTitle.search(/ [—–] /);
+  const descFromTitle = dashIdx > 0 ? rawTitle.slice(dashIdx+3) : '';
+  const descText = f.team_notes || descFromTitle;
   document.getElementById('canvas-grid').innerHTML = `
     <div class="canvas-main">
-      ${descHtml}
+      <div class="canvas-section">
+        ${sourceUrl ? `<div class="field-group"><div class="field-label">RFP Source</div><a href="${escHtml(sourceUrl)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;font-size:15px;color:var(--brand);font-weight:600;padding:8px 16px;border:1px solid var(--brand);border-radius:6px;text-decoration:none;margin-top:2px"><i class="ti ti-external-link"></i> View RFP on agency website</a></div>` : ''}
+        ${descText ? `<div class="field-group" style="margin-top:16px"><div class="field-label">RFP Description</div><div style="font-size:15px;color:#333;line-height:1.65;margin-top:6px">${descText}</div></div>` : ''}
+      </div>
       <div class="canvas-section">
         <div class="canvas-section-title">Notes log</div>
         <div id="canvas-notes">${notesHtml}</div>
