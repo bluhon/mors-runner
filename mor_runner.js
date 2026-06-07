@@ -8,6 +8,8 @@ const AIRTABLE_BASE_ID = "appallyGF2B2bkpIU";
 const AIRTABLE_REPORTS_TABLE  = "tblnaSbxkGaoscwZj";
 const AIRTABLE_OPPS_TABLE     = "tbleIossei7FDqi9H";
 const AIRTABLE_TRACK2_TABLE   = "tbl4f7N5EoaKRwRXK";
+const AIRTABLE_MEMORY_TABLE   = "tblNgcBpooPK9wOkD";  // PROJECT_MEMORY
+const AIRTABLE_SOURCES_TABLE  = "tblSOURCES_PLACEHOLDER"; // SEARCH_SOURCES — leave as placeholder, user will fill in
 
 const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 const app = express();
@@ -297,6 +299,63 @@ async function atPost(tableId, fields) {
   return res.json();
 }
 
+async function atGet(tableId, params = '') {
+  const res = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${tableId}${params}`, {
+    headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` }
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Airtable GET failed: ${res.status} ${err}`);
+  }
+  return res.json();
+}
+
+async function atPatch(tableId, recordId, fields) {
+  const res = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${tableId}/${recordId}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ fields })
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Airtable PATCH failed: ${res.status} ${err}`);
+  }
+  return res.json();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Feedback/Learning Loop helpers
+// ─────────────────────────────────────────────────────────────────────────────
+async function fetchProjectMemory() {
+  try {
+    const formula = encodeURIComponent(`{pattern_type}="poor_result"`);
+    const data = await atGet(AIRTABLE_MEMORY_TABLE, `?filterByFormula=${formula}&maxRecords=50`);
+    const records = data.records || [];
+    return records.map(r => r.fields.description).filter(Boolean);
+  } catch (err) {
+    console.warn(`[fetchProjectMemory] Failed: ${err.message}`);
+    return [];
+  }
+}
+
+async function fetchSearchSources() {
+  try {
+    const formula = encodeURIComponent(`{active}=TRUE()`);
+    const data = await atGet(AIRTABLE_SOURCES_TABLE, `?filterByFormula=${formula}&maxRecords=100`);
+    const records = data.records || [];
+    return records.map(r => ({
+      site_name:   r.fields.site_name   || '',
+      url:         r.fields.url         || '',
+      portal_type: r.fields.portal_type || '',
+      username:    r.fields.username    || '',
+      notes:       r.fields.notes       || ''
+    }));
+  } catch (err) {
+    console.warn(`[fetchSearchSources] Failed: ${err.message}`);
+    return [];
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Geographic rotation — cycles through Bay Area zones + Tier 2/3/4 over time
 // ─────────────────────────────────────────────────────────────────────────────
@@ -419,13 +478,13 @@ function getDateContext() {
   return { today, cutoffStr };
 }
 
-async function runClaudeSearch(userPrompt, attempt = 1) {
+async function runClaudeSearch(userPrompt, attempt = 1, systemPromptOverride = null) {
   try {
     const stream = client.messages.stream({
       model: "claude-sonnet-4-6",
       max_tokens: 5000,
       tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 6 }],
-      system: SYSTEM_PROMPT,
+      system: systemPromptOverride || SYSTEM_PROMPT,
       messages: [{ role: "user", content: userPrompt }]
     });
     const response = await stream.finalMessage();
@@ -440,7 +499,7 @@ async function runClaudeSearch(userPrompt, attempt = 1) {
       const waitMs = (retryAfter + 10) * 1000;
       console.log(`[${new Date().toISOString()}] Rate limited — waiting ${retryAfter + 10}s before retry ${attempt}/3`);
       await new Promise(resolve => setTimeout(resolve, waitMs));
-      return runClaudeSearch(userPrompt, attempt + 1);
+      return runClaudeSearch(userPrompt, attempt + 1, systemPromptOverride);
     }
     throw err;
   }
@@ -455,10 +514,38 @@ async function runMORSReport() {
   const geo = getGeoFocus();
 
   console.log(`[${new Date().toISOString()}] Starting MORS report for ${today} — ${geo.label}`);
+
+  // ── Fetch memory patterns and search sources ──────────────────────────────
+  const [memoryPatterns, searchSources] = await Promise.all([
+    fetchProjectMemory(),
+    fetchSearchSources()
+  ]);
+
+  // Build dynamic system prompt additions
+  let dynamicSystemPrompt = SYSTEM_PROMPT;
+  if (memoryPatterns.length > 0) {
+    dynamicSystemPrompt += `\n\n═══════════════════════════════════════════════════════════════\nQUALITY FEEDBACK FROM PREVIOUS RUNS:\n═══════════════════════════════════════════════════════════════\n${memoryPatterns.join('\n')}`;
+  }
+
+  // Build search sources injection for Track 1
+  let sourcesInjection = '';
+  if (searchSources.length > 0) {
+    const sourceLines = searchSources.map(s => {
+      let line = `- ${s.site_name}`;
+      if (s.url) line += ` (${s.url})`;
+      if (s.portal_type) line += ` [${s.portal_type}]`;
+      if (s.username) line += ` — username: ${s.username}`;
+      if (s.notes) line += ` — ${s.notes}`;
+      return line;
+    }).join('\n');
+    sourcesInjection = `\n\nADDITIONAL SEARCH SOURCES (check these in addition to defaults):\n${sourceLines}`;
+  }
+
+  console.log(`[${new Date().toISOString()}] Memory patterns: ${memoryPatterns.length}, Search sources: ${searchSources.length}`);
   console.log(`[${new Date().toISOString()}] Call 1: Tracks 1+2`);
 
   // ── Call 1: Track 1 (RFPs) + Track 2 (Emerging Issues) ───────────────────
-  const text1 = await runClaudeSearch(`Today is ${today}.
+  const prompt1 = `Today is ${today}.
 
 Run MORS Tracks 1 and 2 only. Search thoroughly.
 
@@ -472,7 +559,7 @@ TRACK 1 INSTRUCTIONS:
 - Search individual agency procurement pages for today's geographic focus
 - Find at least 5 real, verifiable opportunities from today's geographic zone
 - If today's zone yields fewer than 5, supplement with high-priority Tier 1 opportunities from any Bay Area county
-- Flag prior Bluhon clients: ABAG ✅, BCDC ✅, SF Regional Water Board ✅, Cities of Berkeley/Oakland/Palo Alto/San Jose/San Mateo/Redwood City/Livermore/Novato/Half Moon Bay/Danville ✅, Contra Costa County ✅, Alameda County ✅, Marin County ✅, Santa Clara County ✅, Sonoma County ✅
+- Flag prior Bluhon clients: ABAG ✅, BCDC ✅, SF Regional Water Board ✅, Cities of Berkeley/Oakland/Palo Alto/San Jose/San Mateo/Redwood City/Livermore/Novato/Half Moon Bay/Danville ✅, Contra Costa County ✅, Alameda County ✅, Marin County ✅, Santa Clara County ✅, Sonoma County ✅${sourcesInjection}
 
 TRACK 2 INSTRUCTIONS:
 - Search news from the past 72 hours focused on today's geographic zone (but include major statewide items)
@@ -492,12 +579,13 @@ OUTPUT FORMAT — you MUST output ALL THREE sections below in this exact order. 
 ---OPPORTUNITIES_JSON_START---
 [JSON array — one object per Track 1 row, REQUIRED, do not omit this section]
 [{"title":"...","agency":"...","deadline":"YYYY-MM-DD or null","track":"Track 1","scope":"...","source_url":"https://...","pursuit_type":"Prime or Sub/Team","prior_client":false,"geo_tier":"Tier 1"}]
----OPPORTUNITIES_JSON_END---`);
+---OPPORTUNITIES_JSON_END---`;
+  const text1 = await runClaudeSearch(prompt1, 1, dynamicSystemPrompt);
 
   console.log(`[${new Date().toISOString()}] Call 1 complete — Call 2: Tracks 3+4`);
 
   // ── Call 2: Track 3 (Prime Firms) + Track 4 (Competitors) ────────────────
-  const text2 = await runClaudeSearch(`Today is ${today}.
+  const prompt2 = `Today is ${today}.
 
 Run MORS Tracks 3 and 4 only.
 
@@ -517,7 +605,8 @@ OUTPUT FORMAT — use exactly these delimiters:
 
 ---TRACK4_START---
 [HTML unordered list]
----TRACK4_END---`);
+---TRACK4_END---`;
+  const text2 = await runClaudeSearch(prompt2, 1, dynamicSystemPrompt);
 
   console.log(`[${new Date().toISOString()}] Call 2 complete — parsing and saving`);
 
