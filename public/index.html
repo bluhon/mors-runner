@@ -70,7 +70,7 @@ html,body{height:100%;background:var(--bg);color:var(--white);font-family:var(--
 .page{display:none;flex-direction:column;min-height:100%}
 .page.active{display:flex}
 .page-header{padding:40px 48px 28px;border-bottom:1px solid var(--border);flex-shrink:0}
-.page-title{font-family:var(--font-head);font-size:40px;font-weight:700;letter-spacing:-.01em;line-height:1.1;color:var(--brand)}
+.page-title{font-family:var(--font-head);font-size:clamp(1.2rem,2vw,1.8rem);font-weight:700;letter-spacing:-.01em;line-height:1.2;color:var(--brand)}
 .page-title span{color:inherit}
 .page-subtitle{font-size:15px;color:#555;margin-top:8px}
 .page-body{padding:36px 48px;flex:1}
@@ -1143,7 +1143,8 @@ function openCanvas(canvasId) {
   const canvas = allCanvases.find(c => c.id === canvasId);
   if (!canvas) return;
   const f = canvas.fields;
-  document.getElementById('canvas-page-title').textContent = f.canvas_title || 'RFP Canvas';
+  const rawTitle = f.canvas_title || 'RFP Canvas';
+  document.getElementById('canvas-page-title').textContent = rawTitle.length > 100 ? rawTitle.slice(0,100) + '…' : rawTitle;
   const opp = allOpportunities.find(o => o.fields.title === f.canvas_title);
   const sourceUrl = opp && opp.fields.source_url;
   document.getElementById('canvas-page-subtitle').innerHTML = (f.issuer_agency || '') + (sourceUrl ? ` &nbsp;·&nbsp; <a href="${escHtml(sourceUrl)}" target="_blank" rel="noopener" style="color:#048BC9;font-weight:700"><i class="ti ti-external-link"></i> View RFP</a>` : '');

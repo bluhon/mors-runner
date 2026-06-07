@@ -30,52 +30,40 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ── Heading scale (matches bluhon.com) ── */
+/* ── Heading scale — scoped to Track 1 list only ── */
 
-h1 {
-  font-family: var(--bl-font-heading) !important;
-  font-weight: 400 !important;
-  font-size: 2.5em !important;
-  color: var(--bl-color-gray) !important;
-  line-height: 1.15 !important;
-  padding: 0 0 0.1em 0 !important;
-  margin-bottom: 0 !important;
+.t1-list h2,
+.t1-list h3,
+.t1-list h4 {
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  padding: 0 !important;
 }
 
-h2 {
+.t1-list h2 {
   font-family: var(--bl-font-heading) !important;
   font-weight: 700 !important;
-  font-size: 1.4em !important;
+  font-size: 0.95rem !important;
   color: var(--bl-color-accent) !important;
   line-height: 1.2 !important;
-  padding: 0 0 0.12em 0 !important;
-  margin-bottom: 0.1em !important;
-  text-transform: none !important;
-  letter-spacing: 0 !important;
+  margin: 0 0 2px !important;
 }
 
-h3 {
+.t1-list h3 {
   font-family: var(--bl-font-body) !important;
-  font-weight: 600 !important;
-  font-size: 1.1em !important;
+  font-weight: 700 !important;
+  font-size: 1.0rem !important;
   color: var(--bl-color-black) !important;
-  line-height: 1.25em !important;
-  padding: 0 !important;
-  margin-bottom: 0.22em !important;
-  text-transform: none !important;
-  letter-spacing: 0 !important;
+  line-height: 1.3 !important;
+  margin: 0 0 5px !important;
 }
 
-h4 {
-  font-family: var(--bl-font-label) !important;
-  font-weight: 600 !important;
-  font-size: 0.85em !important;
-  color: var(--bl-color-accent) !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.1em !important;
-  line-height: 1.15em !important;
-  padding: 0 !important;
-  margin-bottom: 0.1em !important;
+.t1-list p {
+  font-family: var(--bl-font-body) !important;
+  font-size: 0.88rem !important;
+  line-height: 1.5 !important;
+  color: #555 !important;
+  margin: 0 0 3px !important;
 }
 
 /* ── Sidebar ── */
