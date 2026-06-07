@@ -447,8 +447,8 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
             <i class="ti ti-arrow-left"></i> All Canvases
           </button>
           <div>
-            <div class="page-title" id="canvas-page-title">Canvas</div>
-            <div class="page-subtitle" id="canvas-page-subtitle"></div>
+            <div id="canvas-page-title" style="font-family:'Noto Serif KR',serif;font-size:1.3rem;font-weight:700;color:#111;line-height:1.3;max-width:700px"></div>
+            <div id="canvas-page-subtitle" style="font-size:0.9rem;color:#555;margin-top:4px"></div>
           </div>
         </div>
       </div>
@@ -1158,8 +1158,15 @@ function renderCanvasGrid(canvas) {
   const pd = f.proposal_due ? `<input class="field-input" type="date" value="${f.proposal_due}" onchange="updateCanvasField('proposal_due',this.value)">` : `<input class="field-input" type="date" onchange="updateCanvasField('proposal_due',this.value)">`;
   const qd = f.questions_due ? `<input class="field-input" type="date" value="${f.questions_due}" onchange="updateCanvasField('questions_due',this.value)">` : `<input class="field-input" type="date" onchange="updateCanvasField('questions_due',this.value)">`;
   const notesHtml = notes.length ? notes.map(n => `<div class="note-entry"><div class="note-author">${n.author}</div><div class="note-date">${new Date(n.date).toLocaleString()}</div><div class="note-text">${n.text}</div></div>`).join('') : '<div style="color:var(--muted);font-size:13px">No notes yet.</div>';
+  const descHtml = f.team_notes
+    ? `<div class="canvas-section" style="margin-bottom:0">
+        <div class="field-label">RFP Description</div>
+        <div style="font-size:15px;color:#333;line-height:1.6;margin-top:4px">${f.team_notes}</div>
+       </div>`
+    : '';
   document.getElementById('canvas-grid').innerHTML = `
     <div class="canvas-main">
+      ${descHtml}
       <div class="canvas-section">
         <div class="canvas-section-title">Notes log</div>
         <div id="canvas-notes">${notesHtml}</div>
@@ -1199,7 +1206,7 @@ function renderCanvasGrid(canvas) {
       </div>
       <div class="canvas-section">
         <div class="canvas-section-title">Team notes</div>
-        <textarea class="field-input" rows="4" onchange="updateCanvasField('team_notes',this.value)" placeholder="Potential team firms, notes on teaming strategy...">${f.team_notes||''}</textarea>
+        <textarea class="field-input" rows="4" onchange="updateCanvasField('team_notes',this.value)" placeholder="Team firms, teaming strategy...">${f.team_notes||''}</textarea>
       </div>
     </div>`;
   renderCanvasFiles(files);
