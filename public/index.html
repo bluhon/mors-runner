@@ -613,7 +613,7 @@ html,body{font-family:'Source Sans 3',system-ui,-apple-system,sans-serif;font-si
 <script>
 const CONFIG = {
   AIRTABLE_TOKEN: '',
-  BASE_ID: '',
+  BASE_ID: 'appallyGF2B2bkpIU',
   TABLES: {
     DAILY_REPORTS:  'tblnaSbxkGaoscwZj',
     OPPORTUNITIES:  'tbleIossei7FDqi9H',
@@ -1021,16 +1021,7 @@ async function createCanvas(oppId, oppTitle) {
   const title = oppTitle || (opp && opp.fields.title) || 'Untitled Opportunity';
   const existing = allCanvases.find(c => c.fields.canvas_title === title);
   if (existing) return;
-  const canvas = await atCreate(CONFIG.TABLES.RFP_CANVAS, {
-    canvas_title: title,
-    canvas_type: 'RFP',
-    pursuit_status: '2 — Building team',
-    active: true,
-    created_by: currentUser ? currentUser.name : 'MORS',
-    created_at: new Date().toISOString(),
-    notes_log: JSON.stringify([]),
-    files_list: JSON.stringify([])
-  });
+  const canvas = await atCreate(CONFIG.TABLES.RFP_CANVAS, { canvas_title: title });
   if (canvas && canvas.id) allCanvases.push(canvas);
 }
 
@@ -1342,16 +1333,7 @@ async function makePipelineCanvas(oppId, title) {
   const canvasTitle = title || 'Untitled';
   const existing = allCanvases.find(c => c.fields.canvas_title === canvasTitle);
   if (existing) { openCanvas(existing.id); return; }
-  const canvas = await atCreate(CONFIG.TABLES.RFP_CANVAS, {
-    canvas_title: canvasTitle,
-    canvas_type: 'RFP',
-    pursuit_status: '2 — Building team',
-    active: true,
-    created_by: currentUser ? currentUser.name : 'MORS',
-    created_at: new Date().toISOString(),
-    notes_log: JSON.stringify([]),
-    files_list: JSON.stringify([])
-  });
+  const canvas = await atCreate(CONFIG.TABLES.RFP_CANVAS, { canvas_title: canvasTitle });
   if (canvas && canvas.id) {
     allCanvases.push(canvas);
     showToast('RFP Canvas created', 'success');
@@ -1373,12 +1355,23 @@ function showToast(msg, type = '') {
 function closeModal(id) { document.getElementById(id).classList.remove('visible'); }
 
 (async function boot() {
-  try {
-    const cfg = await fetch('https://mors-runner.onrender.com/config').then(r => r.json());
-    CONFIG.AIRTABLE_TOKEN = cfg.airtable_token;
-    CONFIG.BASE_ID = cfg.base_id;
-  } catch(e) {
-    document.getElementById('login-error').textContent = 'Could not reach MORS server. Try again in a moment.';
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = 'Connecting to MORS server…';
+  for (let attempt = 0; attempt < 8; attempt++) {
+    try {
+      const cfg = await Promise.race([
+        fetch('/config').then(r => r.json()),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000))
+      ]);
+      if (cfg && cfg.airtable_token) {
+        CONFIG.AIRTABLE_TOKEN = cfg.airtable_token;
+        errEl.textContent = '';
+        break;
+      }
+    } catch(e) {
+      if (attempt < 7) await new Promise(r => setTimeout(r, 3000));
+      else errEl.textContent = 'Could not reach MORS server. Please refresh.';
+    }
   }
   const saved = localStorage.getItem('mors_user');
   if (saved) { try { currentUser = JSON.parse(saved); launchApp(); } catch { localStorage.removeItem('mors_user'); } }
