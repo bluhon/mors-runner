@@ -472,19 +472,22 @@ function parseRSSXml(xml, sourceName) {
 }
 
 const KEYWORD_WEIGHTS = {
-  // Tier 1 — core Bluhon services (3 pts)
+  // Tier 1 — highest relevance to Bluhon's core work (3 pts)
   'public engagement': 3, 'community engagement': 3, 'facilitation': 3,
-  'mediation': 3, 'consensus': 3, 'ceqa': 3, 'eir': 3,
-  'environmental impact report': 3, 'conflict resolution': 3,
+  'mediation': 3, 'consensus': 3, 'conflict resolution': 3,
+  'community outreach': 3, 'stakeholder': 3, 'land use': 3,
+  'facility siting': 3, 'community opposition': 3, 'neighborhood opposition': 3,
+  'dispute': 3, 'opposition': 3,
+  'land use dispute': 3, 'environmental conflict': 3,
+  'environmental dispute': 3, 'development proposal': 3,
   // Tier 2 — strong signals (2 pts)
-  'community outreach': 2, 'stakeholder': 2, 'land use': 2,
-  'planning commission': 2, 'facility siting': 2, 'community opposition': 2,
-  'neighborhood opposition': 2, 'environmental review': 2, 'public hearing': 2,
+  'planning commission': 2, 'environmental review': 2, 'public hearing': 2,
   'general plan': 2, 'specific plan': 2, 'entitlement': 2, 'water rights': 2,
   'board of supervisors': 2, 'city council': 2, 'rezoning': 2,
-  // Tier 3 — general signals (1 pt)
-  'outreach': 1, 'dispute': 1, 'controversy': 1, 'opposition': 1,
-  'contested': 1, 'zoning': 1, 'housing project': 1, 'development project': 1,
+  'annexation': 2, 'outreach': 2, 'controversy': 2, 'contested': 2,
+  // Tier 3 — contextual signals (1 pt)
+  'ceqa': 1, 'eir': 1, 'environmental impact report': 1,
+  'zoning': 1, 'housing project': 1, 'development project': 1,
   'infrastructure': 1, 'advisory committee': 1, 'task force': 1,
   'contract award': 1, 'rfp': 1, 'professional services': 1,
 };
