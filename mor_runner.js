@@ -28,6 +28,16 @@ const BIDNET_PASSWORD     = process.env.BIDNET_PASSWORD     || '';
 const CIVICENGAGE_LOGIN   = process.env.CIVICENGAGE_LOGIN   || '';
 const CIVICENGAGE_PASSWORD= process.env.CIVICENGAGE_PASSWORD|| '';
 
+// Log which portal credentials are available at startup
+console.log('[CREDS]',
+  `FindRFP:${FINDRFP_LOGIN?'✓':'✗'}`,
+  `OpenGov:${OPENGOV_LOGIN?'✓':'✗'}`,
+  `Bonfire:${BONFIRE_LOGIN?'✓':'✗'}`,
+  `PlanetBids:${PLANETBIDS_LOGIN?'✓':'✗'}`,
+  `BiddingUSA:${BIDDINGUSA_LOGIN?'✓':'✗'}`,
+  `BidNet:${BIDNET_LOGIN?'✓':'✗'}`
+);
+
 const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 const app = express();
 app.use(express.json());
