@@ -560,6 +560,26 @@ function isNewsRelevant(item) {
   return scoreRelevance(item) > 0;
 }
 
+// Resolve a Google News redirect URL to the real article URL
+async function resolveGoogleNewsUrl(gnUrl) {
+  try {
+    const res = await fetch(gnUrl, {
+      method: 'GET',
+      redirect: 'follow',
+      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
+      signal: AbortSignal.timeout(8000)
+    });
+    // After following redirects, res.url is the final destination
+    if (res.url && !res.url.includes('news.google.com')) return res.url;
+    // Fallback: look for redirect URL in response HTML
+    const html = await res.text();
+    const m = html.match(/href="(https?:\/\/(?!news\.google\.com)[^"]+)"/);
+    return m ? m[1] : gnUrl;
+  } catch {
+    return gnUrl; // return original if resolution fails
+  }
+}
+
 async function fetchGoogleNewsRSS(query) {
   try {
     const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query + ' when:3d')}&hl=en-US&gl=US&ceid=US:en`;
@@ -569,7 +589,17 @@ async function fetchGoogleNewsRSS(query) {
     });
     if (!res.ok) return [];
     const xml = await res.text();
-    return parseRSSXml(xml, 'Google News').map(item => ({ ...item, gnQuery: query }));
+    const items = parseRSSXml(xml, 'Google News').map(item => ({ ...item, gnQuery: query }));
+    // Resolve Google News redirect URLs to real article URLs in parallel (cap at 20 concurrent)
+    const resolved = await Promise.all(
+      items.map(async item => {
+        if (item.url && item.url.includes('news.google.com')) {
+          item.url = await resolveGoogleNewsUrl(item.url);
+        }
+        return item;
+      })
+    );
+    return resolved;
   } catch (err) {
     console.warn(`[RSS/GNews] Query failed "${query}": ${err.message}`);
     return [];
