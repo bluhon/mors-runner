@@ -171,7 +171,7 @@ html,body{height:100%;background:var(--bg);color:#000000;font-family:'Source San
 .t1-link a:hover{opacity:.75}
 .t1-submit-row{margin-top:24px;display:flex;align-items:center;gap:14px}
 .t1-no-opps{padding:24px;color:var(--muted);font-size:14px;font-style:italic}
-.pipeline-table{width:100%;border-collapse:collapse}
+.pipeline-table{width:100%;max-width:960px;border-collapse:collapse}
 .pipeline-table th{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:600;text-align:left;padding:10px 16px;border-bottom:1px solid var(--border);white-space:nowrap;background:var(--bg2)}
 .pipeline-table td{padding:14px 16px;border-bottom:1px solid var(--border);font-size:14px;vertical-align:top;font-weight:400;color:#333;line-height:1.5}
 .pipeline-table tr:hover td{background:var(--bg3)}
@@ -1303,6 +1303,7 @@ function renderPipeline(opps) {
     const canvasBtn = canvas
       ? `<button class="btn btn-ghost btn-sm" onclick="openCanvas('${canvas.id}')"><i class="ti ti-layout-board"></i> Canvas</button>`
       : `<button class="btn btn-ghost btn-sm" onclick="makePipelineCanvas('${o.id}','${safeTitle}')"><i class="ti ti-plus"></i> Create Canvas</button>`;
+    const trashBtn = `<button class="btn btn-ghost btn-sm" style="color:var(--muted)" title="Delete opportunity" onclick="deleteOpportunity('${o.id}',this)"><i class="ti ti-trash"></i></button>`;
     const rowClick = canvas ? 'openCanvas(\'' + canvas.id + '\')' : '';
     const trackPill = f.track ? '<span style="font-size:11px;background:var(--bg3);padding:3px 8px;border-radius:4px;color:var(--muted)">' + f.track + '</span>' : '—';
     const statusPill = statusNum ? '<span class="status-pill status-' + statusNum + '">' + status + '</span>' : '—';
@@ -1312,7 +1313,7 @@ function renderPipeline(opps) {
       + '<td>' + trackPill + '</td>'
       + '<td><span class="' + (isUrgent ? 'date-chip urgent' : 'date-chip') + '"><i class="ti ti-calendar" style="font-size:12px"></i>' + dlStr + '</span></td>'
       + '<td>' + statusPill + '</td>'
-      + '<td onclick="event.stopPropagation()">' + canvasBtn + '</td></tr>';
+      + '<td onclick="event.stopPropagation()" style="white-space:nowrap">' + canvasBtn + ' ' + trashBtn + '</td></tr>';
   });
   html += '</tbody></table>';
   el.innerHTML = html;
@@ -1322,6 +1323,26 @@ function filterPipeline(status) {
   const canvasMap = {};
   allCanvases.forEach(c => { canvasMap[c.fields.canvas_title] = c; });
   renderPipeline(allOpportunities.filter(o => { const c = canvasMap[o.fields.title]; return c && c.fields.pursuit_status && c.fields.pursuit_status.startsWith(status); }));
+}
+
+async function deleteOpportunity(recordId, btn) {
+  if (!confirm('Delete this opportunity? This cannot be undone.')) return;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i>';
+  try {
+    const res = await fetch(`https://api.airtable.com/v0/${CONFIG.BASE_ID}/${CONFIG.TABLES.OPPORTUNITIES}/${recordId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${CONFIG.TOKEN}` }
+    });
+    if (!res.ok) throw new Error(await res.text());
+    allOpportunities = allOpportunities.filter(o => o.id !== recordId);
+    btn.closest('tr').remove();
+    showToast('Opportunity deleted', 'success');
+  } catch(e) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-trash"></i>';
+    showToast('Delete failed: ' + e.message, 'error');
+  }
 }
 
 async function loadCanvasList() {
