@@ -69,11 +69,12 @@ html,body{height:100%;background:var(--bg);color:#000000;font-family:'Source San
 .main{flex:1;overflow-y:auto;display:flex;flex-direction:column}
 .page{display:none;flex-direction:column;min-height:100%}
 .page.active{display:flex}
-.page-header{padding:40px 48px 28px;border-bottom:1px solid var(--border);flex-shrink:0}
+.page-header{padding:40px 0 28px 50px;border-bottom:1px solid var(--border);flex-shrink:0}
+.page-inner{max-width:1110px;width:100%}
 .page-title{font-family:var(--font-head);font-size:clamp(1.4rem,2vw,1.9rem);font-weight:700;letter-spacing:0;line-height:1.2;color:var(--brand)}
 .page-title span{color:inherit}
 .page-subtitle{font-family:var(--font-body);font-size:0.95rem;color:#555;margin-top:8px}
-.page-body{padding:36px 48px;flex:1}
+.page-body{padding:36px 0 36px 50px;flex:1}
 .report-reading-col{max-width:800px}
 .metric-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:28px}
 .metric{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px}
@@ -380,6 +381,7 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
         <div class="page-subtitle">All opportunities marked Interest = Yes</div>
       </div>
       <div class="page-body">
+        <div class="page-inner">
         <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
           <button class="btn btn-ghost btn-sm" onclick="filterPipeline('all')">All</button>
           <button class="btn btn-ghost btn-sm" onclick="filterPipeline('2')">Building Team</button>
@@ -392,6 +394,7 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
             <div class="empty-state-title">Pipeline is empty</div>
             <p>Mark opportunities as Interest = Yes in Today's Report to add them here.</p>
           </div>
+        </div>
         </div>
       </div>
     </section>
@@ -434,7 +437,8 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
         <div class="page-subtitle">Active and inactive project workspaces</div>
       </div>
       <div class="page-body">
-        <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;max-width:800px">
+        <div class="page-inner">
+        <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
           <button class="btn btn-ghost btn-sm" onclick="filterCanvas('active')">Active</button>
           <button class="btn btn-ghost btn-sm" onclick="filterCanvas('2')">Building Team</button>
           <button class="btn btn-ghost btn-sm" onclick="filterCanvas('4')">Submitting</button>
@@ -442,12 +446,13 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
           <button class="btn btn-ghost btn-sm" onclick="filterCanvas('all')">All</button>
           <button class="btn btn-sm" style="background:var(--brand);color:#fff;margin-left:auto" onclick="openAddRFP()"><i class="ti ti-plus"></i> Add RFP</button>
         </div>
-        <div id="canvas-list-content" style="max-width:800px">
+        <div id="canvas-list-content">
           <div class="empty-state">
             <i class="ti ti-layout-board"></i>
             <div class="empty-state-title">No canvases yet</div>
             <p>Canvases are created automatically when you mark a lead as Interest = Yes.</p>
           </div>
+        </div>
         </div>
       </div>
     </section>
@@ -463,6 +468,7 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
         </div>
       </div>
       <div class="page-body">
+        <div class="page-inner">
         <div style="display:flex;gap:10px;align-items:center;margin-bottom:24px;flex-wrap:wrap">
           <span class="field-label" style="margin:0">Status:</span>
           <select class="form-input" style="width:auto;padding:8px 12px" id="canvas-status-select" onchange="updateCanvasStatus(this.value)">
@@ -473,6 +479,7 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
           <span id="canvas-inactive-badge" style="display:none" class="badge badge-gray">Inactive</span>
         </div>
         <div class="canvas-grid" id="canvas-grid"></div>
+        </div>
       </div>
     </section>
 
@@ -489,6 +496,7 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
         </div>
       </div>
       <div class="page-body">
+        <div class="page-inner">
         <div style="margin-bottom:16px">
           <input class="form-input" style="max-width:340px" placeholder="Search contacts..." oninput="searchContacts(this.value)">
         </div>
@@ -498,6 +506,7 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
             <div class="empty-state-title">No contacts yet</div>
             <p>Add contacts manually or link them from RFP Canvases.</p>
           </div>
+        </div>
         </div>
       </div>
     </section>
@@ -515,12 +524,14 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
         </div>
       </div>
       <div class="page-body">
+        <div class="page-inner">
         <div id="primes-content">
           <div class="empty-state">
             <i class="ti ti-building"></i>
             <div class="empty-state-title">No prime firms yet</div>
             <p>Add firms as you encounter them in reports. Paste from procurement pages.</p>
           </div>
+        </div>
         </div>
       </div>
     </section>
@@ -531,6 +542,7 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
         <div class="page-subtitle">AI learning engine — what Bluhon has recognized as relevant</div>
       </div>
       <div class="page-body">
+        <div class="page-inner">
         <div class="card" style="border-color:rgba(200,241,53,.25);margin-bottom:24px">
           <div style="display:flex;align-items:flex-start;gap:12px">
             <i class="ti ti-brain" style="color:var(--lime);font-size:22px;flex-shrink:0;margin-top:2px"></i>
@@ -560,6 +572,7 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
             <div style="font-size:0.9rem;color:var(--muted);font-style:italic">Loading quality patterns…</div>
           </div>
         </div>
+        </div>
       </div>
     </section>
 
@@ -568,7 +581,8 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
         <div class="page-title">Search <span>Settings</span></div>
         <div class="page-subtitle">Control what the runner searches for and what it ignores</div>
       </div>
-      <div class="page-body" style="display:flex;flex-direction:column;gap:32px">
+      <div class="page-body">
+        <div class="page-inner" style="display:flex;flex-direction:column;gap:32px">
 
         <!-- ── EXCLUSIONS ───────────────────────────────────────── -->
         <div>
@@ -741,6 +755,7 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
           </div>
         </div>
 
+        </div>
       </div>
     </section>
 
@@ -1315,11 +1330,11 @@ function formatTrackItems(html, track = '') {
     if (mainBody) out += `<p>${mainBody}</p>`;
     if (anglePart) out += `<p class="bluhon-angle">${anglePart}</p>`;
     if (sourceLink) out += `<p style="margin-top:8px;">${sourceLink}</p>`;
-    if (track === 'Track 2' || track === 'Track 3') {
+    if (track === 'Track 2' || track === 'Track 3' || track === 'Track 4') {
       const rawTitle   = (title || 'Untitled').slice(0, 120);
       const rawUrl     = sourceHref.slice(0, 300);
       const rawSummary = (mainBody + (anglePart ? ' ' + anglePart : '')).replace(/<[^>]+>/g, '').slice(0, 500);
-      const trackLabel = track === 'Track 2' ? '2 — Emerging Issue' : '3 — Prime Firm';
+      const trackLabel = track === 'Track 2' ? '2 — Emerging Issue' : track === 'Track 3' ? '3 — Prime Firm' : '4 — Governing Body';
       // Use data-* attributes to avoid inline JS quoting issues with special characters in article text
       out += `<div style="margin-top:10px"><button class="btn btn-ghost btn-sm save-to-pipeline-btn"
         data-title="${escHtml(rawTitle)}"
@@ -1359,7 +1374,7 @@ function renderReport() {
   html += `<div class="track-header t1"><span class="track-number">01</span> Active RFPs<span class="track-ts">Refreshed ${runTs}</span></div><div id="track1-opps-container"></div>`;
   if (report.fields.track2_html) { html += `<div class="track-header t2"><span class="track-number" style="color:var(--info)">02</span> Emerging Issues<span class="track-ts">Refreshed ${runTs}</span></div><div class="track-body">${formatTrackItems(clean(report.fields.track2_html), 'Track 2')}</div>`; }
   if (report.fields.track3_html) { html += `<div class="track-header t3"><span class="track-number" style="color:var(--warning)">03</span> Prime Firm Activity<span class="track-ts">Refreshed ${runTs}</span></div><div class="track-body">${formatTrackItems(clean(report.fields.track3_html), 'Track 3')}</div>`; }
-  if (report.fields.track4_html) { html += `<div class="track-header" style="border-left-color:#7c5cbf"><span class="track-number" style="color:#7c5cbf">04</span> Governing Body Pipeline<span class="track-ts">Refreshed ${runTs}</span></div><div class="track-body">${formatTrackItems(clean(report.fields.track4_html))}</div>`; }
+  if (report.fields.track4_html) { html += `<div class="track-header" style="border-left-color:#7c5cbf"><span class="track-number" style="color:#7c5cbf">04</span> Governing Body Pipeline<span class="track-ts">Refreshed ${runTs}</span></div><div class="track-body">${formatTrackItems(clean(report.fields.track4_html), 'Track 4')}</div>`; }
   content.innerHTML = `<div class="report-reading-col">${html || '<div class="empty-state"><i class="ti ti-report-search"></i><div class="empty-state-title">No content</div></div>'}</div>`;
 }
 async function navReport(dir) {
@@ -1454,10 +1469,10 @@ async function createCanvas(oppId, oppTitle) {
 
 async function loadPipeline() {
   const [oppsRes, canvasRes] = await Promise.all([
-    atFetch(CONFIG.TABLES.OPPORTUNITIES, `?filterByFormula={interest}="Yes"&sort[0][field]=deadline&sort[0][direction]=asc`),
+    atFetch(CONFIG.TABLES.OPPORTUNITIES, `?filterByFormula={interest}="Yes"`),
     atFetch(CONFIG.TABLES.RFP_CANVAS, '')
   ]);
-  allOpportunities = oppsRes.records || [];
+  allOpportunities = (oppsRes.records || []).sort((a, b) => new Date(b.createdTime) - new Date(a.createdTime));
   allCanvases = canvasRes.records || [];
   renderPipeline(allOpportunities);
 }
@@ -1466,15 +1481,15 @@ function renderPipeline(opps) {
   if (opps.length === 0) { el.innerHTML = '<div class="empty-state"><i class="ti ti-filter"></i><div class="empty-state-title">Nothing here yet</div><p>Mark opportunities as Interest = Yes in Today\'s Report.</p></div>'; return; }
   const canvasMap = {};
   allCanvases.forEach(c => { canvasMap[c.fields.canvas_title] = c; });
-  let html = '<table class="pipeline-table"><thead><tr><th>Opportunity</th><th>Agency</th><th>Track</th><th>Deadline</th><th>Status</th><th></th></tr></thead><tbody>';
+  let html = '<table class="pipeline-table"><thead><tr><th>Opportunity</th><th>Agency</th><th>Track</th><th>Deadline</th><th>Date</th><th></th></tr></thead><tbody>';
   opps.forEach(o => {
     const f = o.fields;
     const canvas = canvasMap[f.title];
-    const status = canvas ? canvas.fields.pursuit_status : '—';
-    const statusNum = status ? status.charAt(0) : '';
     const dl = f.deadline ? new Date(f.deadline) : null;
     const dlStr = dl ? dl.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
     const isUrgent = dl && (dl - new Date()) < 10 * 86400000;
+    const createdTs = o.createdTime ? new Date(o.createdTime) : (f.created_at ? new Date(f.created_at) : null);
+    const dateStr = createdTs ? createdTs.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }) : '—';
     const shortTitle = (f.title||'—').length > 80 ? (f.title||'—').slice(0,80)+'…' : (f.title||'—');
     const safeTitle = (f.title||'Untitled').replace(/\\/g,'').replace(/'/g,'&#39;').slice(0,60);
     const canvasBtn = canvas
@@ -1483,13 +1498,12 @@ function renderPipeline(opps) {
     const trashBtn = `<button class="btn btn-ghost btn-sm" style="color:var(--muted)" title="Delete opportunity" onclick="deleteOpportunity('${o.id}',this)"><i class="ti ti-trash"></i></button>`;
     const rowClick = canvas ? 'openCanvas(\'' + canvas.id + '\')' : '';
     const trackPill = f.track ? '<span style="font-size:11px;background:var(--bg3);padding:3px 8px;border-radius:4px;color:var(--muted)">' + f.track + '</span>' : '—';
-    const statusPill = statusNum ? '<span class="status-pill status-' + statusNum + '">' + status + '</span>' : '—';
     html += '<tr style="cursor:' + (canvas ? 'pointer' : 'default') + '" onclick="' + rowClick + '">'
       + '<td><div style="font-weight:600;color:#111">' + shortTitle + '</div><div style="font-size:11px;color:var(--muted);margin-top:2px">' + (f.agency||'') + '</div></td>'
       + '<td style="color:var(--muted);font-size:12px">' + (f.geo_tier||'—') + '</td>'
       + '<td>' + trackPill + '</td>'
       + '<td><span class="' + (isUrgent ? 'date-chip urgent' : 'date-chip') + '"><i class="ti ti-calendar" style="font-size:12px"></i>' + dlStr + '</span></td>'
-      + '<td>' + statusPill + '</td>'
+      + '<td style="color:var(--muted);font-size:12px">' + dateStr + '</td>'
       + '<td onclick="event.stopPropagation()" style="white-space:nowrap">' + canvasBtn + ' ' + trashBtn + '</td></tr>';
   });
   html += '</tbody></table>';
