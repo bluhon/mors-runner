@@ -963,7 +963,10 @@ async function loadReport() {
   allReports = (res.records || []).sort((a, b) => {
     const da = a.fields.report_date || '';
     const db = b.fields.report_date || '';
-    return db > da ? 1 : db < da ? -1 : 0;
+    if (db !== da) return db > da ? 1 : -1;
+    const ta = a.fields.run_timestamp || '';
+    const tb = b.fields.run_timestamp || '';
+    return tb > ta ? 1 : tb < ta ? -1 : 0;
   });
   currentReportIndex = 0;
   renderReport();
