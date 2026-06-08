@@ -1378,7 +1378,7 @@ function renderPipeline(opps) {
     const safeTitle = (f.title||'Untitled').replace(/\\/g,'').replace(/'/g,'&#39;').slice(0,60);
     const canvasBtn = canvas
       ? `<button class="btn btn-ghost btn-sm" onclick="openCanvas('${canvas.id}')"><i class="ti ti-layout-board"></i> Canvas</button>`
-     : `<button class="btn btn-ghost btn-sm" onclick="makePipelineCanvas('${o.id}','${safeTitle}','${f.track||''}')"><i class="ti ti-layout-board"></i> Create Canvas</button>`;
+     : `<button class="btn btn-ghost btn-sm" onclick="makePipelineCanvas('${o.id}','${safeTitle}','${f.track||''}')"><i class="ti ti-layout-board"></i> Canvas</button>`;
     const trashBtn = `<button class="btn btn-ghost btn-sm" style="color:var(--muted)" title="Delete opportunity" onclick="deleteOpportunity('${o.id}',this)"><i class="ti ti-trash"></i></button>`;
     const rowClick = canvas ? 'openCanvas(\'' + canvas.id + '\')' : '';
     const trackPill = f.track ? '<span style="font-size:11px;background:var(--bg3);padding:3px 8px;border-radius:4px;color:var(--muted)">' + f.track + '</span>' : '—';
