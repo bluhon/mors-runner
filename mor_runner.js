@@ -9,9 +9,8 @@ const AIRTABLE_REPORTS_TABLE  = "tblnaSbxkGaoscwZj";
 const AIRTABLE_OPPS_TABLE     = "tbleIossei7FDqi9H";
 const AIRTABLE_TRACK2_TABLE   = "tbl4f7N5EoaKRwRXK";
 const AIRTABLE_MEMORY_TABLE   = "tblNgcBpooPK9wOkD";  // PROJECT_MEMORY
-const AIRTABLE_SOURCES_TABLE     = "tblsQwva2y8ABugYH";  // SEARCH_SOURCES (procurement portals)
-const AIRTABLE_MEDIA_TABLE       = "tblANGqT4L4Yt1MFl"; // MEDIA_SOURCES
-const AIRTABLE_EXCLUSIONS_TABLE  = "tblp4DRTk6uJPYsmm"; // SEARCH_EXCLUSIONS
+const AIRTABLE_SOURCES_TABLE  = "tblsQwva2y8ABugYH";  // SEARCH_SOURCES (procurement portals)
+const AIRTABLE_MEDIA_TABLE    = "tblANGqT4L4Yt1MFl"; // MEDIA_SOURCES
 
 // Portal credentials — from Render environment variables
 const FINDRFP_LOGIN       = process.env.FINDRFP_LOGIN       || process.env.FINDRFP_EMAIL || '';
@@ -688,22 +687,6 @@ async function fetchSearchSources() {
   }
 }
 
-async function fetchSearchExclusions() {
-  try {
-    const formula = encodeURIComponent(`{active}=TRUE()`);
-    const data = await atGet(AIRTABLE_EXCLUSIONS_TABLE, `?filterByFormula=${formula}&maxRecords=200`);
-    const records = data.records || [];
-    return records.map(r => ({
-      type:  r.fields.exclusion_type || 'keyword',
-      value: r.fields.value          || '',
-      reason: r.fields.reason        || ''
-    })).filter(e => e.value);
-  } catch (err) {
-    console.warn(`[fetchSearchExclusions] Failed: ${err.message}`);
-    return [];
-  }
-}
-
 async function fetchMediaSources() {
   // Hardcoded comprehensive Bay Area + Tier 2 media list — used as fallback and baseline
   const HARDCODED_MEDIA = [
@@ -1372,66 +1355,83 @@ async function scrapeCivicengage() {
 // ─────────────────────────────────────────────────────────────────────────────
 const STANDALONE_PAGES = [
   // ── Ports & Harbors ──────────────────────────────────────────────────────
-  { name: 'Port of Oakland',             url: 'https://www.portofoakland.com/business/bids-rfp-center',              baseUrl: 'https://www.portofoakland.com' },
-  { name: 'Port of San Francisco',       url: 'https://sfport.com/business-opportunities/bids-and-rfps',             baseUrl: 'https://sfport.com' },
+  { name: 'Port of Oakland',          url: 'https://www.portofoakland.com/business/bids-rfp-center',                                                 baseUrl: 'https://www.portofoakland.com' },
+  { name: 'Port of San Francisco',    url: 'https://sfport.com/business-opportunities/bids-and-rfps',                                                baseUrl: 'https://sfport.com' },
   // ── Regional Transit ─────────────────────────────────────────────────────
-  { name: 'BART',                        url: 'https://www.bart.gov/about/business/bids',                            baseUrl: 'https://www.bart.gov' },
-  { name: 'AC Transit',                  url: 'https://www.actransit.org/procurement/solicitations',                 baseUrl: 'https://www.actransit.org' },
-  { name: 'Caltrain / JPB',             url: 'https://www.caltrain.com/about_caltrain/doing-business/bids-and-rfps.html', baseUrl: 'https://www.caltrain.com' },
-  { name: 'VTA',                         url: 'https://www.vta.org/business-opportunities/current-solicitations',    baseUrl: 'https://www.vta.org' },
-  { name: 'SMART Rail',                  url: 'https://www.sonomamarintrain.org/procurement',                        baseUrl: 'https://www.sonomamarintrain.org' },
-  { name: 'Golden Gate Transit',         url: 'https://www.goldengate.org/about/contracting-opportunities/',         baseUrl: 'https://www.goldengate.org' },
-  { name: 'SamTrans',                    url: 'https://www.samtrans.com/about/contracting/current-opportunities.html', baseUrl: 'https://www.samtrans.com' },
-  { name: 'SFMTA',                       url: 'https://www.sfmta.com/business-sfmta/contracts-bids',                 baseUrl: 'https://www.sfmta.com' },
+  { name: 'BART',                     url: 'https://www.bart.gov/about/business/bids',                                                               baseUrl: 'https://www.bart.gov' },
+  { name: 'AC Transit',               url: 'https://www.actransit.org/procurement/solicitations',                                                    baseUrl: 'https://www.actransit.org' },
+  { name: 'Caltrain / JPB',           url: 'https://www.caltrain.com/about_caltrain/doing-business/bids-and-rfps.html',                              baseUrl: 'https://www.caltrain.com' },
+  { name: 'VTA',                      url: 'https://www.vta.org/business-opportunities/current-solicitations',                                       baseUrl: 'https://www.vta.org' },
+  { name: 'SMART Rail',               url: 'https://www.sonomamarintrain.org/procurement',                                                           baseUrl: 'https://www.sonomamarintrain.org' },
+  { name: 'Golden Gate Transit',      url: 'https://www.goldengate.org/about/contracting-opportunities/',                                            baseUrl: 'https://www.goldengate.org' },
+  { name: 'SamTrans',                 url: 'https://www.samtrans.com/about/contracting/current-opportunities.html',                                  baseUrl: 'https://www.samtrans.com' },
+  { name: 'SFMTA',                    url: 'https://www.sfmta.com/business-sfmta/contracts-bids',                                                    baseUrl: 'https://www.sfmta.com' },
   // ── Regional Planning & Environment ──────────────────────────────────────
-  { name: 'MTC / ABAG',                  url: 'https://mtc.ca.gov/about-mtc/doing-business-mtc/requests-proposals',  baseUrl: 'https://mtc.ca.gov' },
-  { name: 'BCDC',                        url: 'https://www.bcdc.ca.gov/about-bcdc/doing-business/',                  baseUrl: 'https://www.bcdc.ca.gov' },
-  { name: 'BAAQMD',                      url: 'https://www.baaqmd.gov/about-the-air-district/business-with-the-air-district/bids-and-rfps', baseUrl: 'https://www.baaqmd.gov' },
-  { name: 'EBRPD',                       url: 'https://www.ebparks.org/about/business/bids',                         baseUrl: 'https://www.ebparks.org' },
-  { name: 'MROSD',                       url: 'https://www.openspace.org/about-us/departments/administrative-services/purchasing', baseUrl: 'https://www.openspace.org' },
+  { name: 'MTC / ABAG',               url: 'https://mtc.ca.gov/about-mtc/doing-business-mtc/requests-proposals',                                    baseUrl: 'https://mtc.ca.gov' },
+  { name: 'BCDC',                     url: 'https://www.bcdc.ca.gov/about-bcdc/doing-business/',                                                     baseUrl: 'https://www.bcdc.ca.gov' },
+  { name: 'BAAQMD',                   url: 'https://www.baaqmd.gov/about-the-air-district/business-with-the-air-district/bids-and-rfps',             baseUrl: 'https://www.baaqmd.gov' },
+  { name: 'EBRPD',                    url: 'https://www.ebparks.org/about/business/bids',                                                            baseUrl: 'https://www.ebparks.org' },
+  { name: 'MROSD',                    url: 'https://www.openspace.org/about-us/departments/administrative-services/purchasing',                      baseUrl: 'https://www.openspace.org' },
   // ── Water Agencies ───────────────────────────────────────────────────────
-  { name: 'SFPUC',                       url: 'https://sfpuc.org/construction-contracts/contracting-doing-business/bids-rfps', baseUrl: 'https://sfpuc.org' },
-  { name: 'EBMUD',                       url: 'https://www.ebmud.com/about-us/business-opportunities/',              baseUrl: 'https://www.ebmud.com' },
-  { name: 'SCVWD (Valley Water)',        url: 'https://www.valleywater.org/business/bids',                           baseUrl: 'https://www.valleywater.org' },
-  { name: 'Sonoma Water',                url: 'https://sonomawater.org/bids',                                        baseUrl: 'https://sonomawater.org' },
-  { name: 'Marin Municipal Water',       url: 'https://www.marinwater.org/bids',                                     baseUrl: 'https://www.marinwater.org' },
-  { name: 'Zone 7 Water Agency',         url: 'https://www.zone7water.com/bids',                                     baseUrl: 'https://www.zone7water.com' },
+  { name: 'SFPUC',                    url: 'https://sfpuc.org/construction-contracts/contracting-doing-business/bids-rfps',                          baseUrl: 'https://sfpuc.org' },
+  { name: 'EBMUD',                    url: 'https://www.ebmud.com/about-us/business-opportunities/requests-proposals-bids',                          baseUrl: 'https://www.ebmud.com' },
+  { name: 'Valley Water (SCVWD)',     url: 'https://www.valleywater.org/doing-business/active-solicitations',                                        baseUrl: 'https://www.valleywater.org' },
+  { name: 'Sonoma Water',             url: 'https://sonomawater.org/doing-business/bids-rfps',                                                       baseUrl: 'https://sonomawater.org' },
+  { name: 'Marin Municipal Water',    url: 'https://www.marinwater.org/296/Bids-RFPs',                                                              baseUrl: 'https://www.marinwater.org' },
+  { name: 'Zone 7 Water Agency',      url: 'https://www.zone7water.com/197/Bids-RFPs',                                                              baseUrl: 'https://www.zone7water.com' },
   // ── Counties ─────────────────────────────────────────────────────────────
-  { name: 'Alameda County',              url: 'https://www.acgov.org/gsa/purchasing/bids.htm',                       baseUrl: 'https://www.acgov.org' },
-  { name: 'Contra Costa County',         url: 'https://www.contracosta.ca.gov/government/departments/purchasing/bids-and-rfps', baseUrl: 'https://www.contracosta.ca.gov' },
-  { name: 'Marin County',               url: 'https://www.marincounty.org/depts/pur/bids-and-rfps',                 baseUrl: 'https://www.marincounty.org' },
-  { name: 'Sonoma County',              url: 'https://sonomacounty.ca.gov/general-services/purchasing/bids/',        baseUrl: 'https://sonomacounty.ca.gov' },
-  { name: 'Napa County',               url: 'https://www.countyofnapa.org/bids',                                    baseUrl: 'https://www.countyofnapa.org' },
-  { name: 'Solano County',              url: 'https://www.solanocounty.com/bids',                                    baseUrl: 'https://www.solanocounty.com' },
-  { name: 'San Mateo County',           url: 'https://www.smcgov.org/purchasing/bids-and-rfps',                     baseUrl: 'https://www.smcgov.org' },
-  { name: 'City & County of SF',        url: 'https://sfcitypartner.sfgov.org/pages/solicitations.aspx',            baseUrl: 'https://sfcitypartner.sfgov.org' },
-  // ── Cities ───────────────────────────────────────────────────────────────
-  { name: 'City of Oakland',            url: 'https://www.oaklandca.gov/government/departments/contracting-and-purchasing/bids-and-rfps', baseUrl: 'https://www.oaklandca.gov' },
-  { name: 'City of Berkeley',           url: 'https://www.cityofberkeley.info/bids/',                               baseUrl: 'https://www.cityofberkeley.info' },
-  { name: 'City of Richmond',           url: 'https://www.ci.richmond.ca.us/bids',                                  baseUrl: 'https://www.ci.richmond.ca.us' },
-  { name: 'City of Hayward',            url: 'https://www.hayward-ca.gov/doing-business/bids-rfps',                 baseUrl: 'https://www.hayward-ca.gov' },
-  { name: 'City of Concord',            url: 'https://www.cityofconcord.org/bids',                                  baseUrl: 'https://www.cityofconcord.org' },
-  { name: 'City of Walnut Creek',       url: 'https://www.walnut-creek.org/bids',                                   baseUrl: 'https://www.walnut-creek.org' },
-  { name: 'City of San Ramon',          url: 'https://www.sanramon.ca.gov/bids',                                    baseUrl: 'https://www.sanramon.ca.gov' },
-  { name: 'City of Pleasanton',         url: 'https://www.cityofpleasantonca.gov/bids',                             baseUrl: 'https://www.cityofpleasantonca.gov' },
-  { name: 'City of Vallejo',            url: 'https://www.cityofvallejo.net/bids',                                  baseUrl: 'https://www.cityofvallejo.net' },
-  { name: 'City of Fairfield',          url: 'https://www.fairfield.ca.gov/bids',                                   baseUrl: 'https://www.fairfield.ca.gov' },
-  { name: 'City of Vacaville',          url: 'https://www.cityofvacaville.com/bids',                                baseUrl: 'https://www.cityofvacaville.com' },
-  { name: 'City of Napa',              url: 'https://www.cityofnapa.org/bids',                                      baseUrl: 'https://www.cityofnapa.org' },
-  { name: 'City of Petaluma',          url: 'https://cityofpetaluma.org/bids',                                      baseUrl: 'https://cityofpetaluma.org' },
-  { name: 'City of Santa Rosa',        url: 'https://srcity.org/bids',                                              baseUrl: 'https://srcity.org' },
-  { name: 'City of Redwood City',      url: 'https://www.redwoodcity.org/bids',                                     baseUrl: 'https://www.redwoodcity.org' },
-  { name: 'City of San Mateo',         url: 'https://www.cityofsanmateo.org/bids',                                  baseUrl: 'https://www.cityofsanmateo.org' },
-  { name: 'City of Palo Alto',         url: 'https://www.cityofpaloalto.org/bids',                                  baseUrl: 'https://www.cityofpaloalto.org' },
-  { name: 'City of Sunnyvale',         url: 'https://sunnyvale.ca.gov/bids',                                        baseUrl: 'https://sunnyvale.ca.gov' },
-  { name: 'City of Santa Clara',       url: 'https://www.santaclaraca.gov/bids',                                    baseUrl: 'https://www.santaclaraca.gov' },
-  { name: 'City of Milpitas',          url: 'https://www.ci.milpitas.ca.gov/bids',                                  baseUrl: 'https://www.ci.milpitas.ca.gov' },
-  { name: 'City of Cupertino',         url: 'https://www.cupertino.org/bids',                                       baseUrl: 'https://www.cupertino.org' },
-  { name: 'City of Los Gatos',         url: 'https://www.losgatosca.gov/bids',                                      baseUrl: 'https://www.losgatosca.gov' },
-  { name: 'City of Benicia',           url: 'https://www.ci.benicia.ca.us/bids',                                    baseUrl: 'https://www.ci.benicia.ca.us' },
-  { name: 'City of Emeryville',        url: 'https://www.emeryville.org/bids',                                      baseUrl: 'https://www.emeryville.org' },
-  { name: 'City of Piedmont',          url: 'https://www.piedmont.ca.gov/bids',                                     baseUrl: 'https://www.piedmont.ca.gov' },
-  { name: 'City of San Leandro',       url: 'https://www.sanleandro.org/bids',                                      baseUrl: 'https://www.sanleandro.org' },
+  { name: 'Alameda County',           url: 'https://www.acgov.org/gsa/purchasing/bids.htm',                                                          baseUrl: 'https://www.acgov.org' },
+  { name: 'Contra Costa County',      url: 'https://www.contracosta.ca.gov/government/departments/purchasing/bids-and-rfps',                         baseUrl: 'https://www.contracosta.ca.gov' },
+  { name: 'Marin County',             url: 'https://www.marincounty.org/depts/pur/bids-and-rfps',                                                    baseUrl: 'https://www.marincounty.org' },
+  { name: 'Sonoma County',            url: 'https://sonomacounty.ca.gov/general-services/purchasing/bids/',                                          baseUrl: 'https://sonomacounty.ca.gov' },
+  { name: 'Napa County',              url: 'https://www.countyofnapa.org/bids',                                                                      baseUrl: 'https://www.countyofnapa.org' },
+  { name: 'Solano County',            url: 'https://www.solanocounty.com/bids',                                                                      baseUrl: 'https://www.solanocounty.com' },
+  { name: 'San Mateo County',         url: 'https://www.smcgov.org/purchasing/bids-and-rfps',                                                        baseUrl: 'https://www.smcgov.org' },
+  { name: 'City & County of SF',      url: 'https://sfcitypartner.sfgov.org/pages/solicitations.aspx',                                              baseUrl: 'https://sfcitypartner.sfgov.org' },
+  // ── Alameda County Cities ─────────────────────────────────────────────────
+  { name: 'Oakland',                  url: 'https://apps.oaklandca.gov/ContractOpportunities/',                                                       baseUrl: 'https://apps.oaklandca.gov' },
+  { name: 'Berkeley',                 url: 'https://www.berkeleyca.gov/doing-business/working-city/bid-proposal-opportunities',                       baseUrl: 'https://www.berkeleyca.gov' },
+  { name: 'Hayward',                  url: 'https://procurement.opengov.com/portal/hayward-ca',                                                       baseUrl: 'https://procurement.opengov.com' },
+  { name: 'Pleasanton',               url: 'https://www.cityofpleasantonca.gov/business/bids/',                                                       baseUrl: 'https://www.cityofpleasantonca.gov' },
+  { name: 'Emeryville',               url: 'https://www.emeryvilleplanroom.com/projects/public',                                                      baseUrl: 'https://www.emeryvilleplanroom.com' },
+  { name: 'Alameda',                  url: 'https://www.alamedaca.gov/BUSINESS/Bid-on-City-Contracts',                                                baseUrl: 'https://www.alamedaca.gov' },
+  { name: 'Piedmont',                 url: 'https://www.piedmontplanroom.com/projects/public',                                                        baseUrl: 'https://www.piedmontplanroom.com' },
+  // ── Contra Costa County Cities ────────────────────────────────────────────
+  { name: 'Richmond',                 url: 'https://www.ci.richmond.ca.us/3300/BidsOnline',                                                          baseUrl: 'https://www.ci.richmond.ca.us' },
+  { name: 'Walnut Creek',             url: 'https://vendors.planetbids.com/portal/64254/bo/bo-search',                                               baseUrl: 'https://vendors.planetbids.com' },
+  { name: 'San Ramon',                url: 'https://www.sanramon.ca.gov/our_city/bids___r_f_p',                                                      baseUrl: 'https://www.sanramon.ca.gov' },
+  { name: 'Martinez',                 url: 'https://www.cityofmartinez.org/departments/engineering/rfq-rfp',                                         baseUrl: 'https://www.cityofmartinez.org' },
+  { name: 'Hercules',                 url: 'https://www.herculesplanroom.com/projects/public',                                                        baseUrl: 'https://www.herculesplanroom.com' },
+  { name: 'Lafayette',                url: 'https://www.lovelafayette.org/city-hall/components/rfp-postings',                                        baseUrl: 'https://www.lovelafayette.org' },
+  // ── Marin County Cities ───────────────────────────────────────────────────
+  { name: 'San Rafael',               url: 'https://www.cityofsanrafael.org/bids-and-proposals/',                                                    baseUrl: 'https://www.cityofsanrafael.org' },
+  { name: 'Sausalito',                url: 'https://www.sausalito.gov/departments/public-works/engineering-division/requests-for-proposal-rfps',      baseUrl: 'https://www.sausalito.gov' },
+  { name: 'Corte Madera',             url: 'https://www.cortemadera.gov/625/Town-Bids-and-RFPs',                                                     baseUrl: 'https://www.cortemadera.gov' },
+  // ── San Mateo County Cities ───────────────────────────────────────────────
+  { name: 'Redwood City',             url: 'https://www.redwoodcity.org/business/bids-proposals',                                                    baseUrl: 'https://www.redwoodcity.org' },
+  { name: 'South San Francisco',      url: 'https://www.ssfca.gov/Services/RFPs-and-Bids',                                                           baseUrl: 'https://www.ssfca.gov' },
+  { name: 'Foster City',              url: 'https://www.fostercity.org/rfps',                                                                         baseUrl: 'https://www.fostercity.org' },
+  { name: 'Belmont',                  url: 'https://www.belmont.gov/i-want-to/find/bidding-contract-opportunities',                                   baseUrl: 'https://www.belmont.gov' },
+  { name: 'San Carlos',               url: 'https://www.cityofsancarlos.org/business/bids_and_proposals/',                                           baseUrl: 'https://www.cityofsancarlos.org' },
+  { name: 'Menlo Park',               url: 'https://www.menlopark.gov/Government/Departments/Public-Works/Requests-for-bids',                        baseUrl: 'https://www.menlopark.gov' },
+  { name: 'East Palo Alto',           url: 'https://www.cityofepa.org/rfps',                                                                         baseUrl: 'https://www.cityofepa.org' },
+  { name: 'Pacifica',                 url: 'https://www.cityofpacifica.org/government/rfps-bids',                                                    baseUrl: 'https://www.cityofpacifica.org' },
+  { name: 'Brisbane',                 url: 'https://www.brisbaneca.org/rfps',                                                                         baseUrl: 'https://www.brisbaneca.org' },
+  { name: 'Colma',                    url: 'https://www.colma.ca.gov/rfp-and-bids/',                                                                 baseUrl: 'https://www.colma.ca.gov' },
+  { name: 'Portola Valley',           url: 'https://www.portolavalley.net/departments/request-for-proposals',                                        baseUrl: 'https://www.portolavalley.net' },
+  // ── Santa Clara County Cities ─────────────────────────────────────────────
+  { name: 'Sunnyvale',                url: 'https://vendors.planetbids.com/portal/75302/bo/bo-search',                                               baseUrl: 'https://vendors.planetbids.com' },
+  { name: 'Cupertino',                url: 'https://apps.cupertino.org/bidmanagement/index.aspx',                                                    baseUrl: 'https://apps.cupertino.org' },
+  { name: 'Vallejo',                  url: 'https://vendors.planetbids.com/portal/42510/bo/bo-search',                                               baseUrl: 'https://vendors.planetbids.com' },
+  // ── Solano County Cities ──────────────────────────────────────────────────
+  { name: 'Fairfield',                url: 'https://www.fairfield.ca.gov/our-city/advanced-components/list-detail-pages/rfp-posts-list',             baseUrl: 'https://www.fairfield.ca.gov' },
+  { name: 'Vacaville',                url: 'https://www.cityofvacaville.gov/government/finance/purchasing/current-bids',                             baseUrl: 'https://www.cityofvacaville.gov' },
+  { name: 'Dixon',                    url: 'https://www.cityofdixonca.gov/bids',                                                                      baseUrl: 'https://www.cityofdixonca.gov' },
+  { name: 'Rio Vista',                url: 'https://www.riovistacity.com/rfps',                                                                       baseUrl: 'https://www.riovistacity.com' },
+  // ── Sonoma County Cities ──────────────────────────────────────────────────
+  { name: 'Santa Rosa',               url: 'https://vendors.planetbids.com/portal/20314/bo/bo-search',                                               baseUrl: 'https://vendors.planetbids.com' },
+  { name: 'Petaluma',                 url: 'https://www.cityofpetaluma.org/bid-opportunities',                                                       baseUrl: 'https://www.cityofpetaluma.org' },
+  { name: 'Sonoma',                   url: 'https://www.sonomacity.org/request-for-proposals/',                                                      baseUrl: 'https://www.sonomacity.org' },
 ];
 
 const STANDALONE_KEYWORDS = [
@@ -1660,10 +1660,9 @@ async function runMORSReport() {
   console.log(`[${new Date().toISOString()}] Starting MORS report for ${today} — ${geo.label}`);
 
   // ── Fetch everything in parallel — memory, sources, news RSS, portal scrapers ──
-  const [memoryPatterns, searchSources, searchExclusions, mediaSources, existingOpps, newsItems, findrfpOpps, opengovOpps, bonfireOpps, planetbidsOpps, biddingusaOpps, bidnetOpps, civicengageOpps, standaloneOpps] = await Promise.all([
+  const [memoryPatterns, searchSources, mediaSources, existingOpps, newsItems, findrfpOpps, opengovOpps, bonfireOpps, planetbidsOpps, biddingusaOpps, bidnetOpps, civicengageOpps, standaloneOpps] = await Promise.all([
     fetchProjectMemory(),
     fetchSearchSources(),
-    fetchSearchExclusions(),
     fetchMediaSources(),
     fetchExistingOppTitles(cutoffStr),
     fetchAllNewsItems(),
@@ -1685,15 +1684,6 @@ async function runMORSReport() {
     if (seenTitles.some(s => titlesMatch(title, s.replace(/\[via [^\]]+\]/gi, '').trim()))) return true;
     seenTitles.push(n);
     return false;
-  }
-
-  // Hard 45-day date gate — drop anything with a deadline older than 45 days ago
-  const _45daysAgo = Date.now() - (45 * 24 * 60 * 60 * 1000);
-  function isTooOld(deadline) {
-    if (!deadline) return false; // no deadline — keep, let reviewer decide
-    const d = new Date(deadline);
-    if (isNaN(d.getTime())) return false; // unparseable — keep
-    return d.getTime() < _45daysAgo;
   }
 
   // Build dynamic system prompt additions
@@ -1721,22 +1711,7 @@ async function runMORSReport() {
     sourcesInjection = `\n\nADDITIONAL SEARCH SOURCES (check these in addition to defaults):\n${sourceLines}`;
   }
 
-  // Build exclusions injection
-  let exclusionsInjection = '';
-  if (searchExclusions.length > 0) {
-    const byType = {};
-    for (const e of searchExclusions) {
-      if (!byType[e.type]) byType[e.type] = [];
-      byType[e.type].push(e.value + (e.reason ? ` (${e.reason})` : ''));
-    }
-    const lines = Object.entries(byType).map(([type, vals]) =>
-      `${type.toUpperCase()}: ${vals.join(', ')}`
-    ).join('\n');
-    exclusionsInjection = `\n\nSEARCH EXCLUSIONS — DO NOT include results matching any of these:\n${lines}`;
-    dynamicSystemPrompt += exclusionsInjection;
-  }
-
-  console.log(`[${new Date().toISOString()}] Memory patterns: ${memoryPatterns.length}, Search sources: ${searchSources.length}, Exclusions: ${searchExclusions.length}`);
+  console.log(`[${new Date().toISOString()}] Memory patterns: ${memoryPatterns.length}, Search sources: ${searchSources.length}`);
   console.log(`[${new Date().toISOString()}] Call 1: Tracks 1+2`);
 
   // ── Call 1: Track 1 (RFPs) + Track 2 (Emerging Issues) ───────────────────
@@ -1746,28 +1721,13 @@ Run MORS Tracks 1 and 2 only. Search thoroughly.
 
 CRITICAL DATE FILTER: Only include RFPs issued after ${cutoffStr} (last 45 days). Before including any result, verify the issue date or posting date on the source page. If you cannot confirm the posting date is within 45 days, EXCLUDE it.
 
-CRITICAL SOLICITATION FILTER — TO QUALIFY AS TRACK 1, A RESULT MUST MEET BOTH CONDITIONS:
-
-CONDITION A (ALWAYS REQUIRED — no exceptions):
-A formally posted RFP or RFQ — an actual procurement solicitation document or portal listing. RFP and RFQ are both fully legitimate and equally valid. IFB, SOQ, and Notice of Intent to Award also qualify. If there is no posted solicitation document, it is NOT Track 1, period.
-
-CONDITION B (at least one of these must also be present):
-- A specific submission deadline date, OR
-- A solicitation number (RFP-XXXX, RFQ-XXXX, or equivalent)
-Ideally both are present. If neither exists, the posting is too preliminary to act on — exclude from Track 1.
-
-AUTOMATIC DISQUALIFIERS — these are NEVER Track 1, no matter how relevant the topic:
-- Agency project pages that say "seeking a consultant" or "bringing on a consultant team" but have no posted RFP → Track 2
-- General plan, specific plan, or master plan project websites without a posted solicitation → Track 2
-- News articles or press releases about a project → Track 2
-- Meeting agendas or board staff reports discussing a future project → Track 2
-- CEQA/EIR notices that are public comment periods, not consultant RFPs → Track 2
-
-EXAMPLE OF WHAT IS NOT TRACK 1: A page at permitsonoma.org/generalplan that says Permit Sonoma is "working to bring on a consultant team" — no solicitation number, no deadline, no RFP document. This is Track 2 (emerging opportunity to watch and reach out proactively).
-
-EXAMPLE OF WHAT IS TRACK 1: A caleprocure.ca.gov or PlanetBids listing with solicitation number RFQ-2026-042, due date July 15 2026, with a downloadable RFP document.
-
-If a result is relevant to Bluhon but fails the Track 1 test, include it in Track 2 with a note: "No RFP posted yet — proactive outreach opportunity."
+CRITICAL SOLICITATION FILTER: Only include ACTUAL PROCUREMENT SOLICITATIONS — RFPs, RFQs, IFBs, SOQs, Notices of Intent to Solicit. Do NOT include:
+- News articles or press releases about a project
+- Agency web pages describing a program or process
+- Project announcement pages for public consumption
+- Meeting agendas or staff reports discussing a future project
+- Any page that does not have a formal bid/proposal submission deadline
+If a result is a news article or project announcement rather than an active procurement, EXCLUDE it entirely from Track 1.
 
 ${geo.instructions}
 
@@ -1913,7 +1873,6 @@ OUTPUT FORMAT — use exactly these delimiters:
   let oppCount = 0, oppSkipped = 0;
   for (const opp of opps) {
     if (isDuplicate(opp.title)) { oppSkipped++; continue; }
-    if (isTooOld(opp.deadline)) { oppSkipped++; console.log(`[date-filter] Dropped stale: ${opp.title} (deadline ${opp.deadline})`); continue; }
     try {
       await atPost(AIRTABLE_OPPS_TABLE, {
         title:      opp.title,
@@ -1934,7 +1893,6 @@ OUTPUT FORMAT — use exactly these delimiters:
   let findrfpCount = 0, findrfpSkipped = 0;
   for (const opp of findrfpOpps) {
     if (isDuplicate(opp.title)) { findrfpSkipped++; continue; }
-    if (isTooOld(opp.deadline)) { findrfpSkipped++; console.log(`[date-filter] Dropped stale FindRFP: ${opp.title}`); continue; }
     try {
       await atPost(AIRTABLE_OPPS_TABLE, {
         title:      `${opp.title} [via FindRFP]`,
@@ -1964,7 +1922,6 @@ OUTPUT FORMAT — use exactly these delimiters:
   let portalCount = 0, portalSkipped = 0;
   for (const opp of portalOpps) {
     if (isDuplicate(opp.title)) { portalSkipped++; continue; }
-    if (isTooOld(opp.deadline)) { portalSkipped++; console.log(`[date-filter] Dropped stale portal opp: ${opp.title}`); continue; }
     try {
       await atPost(AIRTABLE_OPPS_TABLE, {
         title:      `${opp.title} ${opp.tag}`,
