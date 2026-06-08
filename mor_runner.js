@@ -241,13 +241,12 @@ Search for open RFPs, RFQs, and solicitations in California — Tier 1 Bay Area 
 - Individual city procurement portals for key Tier 1 cities
 
 Return as HTML table with columns: Agency | Solicitation # | Project / Scope | Due Date | Type | Source URL
-- Solicitation # column: RFP/RFQ/IFB number (e.g. RFP 2026-01). If no number is identifiable, DO NOT include the row.
-- Due Date: must be a future date. If unknown or already passed, DO NOT include the row.
+- Solicitation #: include the RFP/RFQ/IFB number if known (e.g. RFP 2026-01). If not visible in the pre-scraped data, write "see portal" — do NOT omit the row.
+- Due Date: include if known. If unknown write "see portal". Do NOT omit portal rows for missing deadline.
 - Bold due date if within 10 days (<b>DATE</b>)
 - Flag prior clients with ✅
-- Type column: "Prime" (engagement is primary scope) or "Sub/Team" (engagement is sub-scope)
-- Source URL must link directly to the solicitation or its procurement portal listing page
-- Only include rows where you can confirm a real open solicitation with a number and future deadline
+- Type: "Prime" (engagement is primary scope) or "Sub/Team" (engagement is sub-scope)
+- Source URL: use the exact URL from the pre-scraped data — never modify or reconstruct it
 
 ─────────────────────────────────────────────────────────────
 TRACK 2 — EMERGING ISSUES & INTELLIGENCE
@@ -1780,12 +1779,13 @@ async function runMORSReport() {
     ...standaloneOpps
   ];
   const portalBlock = allPortalOpps.length > 0
-    ? `\n\nPRE-SCRAPED PORTAL OPPORTUNITIES (${allPortalOpps.length} items from procurement portals — use these as your PRIMARY Track 1 source):\n` +
+    ? `\n\nPRE-SCRAPED PORTAL OPPORTUNITIES (${allPortalOpps.length} items pulled directly from authenticated Bay Area procurement portals — FindRFP, OpenGov, Bonfire, PlanetBids, BiddingUSA, BidNet, CivicEngage, and agency bid pages. These ARE real solicitations. Include all that are relevant to Bluhon's services — do NOT reject them for lacking a visible solicitation number, the number exists on the linked page):\n` +
       allPortalOpps.slice(0, 150).map((o, i) =>
-        `${i+1}. ${o.title} | ${o.agency || ''} | Due: ${o.deadline || 'unknown'} | ${o.source_url || ''}`
+        `${i+1}. [via:${o.via||'portal'}] ${o.title} | ${o.agency || ''} | Due: ${o.deadline || 'unknown'} | ${o.source_url || ''}`
       ).join('\n')
     : '';
 
+  console.log(`[SCRAPERS] FindRFP:${findrfpOpps.length} OpenGov:${opengovOpps.length} Bonfire:${bonfireOpps.length} PlanetBids:${planetbidsOpps.length} BiddingUSA:${biddingusaOpps.length} BidNet:${bidnetOpps.length} CivicEngage:${civicengageOpps.length} Standalone:${standaloneOpps.length} TOTAL:${allPortalOpps.length}`);
   console.log(`[${new Date().toISOString()}] Memory patterns: ${memoryPatterns.length}, Search sources: ${searchSources.length}, Portal opps for prompt: ${allPortalOpps.length}`);
   console.log(`[${new Date().toISOString()}] Call 1: Tracks 1+2`);
 
@@ -1796,22 +1796,22 @@ Run MORS Tracks 1 and 2 only.
 
 CRITICAL DATE FILTER: Only include RFPs issued after ${cutoffStr} (last 45 days).
 
-CRITICAL SOLICITATION FILTER: Track 1 must contain ONLY active procurement solicitations where Bluhon could submit a formal proposal or qualifications package.
+CRITICAL SOLICITATION FILTER:
 
-A VALID Track 1 item MUST have ALL of the following:
-1. A solicitation number (e.g. RFP 2026-01, RFQ-24-003, Bid No. 12345, IFB #2026-002)
-2. A proposal/submission due date in the future
-3. A source URL that is a procurement or bids listing page — NOT a news article, project page, or agency home page
-4. A contact person or contracting office listed
+FOR PRE-SCRAPED PORTAL ITEMS (marked [via:...]): These come from authenticated Bay Area procurement portals and are real solicitations. Include all relevant ones. Do not reject them for lacking a visible solicitation number — that number exists on the linked page. You may filter out portal items that are clearly irrelevant to Bluhon's services (road paving, IT hardware, food services, etc.).
 
-EXCLUDE everything that does not meet all 4 criteria — even if it came from the pre-scraped list:
+FOR ANY ITEM YOU FIND VIA WEB SEARCH (not in the pre-scraped list): Apply strict verification — only include if ALL of the following are true:
+1. Has a solicitation number (RFP 2026-01, RFQ-24-003, Bid No. 12345, IFB #2026-002, etc.)
+2. Has a proposal/submission due date in the future
+3. Source URL is a procurement portal or agency bids page — NOT a news article or project page
+
+ALWAYS EXCLUDE regardless of source:
 - Community meeting notices, public hearings, workshops, open houses
 - Project announcements, program descriptions, agency newsletters
 - News articles or press releases about public engagement work
-- Notices about an ongoing process Bluhon was not invited to bid on
-- Any item where you cannot identify a solicitation number and future deadline
+- Any item where the agency is asking the public to participate — NOT asking firms to bid
 
-When in doubt, leave it out. 3 real RFPs is a far better result than 10 mixed entries.
+When in doubt about a web-searched item, leave it out. But always include relevant portal items.
 
 CRITICAL URL RULE: Use only the exact source_url provided in the pre-scraped data below. NEVER construct, guess, or modify URLs.
 
