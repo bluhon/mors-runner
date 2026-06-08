@@ -371,6 +371,205 @@ async function atPatch(tableId, recordId, fields) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// News RSS Aggregator
+// Replaces "tell Claude to search newspapers" with systematic daily coverage.
+// Google News RSS covers every outlet simultaneously; direct feeds add depth.
+// Items are pre-filtered for relevance before touching Claude.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const BLUHON_KEYWORDS = [
+  'public engagement', 'community outreach', 'community engagement',
+  'stakeholder', 'facilitation', 'consensus', 'mediation',
+  'ceqa', 'environmental review', 'eir', 'environmental impact',
+  'land use', 'planning commission', 'general plan', 'specific plan',
+  'zoning', 'rezoning', 'entitlement', 'annexation',
+  'facility siting', 'community opposition', 'neighborhood opposition', 'resident opposition',
+  'housing project', 'development project', 'infrastructure project',
+  'water rights', 'water project', 'wetlands', 'habitat',
+  'public hearing', 'public comment', 'scoping meeting',
+  'conflict resolution', 'dispute', 'controversy', 'contested',
+  'board of supervisors', 'city council', 'planning commission', 'advisory committee',
+  'request for proposals', 'rfp', 'rfq', 'contract award', 'professional services',
+  'aecom', 'wsp', 'hdr', 'jacobs', 'icf', 'stantec', 'kimley',
+  'mig consulting', 'placeworks', 'circlepoint', 'raimi'
+];
+
+// 24 targeted Google News RSS queries — topic+geo combinations
+const GOOGLE_NEWS_QUERIES = [
+  // Core Bluhon topics × Bay Area
+  '"public engagement" "bay area"',
+  '"community outreach" California planning',
+  'CEQA "bay area" dispute OR opposition OR conflict',
+  '"environmental review" "bay area" OR "Marin" OR "Alameda" OR "Contra Costa"',
+  '"facility siting" California community',
+  '"community opposition" California development OR project OR facility',
+  '"land use" "planning commission" "bay area"',
+  '"public hearing" "bay area" development OR project OR EIR',
+  '"water rights" OR "water project" California conflict OR dispute',
+  '"housing project" "bay area" opposition OR controversy',
+  // County-level conflict searches
+  '"Marin County" development OR planning OR dispute',
+  '"Alameda County" project OR planning OR opposition',
+  '"Contra Costa County" development OR facility OR siting',
+  '"Santa Clara County" land use OR planning OR EIR',
+  '"Sonoma County" environmental OR project OR dispute',
+  '"San Mateo County" planning OR development',
+  // City-level
+  'Oakland Berkeley "community" development OR opposition OR dispute',
+  '"San Jose" community engagement OR infrastructure OR planning',
+  // Tier 2
+  'Sacramento OR Fresno OR Stockton "public engagement" OR CEQA project',
+  '"Monterey" OR "Santa Cruz" OR "Salinas" planning dispute OR environmental',
+  // Track 3 — prime firm intel
+  'AECOM OR WSP OR HDR OR Jacobs OR ICF "contract award" California',
+  'AECOM OR Stantec OR "Fehr Peers" OR "Kimley-Horn" California planning',
+  'MIG OR PlaceWorks OR Circlepoint OR Raimi California planning contract',
+  // Track 4 — governing body pre-RFP signals
+  '"board of supervisors" "request for proposals" OR "professional services" "bay area"',
+];
+
+// Direct RSS feeds for key outlets — fetched every day regardless of geography
+const DIRECT_RSS_FEEDS = [
+  { url: 'https://www.berkeleyside.org/feed',              source: 'Berkeleyside',             track: 'Track 2' },
+  { url: 'https://oaklandside.org/feed',                   source: 'The Oaklandside',          track: 'Track 2' },
+  { url: 'https://missionlocal.org/feed',                  source: 'Mission Local',            track: 'Track 2' },
+  { url: 'https://marinpost.org/feed',                     source: 'Marin Post',               track: 'Track 2' },
+  { url: 'https://sanjosespotlight.com/feed',              source: 'San Jose Spotlight',       track: 'Track 2' },
+  { url: 'https://richmondstandard.com/feed',              source: 'Richmond Standard',        track: 'Track 2' },
+  { url: 'https://eastcountytoday.net/feed',               source: 'East County Today (CCC)',  track: 'Track 2' },
+  { url: 'https://www.marinij.com/feed',                   source: 'Marin IJ',                 track: 'Track 2' },
+  { url: 'https://www.paloaltoonline.com/feed',            source: 'Palo Alto Weekly',         track: 'Track 2' },
+  { url: 'https://www.mv-voice.com/feed',                  source: 'Mountain View Voice',      track: 'Track 2' },
+  { url: 'https://www.hmbreview.com/feed',                 source: 'Half Moon Bay Review',     track: 'Track 2' },
+  { url: 'https://www.smdailyjournal.com/feed',            source: 'San Mateo Daily Journal',  track: 'Track 2' },
+  { url: 'https://www.pressdemocrat.com/feed',             source: 'Press Democrat',           track: 'Track 2' },
+  { url: 'https://napavalleyregister.com/feed',            source: 'Napa Valley Register',     track: 'Track 2' },
+  { url: 'https://www.eastbaytimes.com/feed',              source: 'East Bay Times',           track: 'Track 2' },
+  { url: 'https://www.mercurynews.com/feed',               source: 'Mercury News',             track: 'Track 2' },
+  { url: 'https://www.sfexaminer.com/feed',                source: 'SF Examiner',              track: 'Track 2' },
+  { url: 'https://www.novatoadvance.com/feed',             source: 'Novato Advance',           track: 'Track 2' },
+  { url: 'https://www.sacbee.com/news/politics-government/?widgetName=rssfeed&widgetContentId=710361&getXmlFeed=true', source: 'Sacramento Bee', track: 'Track 2' },
+  { url: 'https://www.planetizen.com/rss.xml',             source: 'Planetizen',               track: 'Track 3' },
+  { url: 'https://www.enr.com/rss/news',                   source: 'Engineering News-Record',  track: 'Track 3' },
+];
+
+function parseRSSXml(xml, sourceName) {
+  const items = [];
+  const itemMatches = xml.match(/<item[\s>][\s\S]*?<\/item>/gi) || [];
+  for (const raw of itemMatches) {
+    const get = (tag) => {
+      const m = raw.match(new RegExp(`<${tag}[^>]*>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?<\\/${tag}>`, 'i'));
+      return m ? m[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() : '';
+    };
+    const title   = get('title');
+    const link    = get('link') || (raw.match(/<link[^>]*href="([^"]+)"/i) || [])[1] || '';
+    const pubDate = get('pubDate') || get('published') || get('dc:date') || '';
+    const summary = get('description').slice(0, 400);
+    const source  = get('source') || sourceName;
+    if (title && link) items.push({ title, url: link.trim(), pubDate, summary, source });
+  }
+  return items;
+}
+
+function isNewsRelevant(item) {
+  const text = `${item.title} ${item.summary}`.toLowerCase();
+  return BLUHON_KEYWORDS.some(kw => text.includes(kw));
+}
+
+async function fetchGoogleNewsRSS(query) {
+  try {
+    const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query + ' when:3d')}&hl=en-US&gl=US&ceid=US:en`;
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
+      signal: AbortSignal.timeout(12000)
+    });
+    if (!res.ok) return [];
+    const xml = await res.text();
+    return parseRSSXml(xml, 'Google News').map(item => ({ ...item, gnQuery: query }));
+  } catch (err) {
+    console.warn(`[RSS/GNews] Query failed "${query}": ${err.message}`);
+    return [];
+  }
+}
+
+async function fetchDirectRSS(feed) {
+  try {
+    const res = await fetch(feed.url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
+      signal: AbortSignal.timeout(12000)
+    });
+    if (!res.ok) return [];
+    const xml = await res.text();
+    return parseRSSXml(xml, feed.source).map(item => ({ ...item, track: feed.track }));
+  } catch (err) {
+    console.warn(`[RSS/Direct] Feed failed "${feed.source}": ${err.message}`);
+    return [];
+  }
+}
+
+async function fetchSeenNewsUrls() {
+  try {
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const formula = encodeURIComponent(`IS_AFTER({report_date}, '${since}')`);
+    const data = await atGet(AIRTABLE_TRACK2_TABLE, `?filterByFormula=${formula}&fields[]=source_url&maxRecords=500`);
+    return new Set((data.records || []).map(r => r.fields.source_url).filter(Boolean));
+  } catch {
+    return new Set();
+  }
+}
+
+async function fetchAllNewsItems() {
+  console.log(`[RSS] Launching ${GOOGLE_NEWS_QUERIES.length} Google News queries + ${DIRECT_RSS_FEEDS.length} direct feeds in parallel...`);
+
+  const [seenUrls, ...allBatches] = await Promise.all([
+    fetchSeenNewsUrls(),
+    ...GOOGLE_NEWS_QUERIES.map(q => fetchGoogleNewsRSS(q)),
+    ...DIRECT_RSS_FEEDS.map(f => fetchDirectRSS(f))
+  ]);
+
+  // Deduplicate by URL, filter for relevance and freshness
+  const seenThisRun = new Set();
+  const cutoff = Date.now() - 72 * 60 * 60 * 1000;
+  const items = [];
+
+  for (const batch of allBatches) {
+    for (const item of batch) {
+      if (seenThisRun.has(item.url) || seenUrls.has(item.url)) continue;
+      seenThisRun.add(item.url);
+      // Freshness check
+      if (item.pubDate) {
+        const d = new Date(item.pubDate);
+        if (!isNaN(d.getTime()) && d.getTime() < cutoff) continue;
+      }
+      if (isNewsRelevant(item)) items.push(item);
+    }
+  }
+
+  // Sort by pubDate descending (newest first)
+  items.sort((a, b) => {
+    const da = a.pubDate ? new Date(a.pubDate).getTime() : 0;
+    const db = b.pubDate ? new Date(b.pubDate).getTime() : 0;
+    return db - da;
+  });
+
+  console.log(`[RSS] ${items.length} relevant fresh items after dedup + keyword filter`);
+  return items;
+}
+
+function formatNewsItemsForPrompt(items, trackFilter) {
+  const filtered = trackFilter
+    ? items.filter(i => !i.track || i.track === trackFilter)
+    : items;
+  if (!filtered.length) return 'No pre-fetched news items available.';
+  return filtered.slice(0, 60).map((item, i) => {
+    const date = item.pubDate ? new Date(item.pubDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+    const src  = item.source || 'Unknown';
+    const sum  = item.summary ? ` — ${item.summary.slice(0, 200)}` : '';
+    return `${i + 1}. [${src}${date ? ' | ' + date : ''}] ${item.title}${sum}\n   URL: ${item.url}`;
+  }).join('\n\n');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Feedback/Learning Loop helpers
 // ─────────────────────────────────────────────────────────────────────────────
 async function fetchProjectMemory() {
@@ -973,12 +1172,13 @@ async function runMORSReport() {
 
   console.log(`[${new Date().toISOString()}] Starting MORS report for ${today} — ${geo.label}`);
 
-  // ── Fetch memory patterns, search sources, media sources, existing opps (dedup), and scrape Tier B portals in parallel
-  const [memoryPatterns, searchSources, mediaSources, existingOpps, findrfpOpps, opengovOpps, bonfireOpps, planetbidsOpps] = await Promise.all([
+  // ── Fetch everything in parallel — memory, sources, news RSS, portal scrapers ──
+  const [memoryPatterns, searchSources, mediaSources, existingOpps, newsItems, findrfpOpps, opengovOpps, bonfireOpps, planetbidsOpps] = await Promise.all([
     fetchProjectMemory(),
     fetchSearchSources(),
     fetchMediaSources(),
     fetchExistingOppTitles(cutoffStr),
+    fetchAllNewsItems(),
     scrapeFindrfp(),
     scrapeOpengov(),
     scrapeBonfire(),
@@ -1049,31 +1249,30 @@ TRACK 1 INSTRUCTIONS:
 - Flag prior Bluhon clients: ABAG ✅, BCDC ✅, SF Regional Water Board ✅, Cities of Berkeley/Oakland/Palo Alto/San Jose/San Mateo/Redwood City/Livermore/Novato/Half Moon Bay/Danville ✅, Contra Costa County ✅, Alameda County ✅, Marin County ✅, Santa Clara County ✅, Sonoma County ✅${sourcesInjection}
 
 TRACK 2 INSTRUCTIONS — LOCAL CONFLICTS & EMERGING ISSUES:
-Search local Bay Area and Tier 2 geography news outlets from the past 72 hours. Focus on SPECIFIC LOCAL CONFLICTS, NOT statewide legislation or policy.
+The news items below were pre-fetched this morning from ${newsItems.length} Bay Area and California local news outlets via RSS. You do NOT need to search the web for Track 2. Your job is to ANALYZE these pre-fetched items and identify the most relevant ones for Bluhon.
 
-PROHIBITED results: Do NOT include statewide legislation, Sacramento bills, or abstract policy debates.
-REQUIRED format: Every item must name a SPECIFIC PLACE, specific PROJECT OR DISPUTE, and specific PARTIES involved.
+PROHIBITED: Do NOT include statewide legislation, Sacramento bills, or abstract policy debates.
+REQUIRED: Every item you surface must name a SPECIFIC PLACE, specific PROJECT OR DISPUTE, and specific PARTIES involved.
 
-Search these local outlets by priority (today's geographic focus first):
-Bay Area core: Berkeleyside, The Oaklandside, Mission Local, Marin Post, Marin IJ, East Bay Times, San Jose Spotlight, Palo Alto Weekly, Berkeleyside, Richmond Standard, East County Today (CCC), Half Moon Bay Review, Redwood City Pulse
-Regional: San Jose Mercury News, SF Chronicle, SF Examiner, Santa Rosa Press Democrat, North Bay Business Journal, San Mateo Daily Journal, Napa Valley Register, Sonoma Index-Tribune
-Tier 2: Sacramento Bee, Fresno Bee, Santa Cruz Sentinel, Monterey Herald, Salinas Californian
+PRE-FETCHED NEWS ITEMS (past 72 hours):
+${formatNewsItemsForPrompt(newsItems, 'Track 2')}
 
-For each item found, identify:
-- The SPECIFIC project, facility, permit, or local dispute (land use, CEQA, facility siting, infrastructure, environmental)
+For each item you select, write:
+- The SPECIFIC project, facility, permit, or dispute (land use, CEQA, facility siting, infrastructure, environmental)
 - WHO is in conflict (community groups, agencies, developers, environmental orgs)
 - WHERE exactly (city/county/neighborhood)
 - WHY Bluhon is relevant (public engagement, facilitation, CEQA, conflict resolution, stakeholder assessment)
 - Who at the agency Bluhon should contact
+- Link to the source article
 
-Find 5–8 items. Prioritize: land use conflicts, CEQA disputes, facility siting (waste, water, energy), housing EIR opposition, port/airport/transit project community conflict, water rights disputes, agricultural land conflicts.
+Select the 5–8 most actionable items. Prioritize: land use conflicts, CEQA disputes, facility siting (waste, water, energy), housing EIR opposition, transit project community conflict, water rights disputes.
 
-TRACK 2 OUTPUT FORMAT: Group all items under these exact headings in this order. Only include a heading if you have at least one item for it. Use an <h2> tag for each heading and a <ul> for items under it:
-<h2>Local News</h2>  — items from neighborhood/city-level outlets
-<h2>Regional News</h2>  — items from county-wide or multi-county outlets (Chronicle, Mercury News, Press Democrat, etc.)
-<h2>Agency Board</h2>  — items sourced from special district or state/federal agency agendas
-<h2>County Board</h2>  — items sourced from county BOS agendas or county planning commission packets
-<h2>City Board</h2>  — items sourced from city council or city planning commission agendas
+TRACK 2 OUTPUT FORMAT: Group items under these <h2> headings based on the source outlet type:
+<h2>Local News</h2>  — neighborhood/city-level outlets
+<h2>Regional News</h2>  — county-wide or multi-county outlets
+<h2>Agency Board</h2>  — special district or state/federal agency sources
+<h2>County Board</h2>  — county BOS or county planning commission
+<h2>City Board</h2>  — city council or city planning commission
 
 OUTPUT FORMAT — you MUST output ALL THREE sections below in this exact order. Do not skip any section.
 
@@ -1093,57 +1292,51 @@ OUTPUT FORMAT — you MUST output ALL THREE sections below in this exact order. 
 
   console.log(`[${new Date().toISOString()}] Call 1 complete — Call 2: Tracks 3+4`);
 
-  // Build media source injection strings by track
-  const t2Media = mediaSources.filter(s => s.track === 'Track 2').map(s => `${s.name} (${s.url})`).join(', ');
-  const t3Media = mediaSources.filter(s => s.track === 'Track 3').map(s => `${s.name} (${s.url})`).join(', ');
   const t4Media = mediaSources.filter(s => s.track === 'Track 4').map(s => `${s.name} (${s.url})`).join(', ');
+  const t3NewsItems = formatNewsItemsForPrompt(newsItems, 'Track 3');
 
   // ── Call 2: Track 3 (Contract Awards + Firm News) + Track 4 (Governing Body Pipeline) ───
   const prompt2 = `Today is ${today}.
 
-Run MORS Tracks 3 and 4 only. Search thoroughly using real-time web search.
+Run MORS Tracks 3 and 4 only.
 
 TRACK 3 INSTRUCTIONS — CONTRACT AWARDS & PRIME FIRM INTELLIGENCE:
 Goal: Find recent (past 30 days) California contract awards, RFP wins, and firm moves relevant to Bluhon teaming opportunities.
 
-SOURCES TO CHECK:
-- Bay Area county and city board of supervisors/city council meeting minutes and agendas (past 30 days) for contract awards
-- Engineering News-Record (enr.com) — California project awards
-- SF Business Times / Silicon Valley Business Journal — contract and project announcements
-- GovConWire — government contract awards
-- Planetizen — planning contract news
-- Firm press releases, LinkedIn announcements, and news coverage
-${t3Media ? `Additional sources: ${t3Media}` : ''}
+PRE-FETCHED ITEMS (from ENR, Planetizen, SF Business Times RSS — analyze these first):
+${t3NewsItems}
 
-PRIME FIRMS to track for teaming: AECOM, WSP, HDR, Jacobs, ICF, HNTB, Parsons, Stantec, Arup, Fehr & Peers, Kimley-Horn, GHD, EPS Group, Atkins, Burns & McDonnell, Mott MacDonald, ARCADIS, Dudek, Iteris, Toole Design
-For each award found: name the firm, the agency, contract value if known, scope (especially if it includes public engagement, facilitation, or community outreach sub-scope), and whether Bluhon could team on the next phase or similar work.
+Also search the web for:
+- Bay Area board minutes and city council agendas (past 30 days) for contract awards to prime firms
+- Firm press releases and LinkedIn announcements not captured in the RSS items above
 
-DIRECT COMPETITORS to monitor: MIG, PlaceWorks, Circlepoint, Raimi+Associates, Rincon Consultants, Mintier Harnish, CONCUR, Design, Community & Environment (DC&E), Civic Edge, Stakeholder Communications Group
-For competitors: look for wins, new hires, office openings, LinkedIn activity, or press mentions that reveal where they are targeting.
+PRIME FIRMS to track for teaming: AECOM, WSP, HDR, Jacobs, ICF, HNTB, Parsons, Stantec, Arup, Fehr & Peers, Kimley-Horn, GHD, EPS Group, Atkins, Burns & McDonnell, ARCADIS, Dudek
+For each award: firm name, agency, contract value if known, scope (flag if public engagement sub-scope exists), Bluhon teaming angle.
 
-Find 4–6 items total. Format each with: firm name as heading, contract/award details, Bluhon angle on a new line.
+DIRECT COMPETITORS to monitor: MIG, PlaceWorks, Circlepoint, Raimi+Associates, Rincon Consultants, Mintier Harnish, CONCUR, DC&E, Civic Edge, Stakeholder Communications Group
+For competitors: wins, new hires, press mentions that reveal where they are targeting.
+
+Find 4–6 items total. Format each with firm name as heading, details, Bluhon angle on a new line.
 
 TRACK 4 INSTRUCTIONS — GOVERNING BODY PIPELINE (pre-RFP signals):
-Goal: Identify projects being DISCUSSED at Bay Area governing bodies that will likely produce RFPs in 3–18 months.
+Goal: Identify projects being DISCUSSED at Bay Area governing bodies that will produce RFPs in 3–18 months.
+Use real-time web search to check agendas and minutes from the past 14 days:
+${t4Media || 'MTC/ABAG, SF BOS, Oakland City Council, Berkeley City Council, all 9 Bay Area county BOS pages, San Jose/Richmond/Palo Alto/Novato/Livermore/Danville city councils'}
 
-SOURCES TO CHECK — scan agendas and minutes from the past 14 days:
-${t4Media ? t4Media : 'MTC/ABAG, SF BOS, Oakland City Council, Berkeley City Council, Alameda County BOS, Contra Costa County BOS, Marin County BOS, Santa Clara County BOS, Sonoma County BOS, San Mateo County BOS, San Jose City Council, Richmond City Council, Palo Alto City Council'}
-
-WHAT TO LOOK FOR in agenda packets and staff reports:
-- Authorization to issue an RFP (most immediate — flag these ⭐)
-- Approval of study or assessment scope that will require outside consultants
-- Budget allocation for a new planning, engagement, or environmental project
-- Direction to staff to initiate a stakeholder process or master plan
-- Approval of grants or federal funding for projects requiring public involvement
-- Discussion of EIR or CEQA process authorization
+WHAT TO LOOK FOR:
+- Authorization to issue an RFP ⭐ (most immediate)
+- Approval of study/assessment requiring outside consultants
+- Budget allocation for planning, engagement, or environmental project
+- Direction to initiate stakeholder process or master plan
+- Grant/federal funding approval for projects needing public involvement
+- EIR or CEQA process authorization
 - Community task force or advisory committee formation
 
-For each item: name the governing body, meeting date, agenda item title, what was discussed/directed, estimated timeline to RFP, and the specific Bluhon service that fits.
+For each: governing body, meeting date, agenda item title, what was directed, timeline to RFP, Bluhon service fit.
+Find 4–6 items. Flag ⭐ if RFP authorization granted.
 
-Find 4–6 items. Prioritize items closest to issuing an RFP. Flag ⭐ if RFP authorization was granted.
-
-TRACK 4 OUTPUT FORMAT: Group all items under these exact headings in this order. Only include a heading if you have at least one item for it. Use an <h2> tag for each heading and a <ul> for items under it:
-<h2>Agency Board</h2>  — special districts, regional agencies, state/federal bodies (MTC, BAAQMD, BCDC, RWQCB, Coastal Commission, BART, etc.)
+TRACK 4 OUTPUT FORMAT: Group under <h2> headings:
+<h2>Agency Board</h2>  — MTC, BAAQMD, BCDC, RWQCB, Coastal Commission, BART, etc.
 <h2>County Board</h2>  — board of supervisors, county planning commissions
 <h2>City Board</h2>  — city councils, city planning commissions
 
