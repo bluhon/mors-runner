@@ -2405,32 +2405,13 @@ app.post("/feedback", async (req, res) => {
       description = [reason, title, agency].filter(Boolean).join(' — ');
     }
 
-    // Look for existing record with matching example_title
-    let existingId = null;
-    if (title) {
-      const formula = encodeURIComponent(`{example_title}="${title.replace(/"/g, '\\"')}"`);
-      const existing = await atGet(AIRTABLE_MEMORY_TABLE, `?filterByFormula=${formula}&maxRecords=1`);
-      if (existing.records && existing.records.length > 0) {
-        existingId = existing.records[0].id;
-        const currentFreq = existing.records[0].fields.frequency || 0;
-        await atPatch(AIRTABLE_MEMORY_TABLE, existingId, {
-          frequency: currentFreq + 1,
-          last_seen: today
-        });
-      }
-    }
-
-    if (!existingId) {
-      await atPost(AIRTABLE_MEMORY_TABLE, {
-        pattern_type:  'poor_result',
-        description:   description,
-        example_title: title || '',
-        example_url:   source_url || '',
-        frequency:     1,
-        created_date:  today,
-        last_seen:     today
-      });
-    }
+    // Write a new memory pattern record
+    await atPost(AIRTABLE_MEMORY_TABLE, {
+      pattern_type: 'poor_result',
+      description:  description,
+      created_date: today,
+      last_seen:    today
+    });
 
     res.json({ success: true });
   } catch (err) {
