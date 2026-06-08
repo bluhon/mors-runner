@@ -1472,7 +1472,7 @@ async function loadPipeline() {
     atFetch(CONFIG.TABLES.OPPORTUNITIES, `?filterByFormula={interest}="Yes"`),
     atFetch(CONFIG.TABLES.RFP_CANVAS, '')
   ]);
-  allOpportunities = (oppsRes.records || []).sort((a, b) => new Date(b.createdTime) - new Date(a.createdTime));
+  allOpportunities = (oppsRes.records || []).sort((a, b) => new Date(b.fields.pipeline_date || 0) - new Date(a.fields.pipeline_date || 0));
   allCanvases = canvasRes.records || [];
   renderPipeline(allOpportunities);
 }
@@ -1488,8 +1488,8 @@ function renderPipeline(opps) {
     const dl = f.deadline ? new Date(f.deadline) : null;
     const dlStr = dl ? dl.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
     const isUrgent = dl && (dl - new Date()) < 10 * 86400000;
-    const createdTs = o.createdTime ? new Date(o.createdTime) : (f.created_at ? new Date(f.created_at) : null);
-    const dateStr = createdTs ? createdTs.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }) : '—';
+    const pipelineTs = f.pipeline_date ? new Date(f.pipeline_date) : null;
+    const dateStr = pipelineTs ? pipelineTs.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }) : '—';
     const shortTitle = (f.title||'—').length > 80 ? (f.title||'—').slice(0,80)+'…' : (f.title||'—');
     const safeTitle = (f.title||'Untitled').replace(/\\/g,'').replace(/'/g,'&#39;').slice(0,60);
     const canvasBtn = canvas
