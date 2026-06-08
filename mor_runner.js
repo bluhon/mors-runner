@@ -9,8 +9,9 @@ const AIRTABLE_REPORTS_TABLE  = "tblnaSbxkGaoscwZj";
 const AIRTABLE_OPPS_TABLE     = "tbleIossei7FDqi9H";
 const AIRTABLE_TRACK2_TABLE   = "tbl4f7N5EoaKRwRXK";
 const AIRTABLE_MEMORY_TABLE   = "tblNgcBpooPK9wOkD";  // PROJECT_MEMORY
-const AIRTABLE_SOURCES_TABLE  = "tblsQwva2y8ABugYH";  // SEARCH_SOURCES (procurement portals)
-const AIRTABLE_MEDIA_TABLE    = "tblANGqT4L4Yt1MFl"; // MEDIA_SOURCES
+const AIRTABLE_SOURCES_TABLE     = "tblsQwva2y8ABugYH";  // SEARCH_SOURCES (procurement portals)
+const AIRTABLE_MEDIA_TABLE       = "tblANGqT4L4Yt1MFl"; // MEDIA_SOURCES
+const AIRTABLE_EXCLUSIONS_TABLE  = "tblp4DRTk6uJPYsmm"; // SEARCH_EXCLUSIONS
 
 // Portal credentials — from Render environment variables
 const FINDRFP_LOGIN       = process.env.FINDRFP_LOGIN       || process.env.FINDRFP_EMAIL || '';
@@ -683,6 +684,22 @@ async function fetchSearchSources() {
     }));
   } catch (err) {
     console.warn(`[fetchSearchSources] Failed: ${err.message}`);
+    return [];
+  }
+}
+
+async function fetchSearchExclusions() {
+  try {
+    const formula = encodeURIComponent(`{active}=TRUE()`);
+    const data = await atGet(AIRTABLE_EXCLUSIONS_TABLE, `?filterByFormula=${formula}&maxRecords=200`);
+    const records = data.records || [];
+    return records.map(r => ({
+      type:  r.fields.exclusion_type || 'keyword',
+      value: r.fields.value          || '',
+      reason: r.fields.reason        || ''
+    })).filter(e => e.value);
+  } catch (err) {
+    console.warn(`[fetchSearchExclusions] Failed: ${err.message}`);
     return [];
   }
 }
@@ -1643,9 +1660,10 @@ async function runMORSReport() {
   console.log(`[${new Date().toISOString()}] Starting MORS report for ${today} — ${geo.label}`);
 
   // ── Fetch everything in parallel — memory, sources, news RSS, portal scrapers ──
-  const [memoryPatterns, searchSources, mediaSources, existingOpps, newsItems, findrfpOpps, opengovOpps, bonfireOpps, planetbidsOpps, biddingusaOpps, bidnetOpps, civicengageOpps, standaloneOpps] = await Promise.all([
+  const [memoryPatterns, searchSources, searchExclusions, mediaSources, existingOpps, newsItems, findrfpOpps, opengovOpps, bonfireOpps, planetbidsOpps, biddingusaOpps, bidnetOpps, civicengageOpps, standaloneOpps] = await Promise.all([
     fetchProjectMemory(),
     fetchSearchSources(),
+    fetchSearchExclusions(),
     fetchMediaSources(),
     fetchExistingOppTitles(cutoffStr),
     fetchAllNewsItems(),
@@ -1703,7 +1721,22 @@ async function runMORSReport() {
     sourcesInjection = `\n\nADDITIONAL SEARCH SOURCES (check these in addition to defaults):\n${sourceLines}`;
   }
 
-  console.log(`[${new Date().toISOString()}] Memory patterns: ${memoryPatterns.length}, Search sources: ${searchSources.length}`);
+  // Build exclusions injection
+  let exclusionsInjection = '';
+  if (searchExclusions.length > 0) {
+    const byType = {};
+    for (const e of searchExclusions) {
+      if (!byType[e.type]) byType[e.type] = [];
+      byType[e.type].push(e.value + (e.reason ? ` (${e.reason})` : ''));
+    }
+    const lines = Object.entries(byType).map(([type, vals]) =>
+      `${type.toUpperCase()}: ${vals.join(', ')}`
+    ).join('\n');
+    exclusionsInjection = `\n\nSEARCH EXCLUSIONS — DO NOT include results matching any of these:\n${lines}`;
+    dynamicSystemPrompt += exclusionsInjection;
+  }
+
+  console.log(`[${new Date().toISOString()}] Memory patterns: ${memoryPatterns.length}, Search sources: ${searchSources.length}, Exclusions: ${searchExclusions.length}`);
   console.log(`[${new Date().toISOString()}] Call 1: Tracks 1+2`);
 
   // ── Call 1: Track 1 (RFPs) + Track 2 (Emerging Issues) ───────────────────
