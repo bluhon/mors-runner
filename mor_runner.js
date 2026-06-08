@@ -1459,10 +1459,21 @@ const STANDALONE_PAGES = [
   { name: 'Sonoma',                   url: 'https://www.sonomacity.org/request-for-proposals/',                                                      baseUrl: 'https://www.sonomacity.org' },
 ];
 
+// Procurement-specific terms — must appear in the link text to be considered a solicitation
 const STANDALONE_KEYWORDS = [
+  'rfp', 'rfq', 'request for proposal', 'request for qualification',
+  'invitation to bid', 'invitation for bid', 'ifb', 'soq',
+  'notice of intent', 'notice inviting bid', 'bid', 'solicit',
+  'professional services', 'consultant', 'contract opportunity',
+  'procurement', 'proposal'
+];
+
+// Secondary content filter — link must also relate to Bluhon's service areas
+// (applied as an OR against STANDALONE_KEYWORDS, not separately)
+const BLUHON_SCOPE_TERMS = [
   'engagement', 'outreach', 'facilitation', 'consensus', 'mediation',
-  'strategic plan', 'organizational', 'environmental', 'community',
-  'planning', 'public', 'stakeholder'
+  'strategic plan', 'environmental', 'planning', 'stakeholder',
+  'community', 'public participation', 'conflict'
 ];
 
 async function scrapeStandalonePages() {
@@ -1490,9 +1501,10 @@ async function scrapeStandalonePages() {
         const text = m[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
         if (text.length < 8 || text.length > 200) continue;
         const lower = text.toLowerCase();
+        // Must be a procurement solicitation — require a procurement keyword
         if (!STANDALONE_KEYWORDS.some(kw => lower.includes(kw))) continue;
-        // Skip nav/footer links
-        if (/^(home|about|contact|news|menu|search|login|sign)/i.test(text)) continue;
+        // Skip nav/footer links and community announcements
+        if (/^(home|about|contact|news|menu|search|login|sign|notice of meeting|public meeting|public hearing|community meeting|workshop|open house|survey|newsletter)/i.test(text)) continue;
         const fullUrl = href.startsWith('http') ? href : (href.startsWith('/') ? page.baseUrl + href : page.url);
         linkBlocks.push({ title: text, source_url: fullUrl });
       }
@@ -1767,20 +1779,21 @@ Run MORS Tracks 1 and 2 only.
 
 CRITICAL DATE FILTER: Only include RFPs issued after ${cutoffStr} (last 45 days).
 
-CRITICAL SOLICITATION FILTER: Only include ACTUAL PROCUREMENT SOLICITATIONS — RFPs, RFQs, IFBs, SOQs, Notices of Intent to Solicit. Do NOT include:
-- News articles or press releases about a project
-- Agency web pages describing a program or process
-- Project announcement pages for public consumption
-- Meeting agendas or staff reports discussing a future project
-- Any page that does not have a formal bid/proposal submission deadline
-If a result is a news article or project announcement rather than an active procurement, EXCLUDE it entirely from Track 1.
+CRITICAL SOLICITATION FILTER: Track 1 must contain ONLY active procurement solicitations where Bluhon could submit a proposal. Every row must be an RFP, RFQ, IFB, SOQ, or equivalent formal solicitation document. EXCLUDE ALL of the following — even if they appear in the pre-scraped list:
+- Community meeting notices, public hearings, workshops, open houses
+- Project announcements or program descriptions
+- News articles or press releases
+- Agency newsletters or staff reports
+- Notices about an ongoing engagement process Bluhon was NOT invited to bid on
+- Any item without a formal proposal submission deadline and a procurement portal URL
+If you are not certain an item is an open solicitation accepting bids/proposals, leave it out. It is far better to return 3 genuine RFPs than 10 items that include community announcements.
 
 CRITICAL URL RULE: Use only the exact source_url provided in the pre-scraped data below. NEVER construct, guess, or modify URLs.
 
 ${geo.instructions}
 
 TRACK 1 INSTRUCTIONS:
-Your PRIMARY source is the PRE-SCRAPED PORTAL OPPORTUNITIES list below — these were pulled directly from procurement portals this morning and are guaranteed real solicitations. Select the 8-12 most relevant to Bluhon's services (public engagement, facilitation, mediation, community outreach, consensus building, environmental conflict resolution, strategic planning).
+Your PRIMARY source is the PRE-SCRAPED PORTAL OPPORTUNITIES list below — these were pulled from procurement portals this morning. Review each one and ONLY include it if it is a genuine open solicitation (RFP, RFQ, IFB, SOQ) with a formal submission deadline. If any item looks like a community meeting notice, project announcement, public hearing, or agency newsletter — EXCLUDE it even if it came from this list. Select the 8-12 most relevant genuine solicitations to Bluhon's services (public engagement, facilitation, mediation, community outreach, consensus building, environmental conflict resolution, strategic planning).
 
 If the pre-scraped list has fewer than 5 strong matches, you may supplement by searching caleprocure.ca.gov for: "public engagement", "community outreach", "facilitation", "consensus", "strategic plan" — but ONLY add results you can verify are open solicitations with a direct procurement URL.
 
