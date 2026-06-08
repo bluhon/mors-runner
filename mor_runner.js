@@ -295,8 +295,44 @@ After all four track sections, output a JSON array of every distinct RFP/solicit
 }`;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Airtable helper
+// Duplicate detection
 // ─────────────────────────────────────────────────────────────────────────────
+function normalizeTitle(title) {
+  return (title || '')
+    .toLowerCase()
+    .replace(/\b(rfp|rfq|ifb|soq|for|the|of|a|an|and|to|in|at|by|with|services|consulting|professional)\b/g, '')
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function titlesMatch(a, b) {
+  const na = normalizeTitle(a);
+  const nb = normalizeTitle(b);
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  // Word overlap: if 70%+ of the shorter title's words appear in the longer, treat as duplicate
+  const wa = new Set(na.split(' ').filter(w => w.length > 3));
+  const wb = new Set(nb.split(' ').filter(w => w.length > 3));
+  if (wa.size === 0 || wb.size === 0) return false;
+  const smaller = wa.size <= wb.size ? wa : wb;
+  const larger  = wa.size <= wb.size ? wb : wa;
+  const overlap = [...smaller].filter(w => larger.has(w)).length;
+  return overlap / smaller.size >= 0.7;
+}
+
+async function fetchExistingOppTitles(cutoffDate) {
+  try {
+    const formula = encodeURIComponent(`IS_AFTER({created_date}, '${cutoffDate}')`);
+    const data = await atGet(AIRTABLE_OPPS_TABLE, `?filterByFormula=${formula}&fields[]=title&fields[]=agency&maxRecords=500`);
+    return (data.records || []).map(r => ({ title: r.fields.title || '', agency: r.fields.agency || '' }));
+  } catch (err) {
+    console.warn(`[dedup] Could not fetch existing opps: ${err.message}`);
+    return [];
+  }
+}
+
+
 async function atPost(tableId, fields) {
   const res = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${tableId}`, {
     method: "POST",
@@ -937,16 +973,27 @@ async function runMORSReport() {
 
   console.log(`[${new Date().toISOString()}] Starting MORS report for ${today} — ${geo.label}`);
 
-  // ── Fetch memory patterns, search sources, media sources, and scrape Tier B portals in parallel
-  const [memoryPatterns, searchSources, mediaSources, findrfpOpps, opengovOpps, bonfireOpps, planetbidsOpps] = await Promise.all([
+  // ── Fetch memory patterns, search sources, media sources, existing opps (dedup), and scrape Tier B portals in parallel
+  const [memoryPatterns, searchSources, mediaSources, existingOpps, findrfpOpps, opengovOpps, bonfireOpps, planetbidsOpps] = await Promise.all([
     fetchProjectMemory(),
     fetchSearchSources(),
     fetchMediaSources(),
+    fetchExistingOppTitles(cutoffStr),
     scrapeFindrfp(),
     scrapeOpengov(),
     scrapeBonfire(),
     scrapePlanetbids()
   ]);
+
+  // Seen-titles set — grows as we save, prevents within-run and cross-run duplicates
+  const seenTitles = existingOpps.map(o => normalizeTitle(o.title));
+  function isDuplicate(title) {
+    const n = normalizeTitle(title);
+    if (!n) return false;
+    if (seenTitles.some(s => titlesMatch(title, s.replace(/\[via [^\]]+\]/gi, '').trim()))) return true;
+    seenTitles.push(n);
+    return false;
+  }
 
   // Build dynamic system prompt additions
   let dynamicSystemPrompt = SYSTEM_PROMPT;
@@ -1139,8 +1186,9 @@ OUTPUT FORMAT — use exactly these delimiters:
   // ── Save individual opportunities — parsed from Track 1 HTML table ───────
   const opps = parseTrack1Opps(track1_html, reportDate);
   console.log(`[${new Date().toISOString()}] Parsed ${opps.length} opportunities from Track 1 HTML`);
-  let oppCount = 0;
+  let oppCount = 0, oppSkipped = 0;
   for (const opp of opps) {
+    if (isDuplicate(opp.title)) { oppSkipped++; continue; }
     try {
       await atPost(AIRTABLE_OPPS_TABLE, {
         title:      opp.title,
@@ -1155,12 +1203,12 @@ OUTPUT FORMAT — use exactly these delimiters:
       console.warn(`Opp save failed (${opp.title}):`, e.message);
     }
   }
-  console.log(`[${new Date().toISOString()}] Saved ${oppCount} Claude opportunities`);
+  console.log(`[${new Date().toISOString()}] Saved ${oppCount} Claude opportunities (${oppSkipped} duplicates skipped)`);
 
   // ── Save FindRFP.com scraped opportunities ────────────────────────────────
-  let findrfpCount = 0;
+  let findrfpCount = 0, findrfpSkipped = 0;
   for (const opp of findrfpOpps) {
-    // Skip duplicates already in OPPORTUNITIES (simple title match)
+    if (isDuplicate(opp.title)) { findrfpSkipped++; continue; }
     try {
       await atPost(AIRTABLE_OPPS_TABLE, {
         title:      `${opp.title} [via FindRFP]`,
@@ -1175,7 +1223,7 @@ OUTPUT FORMAT — use exactly these delimiters:
       console.warn(`FindRFP opp save failed (${opp.title}):`, e.message);
     }
   }
-  if (findrfpCount > 0) console.log(`[${new Date().toISOString()}] Saved ${findrfpCount} FindRFP opportunities`);
+  if (findrfpCount > 0 || findrfpSkipped > 0) console.log(`[${new Date().toISOString()}] Saved ${findrfpCount} FindRFP opportunities (${findrfpSkipped} duplicates skipped)`);
 
   // ── Save portal-scraped opportunities ─────────────────────────────────────
   const portalOpps = [
@@ -1183,8 +1231,9 @@ OUTPUT FORMAT — use exactly these delimiters:
     ...bonfireOpps.map(o => ({ ...o, tag: '[via Bonfire]' })),
     ...planetbidsOpps.map(o => ({ ...o, tag: '[via PlanetBids]' }))
   ];
-  let portalCount = 0;
+  let portalCount = 0, portalSkipped = 0;
   for (const opp of portalOpps) {
+    if (isDuplicate(opp.title)) { portalSkipped++; continue; }
     try {
       await atPost(AIRTABLE_OPPS_TABLE, {
         title:      `${opp.title} ${opp.tag}`,
@@ -1197,7 +1246,7 @@ OUTPUT FORMAT — use exactly these delimiters:
       portalCount++;
     } catch(e) { console.warn(`Portal opp save failed (${opp.title}):`, e.message); }
   }
-  if (portalCount > 0) console.log(`[${new Date().toISOString()}] Saved ${portalCount} portal opportunities (OpenGov/Bonfire/PlanetBids)`);
+  if (portalCount > 0 || portalSkipped > 0) console.log(`[${new Date().toISOString()}] Saved ${portalCount} portal opportunities (${portalSkipped} duplicates skipped — OpenGov/Bonfire/PlanetBids)`);
 
   // ── Parse and save Track 2 items individually ─────────────────────────────
   if (track2_html && track2_html !== "<p>No Track 2 data.</p>") {
