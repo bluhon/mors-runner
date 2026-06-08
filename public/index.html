@@ -1119,7 +1119,7 @@ async function submitT1Interested() {
 async function submitInterested() {
   await submitT1Interested();
 }
-function formatTrackItems(html) {
+function formatTrackItems(html, track = '') {
   const tmp = document.createElement('div');
   tmp.innerHTML = html;
   const items = tmp.querySelectorAll('li');
@@ -1146,11 +1146,21 @@ function formatTrackItems(html) {
     const bodyParts = body.split(/(?=\bBluhon angle\b)/i);
     const mainBody = bodyParts[0].trim();
     const anglePart = bodyParts[1] ? bodyParts[1].trim() : '';
+    // Extract raw href from sourceLink for pipeline button
+    const hrefMatch = sourceLink ? sourceLink.match(/href="([^"]+)"/) : null;
+    const sourceHref = hrefMatch ? hrefMatch[1] : '';
     out += `<div style="margin-bottom:32px;${i > 0 ? 'padding-top:28px;border-top:1px solid #e0e0e0;' : ''}">`;
     if (title) out += `<h3>${title}</h3>`;
     if (mainBody) out += `<p>${mainBody}</p>`;
     if (anglePart) out += `<p class="bluhon-angle">${anglePart}</p>`;
     if (sourceLink) out += `<p style="margin-top:8px;">${sourceLink}</p>`;
+    if (track === 'Track 2' || track === 'Track 3') {
+      const safeTitle   = (title || 'Untitled').replace(/'/g, '’').replace(/\\/g, '').slice(0, 120);
+      const safeUrl     = sourceHref.replace(/'/g, '%27').slice(0, 300);
+      const safeSummary = (mainBody + (anglePart ? ' ' + anglePart : '')).replace(/'/g, '’').replace(/\\/g, '').replace(/<[^>]+>/g, '').slice(0, 500);
+      const trackLabel  = track === 'Track 2' ? '2 — Emerging Issue' : '3 — Prime Firm';
+      out += `<div style="margin-top:10px"><button class="btn btn-ghost btn-sm" onclick="saveArticleToPipeline('${safeTitle}','${safeUrl}','${safeSummary}','${trackLabel}',this)"><i class="ti ti-arrow-right"></i> Save to Pipeline</button></div>`;
+    }
     out += `</div>`;
   });
   return out;
@@ -1180,8 +1190,8 @@ function renderReport() {
     .replace(/\s*font-size:[^;;"']*/gi, '')
     .replace(/\s*color:[^;;"']*/gi, '');
   html += `<div class="track-header t1"><span class="track-number">01</span> Active RFPs<span class="track-ts">Refreshed ${runTs}</span></div><div id="track1-opps-container"></div>`;
-  if (report.fields.track2_html) { html += `<div class="track-header t2"><span class="track-number" style="color:var(--info)">02</span> Emerging Issues<span class="track-ts">Refreshed ${runTs}</span></div><div class="track-body">${formatTrackItems(clean(report.fields.track2_html))}</div>`; }
-  if (report.fields.track3_html) { html += `<div class="track-header t3"><span class="track-number" style="color:var(--warning)">03</span> Prime Firm Activity<span class="track-ts">Refreshed ${runTs}</span></div><div class="track-body">${formatTrackItems(clean(report.fields.track3_html))}</div>`; }
+  if (report.fields.track2_html) { html += `<div class="track-header t2"><span class="track-number" style="color:var(--info)">02</span> Emerging Issues<span class="track-ts">Refreshed ${runTs}</span></div><div class="track-body">${formatTrackItems(clean(report.fields.track2_html), 'Track 2')}</div>`; }
+  if (report.fields.track3_html) { html += `<div class="track-header t3"><span class="track-number" style="color:var(--warning)">03</span> Prime Firm Activity<span class="track-ts">Refreshed ${runTs}</span></div><div class="track-body">${formatTrackItems(clean(report.fields.track3_html), 'Track 3')}</div>`; }
   if (report.fields.track4_html) { html += `<div class="track-header" style="border-left-color:#7c5cbf"><span class="track-number" style="color:#7c5cbf">04</span> Governing Body Pipeline<span class="track-ts">Refreshed ${runTs}</span></div><div class="track-body">${formatTrackItems(clean(report.fields.track4_html))}</div>`; }
   content.innerHTML = `<div class="report-reading-col">${html || '<div class="empty-state"><i class="ti ti-report-search"></i><div class="empty-state-title">No content</div></div>'}</div>`;
 }
@@ -1342,6 +1352,45 @@ async function deleteOpportunity(recordId, btn) {
     btn.disabled = false;
     btn.innerHTML = '<i class="ti ti-trash"></i>';
     showToast('Delete failed: ' + e.message, 'error');
+  }
+}
+
+async function saveArticleToPipeline(title, sourceUrl, summary, trackLabel, btn) {
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Saving…';
+  try {
+    // Create opportunity record
+    const opp = await atCreate(CONFIG.TABLES.OPPORTUNITIES, {
+      title,
+      track:      trackLabel,
+      source_url: sourceUrl,
+      scope:      summary,
+      interest:   'Yes',
+    });
+    if (opp && opp.id) allOpportunities.push(opp);
+
+    // Create canvas pre-populated with article data
+    const existingCanvas = allCanvases.find(c => c.fields.canvas_title === title);
+    if (!existingCanvas) {
+      const canvas = await atCreate(CONFIG.TABLES.RFP_CANVAS, {
+        canvas_title:  title,
+        active:        true,
+        created_by:    currentUser ? currentUser.name : 'MORS',
+        notes_log:     '[]',
+        files_list:    '[]',
+        rfp_url:       sourceUrl,
+        rfp_description: summary,
+      });
+      if (canvas && canvas.id) allCanvases.push(canvas);
+    }
+
+    btn.innerHTML = '<i class="ti ti-check"></i> Saved';
+    btn.style.color = 'var(--lime)';
+    showToast('Article saved to Pipeline', 'success');
+  } catch(e) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-arrow-right"></i> Save to Pipeline';
+    showToast('Save failed: ' + e.message, 'error');
   }
 }
 
