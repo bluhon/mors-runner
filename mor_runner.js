@@ -493,10 +493,47 @@ const KEYWORD_WEIGHTS = {
 };
 
 const BAY_AREA_TERMS = [
+  // Counties
   'marin', 'alameda', 'contra costa', 'santa clara', 'sonoma', 'napa',
-  'san mateo', 'solano', 'bay area', 'oakland', 'berkeley', 'san jose',
-  'san francisco', 'richmond', 'novato', 'livermore', 'palo alto',
-  'danville', 'half moon bay', 'redwood city', 'east bay', 'north bay',
+  'san mateo', 'solano', 'bay area', 'east bay', 'north bay', 'south bay',
+  // Marin / North Bay cities
+  'novato', 'san rafael', 'san quentin', 'larkspur', 'corte madera',
+  'mill valley', 'sausalito', 'tiburon', 'ignacio', 'lucas valley',
+  'marinwood', 'terra linda', 'woodacre', 'bolinas', 'black point',
+  'sears point',
+  // Sonoma / Lake / Mendocino
+  'santa rosa', 'petaluma', 'rohnert park', 'sebastopol', 'bodega bay',
+  'duncans mills', 'cazadero', 'geyserville', 'cloverdale', 'hopland',
+  'boonville', 'cobb', 'clearlake', 'lakeport', 'calistoga', 'angwin',
+  'st helena',
+  // Napa / Solano
+  'napa', 'vallejo', 'benicia', 'fairfield', 'dixon', 'davis', 'woodland',
+  // Sacramento
+  'sacramento', 'elk grove', 'esparto',
+  // East Bay — West
+  'richmond', 'el cerrito', 'san pablo', 'el sobrante', 'pinole',
+  'hercules', 'rodeo', 'crockett',
+  // East Bay — Core
+  'berkeley', 'oakland', 'emeryville', 'alameda', 'piedmont', 'albany',
+  // East Bay — Inland
+  'walnut creek', 'concord', 'pleasant hill', 'lafayette', 'orinda',
+  'moraga', 'alamo', 'danville', 'san ramon', 'clayton', 'blackhawk',
+  // East Contra Costa
+  'martinez', 'antioch', 'pittsburg', 'brentwood', 'oakley', 'bay point',
+  'pacheco', 'knightsen', 'byron', 'discovery bay', 'mountain house',
+  // South / Southeast Alameda
+  'san leandro', 'castro valley', 'hayward', 'fremont', 'livermore',
+  'dublin', 'union city', 'newark',
+  // San Francisco
+  'san francisco',
+  // Peninsula / San Mateo
+  'daly city', 'san mateo', 'redwood city', 'east palo alto', 'menlo park',
+  'portola valley', 'half moon bay', 'foster city', 'burlingame',
+  'millbrae', 'san bruno', 'south san francisco', 'colma', 'pacifica',
+  // South Bay / Santa Clara
+  'palo alto', 'stanford', 'mountain view', 'sunnyvale', 'santa clara',
+  'san jose', 'campbell', 'saratoga', 'los gatos', 'milpitas',
+  'alum rock', 'cupertino', 'los altos', 'gilroy', 'morgan hill',
 ];
 
 function scoreRelevance(item) {
