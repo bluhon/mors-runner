@@ -1746,13 +1746,23 @@ Run MORS Tracks 1 and 2 only. Search thoroughly.
 
 CRITICAL DATE FILTER: Only include RFPs issued after ${cutoffStr} (last 45 days). Before including any result, verify the issue date or posting date on the source page. If you cannot confirm the posting date is within 45 days, EXCLUDE it.
 
-CRITICAL SOLICITATION FILTER: Only include ACTUAL PROCUREMENT SOLICITATIONS — RFPs, RFQs, IFBs, SOQs, Notices of Intent to Solicit. Do NOT include:
-- News articles or press releases about a project
-- Agency web pages describing a program or process
-- Project announcement pages for public consumption
-- Meeting agendas or staff reports discussing a future project
-- Any page that does not have a formal bid/proposal submission deadline
-If a result is a news article or project announcement rather than an active procurement, EXCLUDE it entirely from Track 1.
+CRITICAL SOLICITATION FILTER — TRACK 1 REQUIRES ALL THREE OF THESE. IF ANY IS MISSING, IT IS NOT TRACK 1:
+① A solicitation number (RFP-XXXX, RFQ-XXXX, IFB-XXXX, SOQ-XXXX, or equivalent)
+② A specific proposal submission deadline (an actual date, not "TBD" or "coming soon")
+③ A link to an actual procurement document or formal portal listing (not a project homepage)
+
+AUTOMATIC DISQUALIFIERS — these are NEVER Track 1, no matter how relevant the topic:
+- Agency project pages that say "seeking a consultant" or "bringing on a consultant team" but have no posted RFP → Track 2
+- General plan, specific plan, or master plan project websites without a posted solicitation → Track 2
+- News articles or press releases about a project → Track 2
+- Meeting agendas or board staff reports discussing a future project → Track 2
+- CEQA/EIR notices that are public comment periods, not consultant RFPs → Track 2
+
+EXAMPLE OF WHAT IS NOT TRACK 1: A page at permitsonoma.org/generalplan that says Permit Sonoma is "working to bring on a consultant team" — no solicitation number, no deadline, no RFP document. This is Track 2 (emerging opportunity to watch and reach out proactively).
+
+EXAMPLE OF WHAT IS TRACK 1: A caleprocure.ca.gov or PlanetBids listing with solicitation number RFQ-2026-042, due date July 15 2026, with a downloadable RFP document.
+
+If a result is relevant to Bluhon but fails the Track 1 test, include it in Track 2 with a note: "No RFP posted yet — proactive outreach opportunity."
 
 ${geo.instructions}
 
