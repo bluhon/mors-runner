@@ -130,10 +130,7 @@ html,body{height:100%;background:var(--bg);color:#000000;font-family:'Source San
 .track-body p{font-family:'Source Sans 3',Arial,sans-serif;font-size:1.05rem;color:#000;line-height:1.6;margin:0 0 4px 0}
 .track-body p.bluhon-angle{margin-top:6px;display:block}
 .track-item{margin-bottom:32px;padding-bottom:0}
-.track-item-border{padding-top:28px;border-top:1px solid #e0e0e0}
-.pipeline-filter-btn{font-family:var(--font-head);font-size:0.85rem;font-weight:700;padding:8px 18px;border-radius:999px;cursor:pointer;transition:opacity .15s;opacity:.7}
-.pipeline-filter-btn:hover,.pipeline-filter-btn.active{opacity:1;box-shadow:0 2px 8px rgba(0,0,0,.12)}
-.track-body ul,.track-body ol{padding-left:22px;margin-top:4px}
+.track-item-border{padding-top:28px;border-top:1px solid #e0e0e0}.track-body ul,.track-body ol{padding-left:22px;margin-top:4px}
 .track-body li{font-size:1.05rem;line-height:1.6;margin-bottom:8px}
 .track-body a{color:var(--brand);text-decoration:none}
 .track-body a:hover{text-decoration:underline}
@@ -386,12 +383,12 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
       </div>
       <div class="page-body">
         <div class="page-inner">
-        <div style="display:flex;gap:10px;margin-bottom:24px;flex-wrap:wrap">
-          <button class="pipeline-filter-btn active" data-filter="all" onclick="filterPipeline('all',this)" style="background:#e8f4fb;color:#048BC9;border:2px solid #048BC9">All</button>
-          <button class="pipeline-filter-btn" data-filter="1" onclick="filterPipeline('1',this)" style="background:#ddeeff;color:#2268b0;border:2px solid #2268b0">1 — RFPs</button>
-          <button class="pipeline-filter-btn" data-filter="2" onclick="filterPipeline('2',this)" style="background:#fef9c3;color:#7a6000;border:2px solid #d4a800">2 — Emerging Issues</button>
-          <button class="pipeline-filter-btn" data-filter="3" onclick="filterPipeline('3',this)" style="background:#fde8d8;color:#8b3a0f;border:2px solid #d4601a">3 — Primes</button>
-          <button class="pipeline-filter-btn" data-filter="4" onclick="filterPipeline('4',this)" style="background:#d8f5e0;color:#1a6632;border:2px solid #2e9e50">4 — Gov/Agency</button>
+        <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="filterPipeline('all',this)">All</button>
+          <button class="btn btn-ghost btn-sm" onclick="filterPipeline('1',this)" style="background:#ddeeff">1 — RFPs</button>
+          <button class="btn btn-ghost btn-sm" onclick="filterPipeline('2',this)" style="background:#fef9c3">2 — Emerging Issues</button>
+          <button class="btn btn-ghost btn-sm" onclick="filterPipeline('3',this)" style="background:#fde8d8">3 — Primes</button>
+          <button class="btn btn-ghost btn-sm" onclick="filterPipeline('4',this)" style="background:#d8f5e0">4 — Gov/Agency</button>
         </div>
         <div id="pipeline-content">
           <div class="empty-state">
