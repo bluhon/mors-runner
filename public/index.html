@@ -1024,7 +1024,6 @@ async function createTrack2Canvas(item) {
   const f = item.fields;
   await atCreate(CONFIG.TABLES.RFP_CANVAS, {
     canvas_title: f.headline || 'Untitled Issue',
-    opportunity_id: '',
     pursuit_status: '1 — Monitoring',
     active: true,
     created_by: currentUser.name,
