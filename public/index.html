@@ -1154,12 +1154,18 @@ function formatTrackItems(html, track = '') {
     if (mainBody) out += `<p>${mainBody}</p>`;
     if (anglePart) out += `<p class="bluhon-angle">${anglePart}</p>`;
     if (sourceLink) out += `<p style="margin-top:8px;">${sourceLink}</p>`;
-    if (track === 'Track 2' || track === 'Track 3') {
-      const safeTitle   = (title || 'Untitled').replace(/'/g, '’').replace(/\\/g, '').slice(0, 120);
-      const safeUrl     = sourceHref.replace(/'/g, '%27').slice(0, 300);
-      const safeSummary = (mainBody + (anglePart ? ' ' + anglePart : '')).replace(/'/g, '’').replace(/\\/g, '').replace(/<[^>]+>/g, '').slice(0, 500);
-      const trackLabel  = track === 'Track 2' ? '2 — Emerging Issue' : '3 — Prime Firm';
-      out += `<div style="margin-top:10px"><button class="btn btn-ghost btn-sm" onclick="saveArticleToPipeline('${safeTitle}','${safeUrl}','${safeSummary}','${trackLabel}',this)"><i class="ti ti-arrow-right"></i> Save to Pipeline</button></div>`;
+    if (track === ‘Track 2’ || track === ‘Track 3’) {
+      const rawTitle   = (title || ‘Untitled’).slice(0, 120);
+      const rawUrl     = sourceHref.slice(0, 300);
+      const rawSummary = (mainBody + (anglePart ? ‘ ‘ + anglePart : ‘’)).replace(/<[^>]+>/g, ‘’).slice(0, 500);
+      const trackLabel = track === ‘Track 2’ ? ‘2 — Emerging Issue’ : ‘3 — Prime Firm’;
+      // Use data-* attributes to avoid inline JS quoting issues with special characters in article text
+      out += `<div style="margin-top:10px"><button class="btn btn-ghost btn-sm save-to-pipeline-btn"
+        data-title="${escHtml(rawTitle)}"
+        data-url="${escHtml(rawUrl)}"
+        data-summary="${escHtml(rawSummary)}"
+        data-track="${escHtml(trackLabel)}"
+        onclick="saveArticleToPipeline(this)"><i class="ti ti-layout-board"></i> Save to Pipeline</button></div>`;
     }
     out += `</div>`;
   });
@@ -1355,7 +1361,11 @@ async function deleteOpportunity(recordId, btn) {
   }
 }
 
-async function saveArticleToPipeline(title, sourceUrl, summary, trackLabel, btn) {
+async function saveArticleToPipeline(btn) {
+  const title      = btn.dataset.title      || 'Untitled';
+  const sourceUrl  = btn.dataset.url        || '';
+  const summary    = btn.dataset.summary    || '';
+  const trackLabel = btn.dataset.track      || '2 — Emerging Issue';
   btn.disabled = true;
   btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Saving…';
   try {
@@ -1373,13 +1383,15 @@ async function saveArticleToPipeline(title, sourceUrl, summary, trackLabel, btn)
     const existingCanvas = allCanvases.find(c => c.fields.canvas_title === title);
     if (!existingCanvas) {
       const canvas = await atCreate(CONFIG.TABLES.RFP_CANVAS, {
-        canvas_title:  title,
-        active:        true,
-        created_by:    currentUser ? currentUser.name : 'MORS',
-        notes_log:     '[]',
-        files_list:    '[]',
-        rfp_url:       sourceUrl,
+        canvas_title:    title,
+        canvas_type:     'Article',
+        active:          true,
+        created_by:      currentUser ? currentUser.name : 'MORS',
+        notes_log:       '[]',
+        files_list:      '[]',
+        rfp_url:         sourceUrl,
         rfp_description: summary,
+        issuer_agency:   '',
       });
       if (canvas && canvas.id) allCanvases.push(canvas);
     }
@@ -1459,7 +1471,44 @@ function renderCanvasGrid(canvas) {
   const dashIdx = rawTitle.search(/ [—–] /);
   const descFromTitle = dashIdx > 0 ? rawTitle.slice(dashIdx+3) : '';
   const descText = f.team_notes || descFromTitle;
-  document.getElementById('canvas-grid').innerHTML = `
+  const isArticle = f.canvas_type === 'Article';
+  const articleUrl = f.rfp_url || sourceUrl;
+  const articleDesc = f.rfp_description || descText;
+  document.getElementById('canvas-grid').innerHTML = isArticle ? `
+    <div class="canvas-main">
+      <div class="canvas-section">
+        ${articleUrl ? `<div class="field-group"><div class="field-label">Link to Article</div><a href="${escHtml(articleUrl)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;font-size:15px;color:var(--brand);font-weight:600;padding:8px 16px;border:1px solid var(--brand);border-radius:6px;text-decoration:none;margin-top:2px"><i class="ti ti-external-link"></i> Read article</a></div>` : ''}
+        ${articleDesc ? `<div class="field-group" style="margin-top:16px"><div class="canvas-section-title">AI Summary</div><div style="font-size:1.05rem;color:#000;line-height:1.8;margin-top:6px;font-family:'Source Sans 3',Arial,sans-serif">${articleDesc}</div></div>` : ''}
+      </div>
+      <div class="canvas-section">
+        <div class="canvas-section-title">Notes log</div>
+        <div id="canvas-notes">${notesHtml}</div>
+        <div style="margin-top:14px">
+          <textarea class="field-input" id="new-note-text" rows="3" placeholder="Add a note..."></textarea>
+          <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="addNote()"><i class="ti ti-plus"></i> Add note</button>
+        </div>
+      </div>
+      <div class="canvas-section">
+        <div class="canvas-section-title">Files</div>
+        <div id="canvas-files"></div>
+        <div class="upload-zone" onclick="document.getElementById('file-upload-input').click()">
+          <i class="ti ti-upload" style="font-size:20px;margin-bottom:6px;display:block"></i>
+          Click to upload documents or related files
+        </div>
+        <input type="file" id="file-upload-input" style="display:none" multiple onchange="handleFileUpload(this.files)">
+      </div>
+    </div>
+    <div class="canvas-sidebar-panel">
+      <div class="canvas-section">
+        <div class="canvas-section-title">Dates</div>
+        <div class="field-group"><div class="field-label">Article date</div>${pd}</div>
+        <div class="field-group"><div class="field-label">Decision date</div>${qd}</div>
+      </div>
+      <div class="canvas-section">
+        <div class="canvas-section-title">Source</div>
+        <div class="field-group"><div class="field-label">News outlet / Source</div><input class="field-input" value="${f.issuer_agency||''}" onchange="updateCanvasField('issuer_agency',this.value)" placeholder="e.g. Berkeleyside"></div>
+      </div>
+    </div>` : `
     <div class="canvas-main">
       <div class="canvas-section">
         ${sourceUrl ? `<div class="field-group"><div class="field-label">RFP Source</div><a href="${escHtml(sourceUrl)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;font-size:15px;color:var(--brand);font-weight:600;padding:8px 16px;border:1px solid var(--brand);border-radius:6px;text-decoration:none;margin-top:2px"><i class="ti ti-external-link"></i> View RFP on agency website</a></div>` : ''}
