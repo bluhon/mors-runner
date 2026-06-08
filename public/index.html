@@ -1532,11 +1532,13 @@ async function loadPipeline() {
 }
 function renderPipeline(opps) {
   const el = document.getElementById('pipeline-content');
-  if (opps.length === 0) { el.innerHTML = '<div class="empty-state"><i class="ti ti-filter"></i><div class="empty-state-title">Nothing here yet</div><p>Mark opportunities as Interest = Yes in Today\'s Report.</p></div>'; return; }
   const canvasMap = {};
   allCanvases.forEach(c => { canvasMap[c.fields.canvas_title] = c; });
+  // Pipeline = interested but NOT yet canvased
+  const pending = opps.filter(o => !canvasMap[o.fields.title]);
+  if (pending.length === 0) { el.innerHTML = '<div class="empty-state"><i class="ti ti-filter"></i><div class="empty-state-title">Nothing here yet</div><p>Mark opportunities as Interest = Yes in Today\'s Report.</p></div>'; return; }
   let html = '<table class="pipeline-table"><thead><tr><th>Opportunity</th><th>Agency</th><th>Track</th><th>Deadline</th><th>Date</th><th></th></tr></thead><tbody>';
-  opps.forEach(o => {
+  pending.forEach(o => {
     const f = o.fields;
     const canvas = canvasMap[f.title];
     const dl = f.deadline ? new Date(f.deadline) : null;
@@ -1546,13 +1548,10 @@ function renderPipeline(opps) {
     const dateStr = pipelineTs ? pipelineTs.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }) : '—';
     const shortTitle = (f.title||'—').length > 80 ? (f.title||'—').slice(0,80)+'…' : (f.title||'—');
     const safeTitle = (f.title||'Untitled').replace(/\\/g,'').replace(/'/g,'&#39;').slice(0,60);
-    const canvasBtn = canvas
-      ? `<button class="btn btn-ghost btn-sm" onclick="openCanvas('${canvas.id}')"><i class="ti ti-layout-board"></i> Canvas</button>`
-     : `<button class="btn btn-ghost btn-sm" onclick="makePipelineCanvas('${o.id}','${safeTitle}','${f.track||''}')"><i class="ti ti-layout-board"></i> Canvas</button>`;
+    const canvasBtn = `<button class="btn btn-ghost btn-sm" onclick="makePipelineCanvas('${o.id}','${safeTitle}','${f.track||''}')"><i class="ti ti-layout-board"></i> Canvas</button>`;
     const trashBtn = `<button class="btn btn-ghost btn-sm" style="color:var(--muted)" title="Delete opportunity" onclick="deleteOpportunity('${o.id}',this)"><i class="ti ti-trash"></i></button>`;
-    const rowClick = canvas ? 'openCanvas(\'' + canvas.id + '\')' : '';
     const trackPill = f.track ? '<span style="font-size:11px;background:var(--bg3);padding:3px 8px;border-radius:4px;color:var(--muted)">' + f.track + '</span>' : '—';
-    html += '<tr style="cursor:' + (canvas ? 'pointer' : 'default') + '" onclick="' + rowClick + '">'
+    html += '<tr>'
       + '<td><div style="font-weight:600;color:#111">' + shortTitle + '</div><div style="font-size:11px;color:var(--muted);margin-top:2px">' + (f.agency||'') + '</div></td>'
       + '<td style="color:var(--muted);font-size:12px">' + (f.geo_tier||'—') + '</td>'
       + '<td>' + trackPill + '</td>'
@@ -1572,8 +1571,9 @@ function filterPipeline(trackNum, btn) {
     btn.classList.add('pf-active');
     if (btn.dataset.activeBg) btn.style.background = btn.dataset.activeBg;
   }
-  if (trackNum === 'all') { renderPipeline(allOpportunities); return; }
-  renderPipeline(allOpportunities.filter(o => (o.fields.track || '').startsWith(trackNum)));
+  const uncanvased = allOpportunities.filter(o => !allCanvases.some(c => c.fields.canvas_title === o.fields.title));
+  if (trackNum === 'all') { renderPipeline(uncanvased); return; }
+  renderPipeline(uncanvased.filter(o => (o.fields.track || '').startsWith(trackNum)));
 }
 
 async function deleteOpportunity(recordId, btn) {
