@@ -240,12 +240,14 @@ Search for open RFPs, RFQs, and solicitations in California — Tier 1 Bay Area 
 - Caltrans procurement (dot.ca.gov/programs/procurement)
 - Individual city procurement portals for key Tier 1 cities
 
-Return as HTML table with columns: Agency | Project / Scope | Due Date | Est. Value | Type | Source URL
+Return as HTML table with columns: Agency | Solicitation # | Project / Scope | Due Date | Type | Source URL
+- Solicitation # column: RFP/RFQ/IFB number (e.g. RFP 2026-01). If no number is identifiable, DO NOT include the row.
+- Due Date: must be a future date. If unknown or already passed, DO NOT include the row.
 - Bold due date if within 10 days (<b>DATE</b>)
 - Flag prior clients with ✅
 - Type column: "Prime" (engagement is primary scope) or "Sub/Team" (engagement is sub-scope)
-- Include scope detail so Bluhon can quickly assess fit
-- Minimum 5 real, verifiable opportunities
+- Source URL must link directly to the solicitation or its procurement portal listing page
+- Only include rows where you can confirm a real open solicitation with a number and future deadline
 
 ─────────────────────────────────────────────────────────────
 TRACK 2 — EMERGING ISSUES & INTELLIGENCE
@@ -1499,12 +1501,27 @@ async function scrapeStandalonePages() {
       while ((m = linkRe.exec(html)) !== null) {
         const href = m[1];
         const text = m[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-        if (text.length < 8 || text.length > 200) continue;
+        if (text.length < 8 || text.length > 300) continue;
         const lower = text.toLowerCase();
-        // Must be a procurement solicitation — require a procurement keyword
+
+        // Must contain a procurement keyword
         if (!STANDALONE_KEYWORDS.some(kw => lower.includes(kw))) continue;
-        // Skip nav/footer links and community announcements
-        if (/^(home|about|contact|news|menu|search|login|sign|notice of meeting|public meeting|public hearing|community meeting|workshop|open house|survey|newsletter)/i.test(text)) continue;
+
+        // Must contain a solicitation number pattern OR explicit RFP/RFQ/IFB label
+        // e.g. "RFP 2026-01", "RFQ-2025-003", "Bid No. 12345", "#2026-01", "IFB 24-001"
+        const hasSolicitationNumber = /\b(rfp|rfq|ifb|soq|itb|rfi)\b[\s\-#]*\d/i.test(text)
+          || /\bbid\s*(no|num|number|#)\.?\s*\d/i.test(text)
+          || /\bsolicit\w*\s*(no|num|number|#)\.?\s*\d/i.test(text)
+          || /\bcontract\s*(no|num|number|#)\.?\s*\d/i.test(text)
+          || /#\s*\d{2,}/i.test(text)
+          || /\d{2,}-\d{3,}/.test(text); // e.g. 2026-001, 24-0123
+
+        // Hard-exclude community notices, meetings, announcements regardless
+        const isMeetingNotice = /\b(meeting|workshop|hearing|open house|survey|newsletter|announcement|notice of|calendar|agenda|minutes|event|webinar)\b/i.test(text);
+
+        if (!hasSolicitationNumber && isMeetingNotice) continue;
+        if (isMeetingNotice && !STANDALONE_KEYWORDS.slice(0,9).some(kw => lower.includes(kw))) continue;
+
         const fullUrl = href.startsWith('http') ? href : (href.startsWith('/') ? page.baseUrl + href : page.url);
         linkBlocks.push({ title: text, source_url: fullUrl });
       }
@@ -1779,14 +1796,22 @@ Run MORS Tracks 1 and 2 only.
 
 CRITICAL DATE FILTER: Only include RFPs issued after ${cutoffStr} (last 45 days).
 
-CRITICAL SOLICITATION FILTER: Track 1 must contain ONLY active procurement solicitations where Bluhon could submit a proposal. Every row must be an RFP, RFQ, IFB, SOQ, or equivalent formal solicitation document. EXCLUDE ALL of the following — even if they appear in the pre-scraped list:
+CRITICAL SOLICITATION FILTER: Track 1 must contain ONLY active procurement solicitations where Bluhon could submit a formal proposal or qualifications package.
+
+A VALID Track 1 item MUST have ALL of the following:
+1. A solicitation number (e.g. RFP 2026-01, RFQ-24-003, Bid No. 12345, IFB #2026-002)
+2. A proposal/submission due date in the future
+3. A source URL that is a procurement or bids listing page — NOT a news article, project page, or agency home page
+4. A contact person or contracting office listed
+
+EXCLUDE everything that does not meet all 4 criteria — even if it came from the pre-scraped list:
 - Community meeting notices, public hearings, workshops, open houses
-- Project announcements or program descriptions
-- News articles or press releases
-- Agency newsletters or staff reports
-- Notices about an ongoing engagement process Bluhon was NOT invited to bid on
-- Any item without a formal proposal submission deadline and a procurement portal URL
-If you are not certain an item is an open solicitation accepting bids/proposals, leave it out. It is far better to return 3 genuine RFPs than 10 items that include community announcements.
+- Project announcements, program descriptions, agency newsletters
+- News articles or press releases about public engagement work
+- Notices about an ongoing process Bluhon was not invited to bid on
+- Any item where you cannot identify a solicitation number and future deadline
+
+When in doubt, leave it out. 3 real RFPs is a far better result than 10 mixed entries.
 
 CRITICAL URL RULE: Use only the exact source_url provided in the pre-scraped data below. NEVER construct, guess, or modify URLs.
 
