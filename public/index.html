@@ -208,6 +208,7 @@ textarea.field-input{resize:vertical;min-height:80px}
 select.form-input{cursor:pointer}
 select.form-input option{background:var(--bg2);color:var(--white)}
 .form-actions{display:flex;gap:10px;margin-top:24px}
+@keyframes slideUp{from{opacity:0;transform:translateX(-50%) translateY(16px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 .empty-state{text-align:center;padding:60px 20px;color:var(--muted)}
 .empty-state i{font-size:40px;margin-bottom:16px;opacity:.4;display:block}
 .empty-state-title{font-family:var(--font-head);font-size:22px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;color:var(--white);opacity:.5}
@@ -697,6 +698,47 @@ const CONFIG = {
 let currentUser = null;
 let currentReportIndex = 0;
 let allReports = [];
+let _reportPollInterval = null;
+
+function startReportPolling() {
+  if (_reportPollInterval) return;
+  _reportPollInterval = setInterval(async () => {
+    if (currentReportIndex !== 0) return; // only poll when viewing latest
+    try {
+      const res = await atFetch(CONFIG.TABLES.DAILY_REPORTS, '?sort[0][field]=report_date&sort[0][direction]=desc&maxRecords=1');
+      const latest = (res.records || [])[0];
+      if (!latest) return;
+      const latestDate = latest.fields.report_date || '';
+      const currentDate = allReports[0]?.fields?.report_date || '';
+      const latestTs = latest.fields.run_timestamp || '';
+      const currentTs = allReports[0]?.fields?.run_timestamp || '';
+      if (latestDate > currentDate || (latestDate === currentDate && latestTs > currentTs)) {
+        showReportToast();
+      }
+    } catch { /* silent — don't disrupt user if poll fails */ }
+  }, 90000); // every 90 seconds
+}
+
+function showReportToast() {
+  const existing = document.getElementById('report-toast');
+  if (existing) return; // already showing
+  const toast = document.createElement('div');
+  toast.id = 'report-toast';
+  toast.innerHTML = `
+    <i class="ti ti-refresh" style="font-size:1.1rem"></i>
+    <span>New report ready</span>
+    <button onclick="dismissToastAndReload()" style="margin-left:12px;background:#fff;color:var(--brand);border:none;border-radius:4px;padding:4px 12px;font-family:'Source Sans 3',sans-serif;font-size:0.85rem;font-weight:600;cursor:pointer">Load it</button>
+    <button onclick="document.getElementById('report-toast').remove()" style="margin-left:6px;background:transparent;color:rgba(255,255,255,0.7);border:none;font-size:1.1rem;cursor:pointer;line-height:1">×</button>
+  `;
+  toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--brand);color:#fff;display:flex;align-items:center;gap:8px;padding:12px 20px;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.2);font-family:"Source Sans 3",sans-serif;font-size:0.95rem;font-weight:500;z-index:9999;white-space:nowrap;animation:slideUp 0.3s ease';
+  document.body.appendChild(toast);
+}
+
+async function dismissToastAndReload() {
+  const toast = document.getElementById('report-toast');
+  if (toast) toast.remove();
+  await loadReport();
+}
 let allOpportunities = [];
 let allCanvases = [];
 let allContacts = [];
@@ -866,6 +908,7 @@ async function loadReport() {
   renderReport();
   await loadProspects();
   await loadTrack2Items();
+  startReportPolling();
 }
 
 let allTrack2Items = [];
