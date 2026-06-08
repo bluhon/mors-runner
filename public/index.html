@@ -121,6 +121,7 @@ html,body{height:100%;background:var(--bg);color:#000000;font-family:'Source San
 .track-header.t2{border-color:var(--info)}
 .track-header.t3{border-color:var(--warning)}
 .track-number{color:var(--lime);margin-right:8px}
+.track-ts{font-family:'Source Sans 3',Arial,sans-serif;font-size:0.72rem;font-weight:400;color:var(--muted);margin-left:12px;letter-spacing:0;text-transform:none}
 .track-body{font-family:'Source Sans 3',Arial,sans-serif;font-size:1.05rem;color:#000;line-height:1.6;font-weight:400}
 .track-body h2{font-family:'Roboto Condensed',Arial,sans-serif;font-size:0.72rem;font-weight:700;color:var(--brand);text-transform:uppercase;letter-spacing:0.13em;margin:28px 0 10px 0;padding:0 0 6px 0;border-bottom:1px solid var(--border)}
 .track-body h2:first-child{margin-top:4px}
@@ -1164,6 +1165,12 @@ function renderReport() {
   const d = new Date(yr, mo - 1, dy);
   label.textContent = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
   todayBadge.style.display = currentReportIndex === 0 ? 'inline-block' : 'none';
+  const runTs = (() => {
+    const ts = report.fields.run_timestamp;
+    if (!ts) return report.fields.report_date || '';
+    const dt = new Date(ts);
+    return dt.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short', timeZone: 'America/Los_Angeles' });
+  })();
   let html = '';
   const clean = s => s
     .replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{1F300}-\u{1F9FF}⚠️🚨🏘️🚗🏗️🌿🗓️📋🔗]/gu, '')
@@ -1172,10 +1179,10 @@ function renderReport() {
     .replace(/\s*style='[^']*'/gi, '')
     .replace(/\s*font-size:[^;;"']*/gi, '')
     .replace(/\s*color:[^;;"']*/gi, '');
-  html += `<div class="track-header t1"><span class="track-number">01</span> Active RFPs</div><div id="track1-opps-container"></div>`;
-  if (report.fields.track2_html) { html += `<div class="track-header t2"><span class="track-number" style="color:var(--info)">02</span> Emerging Issues</div><div class="track-body">${formatTrackItems(clean(report.fields.track2_html))}</div>`; }
-  if (report.fields.track3_html) { html += `<div class="track-header t3"><span class="track-number" style="color:var(--warning)">03</span> Prime Firm Activity</div><div class="track-body">${formatTrackItems(clean(report.fields.track3_html))}</div>`; }
-  if (report.fields.track4_html) { html += `<div class="track-header" style="border-left-color:#7c5cbf"><span class="track-number" style="color:#7c5cbf">04</span> Governing Body Pipeline</div><div class="track-body">${formatTrackItems(clean(report.fields.track4_html))}</div>`; }
+  html += `<div class="track-header t1"><span class="track-number">01</span> Active RFPs<span class="track-ts">Refreshed ${runTs}</span></div><div id="track1-opps-container"></div>`;
+  if (report.fields.track2_html) { html += `<div class="track-header t2"><span class="track-number" style="color:var(--info)">02</span> Emerging Issues<span class="track-ts">Refreshed ${runTs}</span></div><div class="track-body">${formatTrackItems(clean(report.fields.track2_html))}</div>`; }
+  if (report.fields.track3_html) { html += `<div class="track-header t3"><span class="track-number" style="color:var(--warning)">03</span> Prime Firm Activity<span class="track-ts">Refreshed ${runTs}</span></div><div class="track-body">${formatTrackItems(clean(report.fields.track3_html))}</div>`; }
+  if (report.fields.track4_html) { html += `<div class="track-header" style="border-left-color:#7c5cbf"><span class="track-number" style="color:#7c5cbf">04</span> Governing Body Pipeline<span class="track-ts">Refreshed ${runTs}</span></div><div class="track-body">${formatTrackItems(clean(report.fields.track4_html))}</div>`; }
   content.innerHTML = `<div class="report-reading-col">${html || '<div class="empty-state"><i class="ti ti-report-search"></i><div class="empty-state-title">No content</div></div>'}</div>`;
 }
 async function navReport(dir) {
