@@ -1710,15 +1710,33 @@ async function runMORSReport() {
     sourcesInjection = `\n\nADDITIONAL SEARCH SOURCES (check these in addition to defaults):\n${sourceLines}`;
   }
 
-  console.log(`[${new Date().toISOString()}] Memory patterns: ${memoryPatterns.length}, Search sources: ${searchSources.length}`);
+  // Build portal scraped opps block for Track 1 prompt
+  const allPortalOpps = [
+    ...findrfpOpps,
+    ...opengovOpps,
+    ...bonfireOpps,
+    ...planetbidsOpps,
+    ...biddingusaOpps,
+    ...bidnetOpps,
+    ...civicengageOpps,
+    ...standaloneOpps
+  ];
+  const portalBlock = allPortalOpps.length > 0
+    ? `\n\nPRE-SCRAPED PORTAL OPPORTUNITIES (${allPortalOpps.length} items from procurement portals — use these as your PRIMARY Track 1 source):\n` +
+      allPortalOpps.slice(0, 150).map((o, i) =>
+        `${i+1}. ${o.title} | ${o.agency || ''} | Due: ${o.deadline || 'unknown'} | ${o.source_url || ''}`
+      ).join('\n')
+    : '';
+
+  console.log(`[${new Date().toISOString()}] Memory patterns: ${memoryPatterns.length}, Search sources: ${searchSources.length}, Portal opps for prompt: ${allPortalOpps.length}`);
   console.log(`[${new Date().toISOString()}] Call 1: Tracks 1+2`);
 
   // ── Call 1: Track 1 (RFPs) + Track 2 (Emerging Issues) ───────────────────
   const prompt1 = `Today is ${today}.
 
-Run MORS Tracks 1 and 2 only. Search thoroughly.
+Run MORS Tracks 1 and 2 only.
 
-CRITICAL DATE FILTER: Only include RFPs issued after ${cutoffStr} (last 45 days). Before including any result, verify the issue date or posting date on the source page. If you cannot confirm the posting date is within 45 days, EXCLUDE it.
+CRITICAL DATE FILTER: Only include RFPs issued after ${cutoffStr} (last 45 days).
 
 CRITICAL SOLICITATION FILTER: Only include ACTUAL PROCUREMENT SOLICITATIONS — RFPs, RFQs, IFBs, SOQs, Notices of Intent to Solicit. Do NOT include:
 - News articles or press releases about a project
@@ -1728,17 +1746,16 @@ CRITICAL SOLICITATION FILTER: Only include ACTUAL PROCUREMENT SOLICITATIONS — 
 - Any page that does not have a formal bid/proposal submission deadline
 If a result is a news article or project announcement rather than an active procurement, EXCLUDE it entirely from Track 1.
 
-CRITICAL URL RULE: Every source_url you provide MUST be the EXACT URL returned by your web search — copy it character-for-character. NEVER construct, guess, or assemble a URL from parts. If the URL contains a double slash (//) after the domain, or points to a homepage, contacts page, or any non-procurement page, EXCLUDE that result entirely. If you cannot find a direct link to the actual solicitation document or listing, do not include the result.
+CRITICAL URL RULE: Use only the exact source_url provided in the pre-scraped data below. NEVER construct, guess, or modify URLs.
 
 ${geo.instructions}
 
 TRACK 1 INSTRUCTIONS:
-- Search caleprocure.ca.gov using: "public engagement", "community outreach", "facilitation", "consensus", "strategic plan", "organizational assessment"
-- Search PlanetBids filtering to today's geographic focus agencies
-- Search individual agency procurement pages for today's geographic focus
-- Find at least 5 real, verifiable opportunities from today's geographic zone
-- If today's zone yields fewer than 5, supplement with high-priority Tier 1 opportunities from any Bay Area county
-- Flag prior Bluhon clients: ABAG ✅, BCDC ✅, SF Regional Water Board ✅, Cities of Berkeley/Oakland/Palo Alto/San Jose/San Mateo/Redwood City/Livermore/Novato/Half Moon Bay/Danville ✅, Contra Costa County ✅, Alameda County ✅, Marin County ✅, Santa Clara County ✅, Sonoma County ✅${sourcesInjection}
+Your PRIMARY source is the PRE-SCRAPED PORTAL OPPORTUNITIES list below — these were pulled directly from procurement portals this morning and are guaranteed real solicitations. Select the 8-12 most relevant to Bluhon's services (public engagement, facilitation, mediation, community outreach, consensus building, environmental conflict resolution, strategic planning).
+
+If the pre-scraped list has fewer than 5 strong matches, you may supplement by searching caleprocure.ca.gov for: "public engagement", "community outreach", "facilitation", "consensus", "strategic plan" — but ONLY add results you can verify are open solicitations with a direct procurement URL.
+
+Flag prior Bluhon clients: ABAG ✅, BCDC ✅, SF Regional Water Board ✅, Cities of Berkeley/Oakland/Palo Alto/San Jose/San Mateo/Redwood City/Livermore/Novato/Half Moon Bay/Danville ✅, Contra Costa County ✅, Alameda County ✅, Marin County ✅, Santa Clara County ✅, Sonoma County ✅${sourcesInjection}${portalBlock}
 
 TRACK 2 INSTRUCTIONS — LOCAL CONFLICTS & EMERGING ISSUES:
 The news items below were pre-fetched this morning from ${newsItems.length} Bay Area and California local news outlets via RSS. You do NOT need to search the web for Track 2. Your job is to ANALYZE these pre-fetched items and identify the most relevant ones for Bluhon.
@@ -2245,8 +2262,7 @@ app.post("/feedback", async (req, res) => {
   try {
     // 1. Update the OPPORTUNITIES record
     await atPatch(AIRTABLE_OPPS_TABLE, opp_id, {
-      interest: 'no',
-      feedback_reason: reason || ''
+      interest: 'No'
     });
 
     // 2. Upsert PROJECT_MEMORY record
