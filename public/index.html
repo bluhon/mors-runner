@@ -319,7 +319,7 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
       <i class="ti ti-brain"></i> Project Memory
     </div>
     <div class="nav-item" onclick="showPage('sources')" id="nav-sources">
-      <i class="ti ti-search"></i> Sources
+      <i class="ti ti-settings"></i> Search Settings
     </div>
     <div class="sidebar-bottom">
       <div class="logout-btn" onclick="doLogout()">
@@ -565,24 +565,83 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
 
     <section class="page" id="page-sources">
       <div class="page-header">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
-          <div>
-            <div class="page-title">Search <span>Sources</span></div>
-            <div class="page-subtitle">Procurement portals to monitor</div>
-          </div>
-          <button class="btn btn-primary btn-sm" onclick="openAddSource()">
-            <i class="ti ti-plus"></i> Add Source
-          </button>
-        </div>
+        <div class="page-title">Search <span>Settings</span></div>
+        <div class="page-subtitle">Control what the runner searches for and what it ignores</div>
       </div>
-      <div class="page-body">
-        <div id="sources-content">
-          <div class="empty-state">
-            <i class="ti ti-search"></i>
-            <div class="empty-state-title">No sources yet</div>
-            <p>Add procurement portals to track for opportunities.</p>
+      <div class="page-body" style="display:flex;flex-direction:column;gap:32px">
+
+        <!-- ── EXCLUSIONS ───────────────────────────────────────── -->
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px">
+            <div>
+              <div style="font-family:var(--font-head);font-size:1.25rem;font-weight:700;color:var(--brand)">Search Exclusions</div>
+              <div style="font-size:0.875rem;color:var(--muted);margin-top:2px">Terms, agencies, or sites the runner will never include — applied at save time</div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap" id="excl-track-filters">
+              <button class="btn btn-ghost btn-sm excl-filter active" data-track="All" onclick="filterExclusions('All')">All</button>
+              <button class="btn btn-ghost btn-sm excl-filter" data-track="Track 1" onclick="filterExclusions('Track 1')">Track 1 — RFPs</button>
+              <button class="btn btn-ghost btn-sm excl-filter" data-track="Track 2" onclick="filterExclusions('Track 2')">Track 2 — Issues</button>
+              <button class="btn btn-ghost btn-sm excl-filter" data-track="Track 3" onclick="filterExclusions('Track 3')">Track 3</button>
+              <button class="btn btn-ghost btn-sm excl-filter" data-track="Track 4" onclick="filterExclusions('Track 4')">Track 4</button>
+            </div>
+          </div>
+
+          <!-- Add row -->
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;margin-bottom:14px">
+            <div style="flex:1;min-width:160px">
+              <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Term / value</div>
+              <input class="form-input" id="new-excl-value" placeholder="e.g. road paving" style="margin:0">
+            </div>
+            <div style="min-width:130px">
+              <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Type</div>
+              <select class="form-input" id="new-excl-type" style="margin:0">
+                <option value="keyword">keyword</option>
+                <option value="agency">agency</option>
+                <option value="project_type">project type</option>
+                <option value="site">site</option>
+              </select>
+            </div>
+            <div style="min-width:130px">
+              <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Applies to</div>
+              <select class="form-input" id="new-excl-track" style="margin:0">
+                <option value="All">All tracks</option>
+                <option value="Track 1">Track 1 — RFPs</option>
+                <option value="Track 2">Track 2 — Issues</option>
+                <option value="Track 3">Track 3</option>
+                <option value="Track 4">Track 4</option>
+              </select>
+            </div>
+            <div style="flex:1;min-width:140px">
+              <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Reason (optional)</div>
+              <input class="form-input" id="new-excl-reason" placeholder="e.g. no engagement scope" style="margin:0">
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="addExclusion()" style="flex-shrink:0;height:40px;align-self:flex-end">
+              <i class="ti ti-plus"></i> Add
+            </button>
+          </div>
+
+          <!-- Exclusions list -->
+          <div id="exclusions-content">
+            <div class="empty-state"><i class="ti ti-ban"></i><div class="empty-state-title">Loading…</div></div>
           </div>
         </div>
+
+        <!-- ── PROCUREMENT SOURCES ──────────────────────────────── -->
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px">
+            <div>
+              <div style="font-family:var(--font-head);font-size:1.25rem;font-weight:700;color:var(--brand)">Procurement Sources</div>
+              <div style="font-size:0.875rem;color:var(--muted);margin-top:2px">Portals the runner logs into and searches for Track 1 RFPs</div>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="openAddSource()">
+              <i class="ti ti-plus"></i> Add Source
+            </button>
+          </div>
+          <div id="sources-content">
+            <div class="empty-state"><i class="ti ti-search"></i><div class="empty-state-title">No sources yet</div><p>Add procurement portals to track.</p></div>
+          </div>
+        </div>
+
       </div>
     </section>
 
@@ -690,9 +749,10 @@ const CONFIG = {
     CONTACTS:       'tblLzyl3eZh45LgxL',
     PRIME_FIRMS:    'tbl9MicFOSIYkKLGs',
     PROJECT_MEMORY:  'tblNgcBpooPK9wOkD',
-    SEARCH_SOURCES:  'tblsQwva2y8ABugYH',
-    USERS:           'tblVZEf4vqSEZiVCc',
-    TRACK2_ITEMS:    'tbl4f7N5EoaKRwRXK'
+    SEARCH_SOURCES:     'tblsQwva2y8ABugYH',
+    SEARCH_EXCLUSIONS:  'tblp4DRTk6uJPYsmm',
+    USERS:              'tblVZEf4vqSEZiVCc',
+    TRACK2_ITEMS:       'tbl4f7N5EoaKRwRXK'
   }
 };
 
@@ -1954,9 +2014,108 @@ async function confirmReject(oppId, title, agency, sourceUrl) {
 // ─── Search Sources ───────────────────────────────────────────────────────────
 let allSources = [];
 
+// ─── Search Exclusions ───────────────────────────────────────────────────────
+let allExclusions = [];
+let _exclTrackFilter = 'All';
+
+async function loadExclusions() {
+  const res = await atFetch(CONFIG.TABLES.SEARCH_EXCLUSIONS, '?sort[0][field]=value&sort[0][direction]=asc&maxRecords=200');
+  allExclusions = res.records || [];
+  renderExclusions();
+}
+
+function filterExclusions(track) {
+  _exclTrackFilter = track;
+  document.querySelectorAll('.excl-filter').forEach(b => b.classList.toggle('active', b.dataset.track === track));
+  renderExclusions();
+}
+
+function renderExclusions() {
+  const el = document.getElementById('exclusions-content');
+  if (!el) return;
+  let rows = allExclusions;
+  if (_exclTrackFilter !== 'All') {
+    rows = rows.filter(r => {
+      const t = r.fields.tracks || [];
+      return t.includes(_exclTrackFilter) || t.includes('All') || t.length === 0;
+    });
+  }
+  if (rows.length === 0) {
+    el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:0.9rem">No exclusions yet for this filter.</div>';
+    return;
+  }
+  const typeColors = { keyword:'badge-blue', agency:'badge-purple', project_type:'badge-orange', site:'badge-red' };
+  let html = '<div style="display:flex;flex-direction:column;gap:6px">';
+  rows.forEach(r => {
+    const f = r.fields;
+    const tc = typeColors[f.exclusion_type] || 'badge-gray';
+    const tracks = (f.tracks || []).join(', ') || 'All';
+    const inactive = f.active === false;
+    html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);${inactive ? 'opacity:0.45;' : ''}">
+      <div style="flex:1;font-weight:500;font-size:0.95rem;color:#111">${escHtml(f.value||'—')}</div>
+      <span class="badge ${tc}" style="flex-shrink:0">${escHtml(f.exclusion_type||'keyword')}</span>
+      <span style="font-size:0.8rem;color:var(--muted);flex-shrink:0">${escHtml(tracks)}</span>
+      ${f.reason ? `<span style="font-size:0.8rem;color:var(--muted);flex-shrink:0;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(f.reason)}</span>` : ''}
+      <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:0.8rem;color:var(--muted);flex-shrink:0">
+        <input type="checkbox" ${f.active !== false ? 'checked' : ''} onchange="toggleExclusion('${r.id}',this.checked)" style="width:14px;height:14px;accent-color:var(--brand);cursor:pointer">
+        Active
+      </label>
+      <button class="btn btn-ghost btn-sm" style="padding:4px 8px;color:var(--muted)" onclick="deleteExclusion('${r.id}',this)" title="Delete">
+        <i class="ti ti-trash" style="font-size:14px"></i>
+      </button>
+    </div>`;
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+async function addExclusion() {
+  const value = document.getElementById('new-excl-value').value.trim();
+  if (!value) { showToast('Enter a term to exclude', 'error'); return; }
+  const type  = document.getElementById('new-excl-type').value;
+  const track = document.getElementById('new-excl-track').value;
+  const reason = document.getElementById('new-excl-reason').value.trim();
+  const btn = document.querySelector('#new-excl-value').closest('div').parentElement.querySelector('.btn-primary');
+  btn.disabled = true;
+  const rec = await atCreate(CONFIG.TABLES.SEARCH_EXCLUSIONS, {
+    value, exclusion_type: type, tracks: [track],
+    reason, added_by: currentUser ? currentUser.name : 'MORS',
+    added_date: new Date().toISOString().split('T')[0], active: true
+  });
+  btn.disabled = false;
+  if (rec && rec.id) {
+    allExclusions.push(rec);
+    document.getElementById('new-excl-value').value = '';
+    document.getElementById('new-excl-reason').value = '';
+    renderExclusions();
+    showToast('Exclusion added', 'success');
+  } else {
+    showToast('Failed to save exclusion', 'error');
+  }
+}
+
+async function toggleExclusion(id, active) {
+  await atUpdate(CONFIG.TABLES.SEARCH_EXCLUSIONS, id, { active });
+  const r = allExclusions.find(e => e.id === id);
+  if (r) r.fields.active = active;
+  renderExclusions();
+}
+
+async function deleteExclusion(id, btn) {
+  if (!confirm('Delete this exclusion?')) return;
+  btn.disabled = true;
+  await atDelete(CONFIG.TABLES.SEARCH_EXCLUSIONS, id);
+  allExclusions = allExclusions.filter(e => e.id !== id);
+  renderExclusions();
+  showToast('Deleted', 'success');
+}
+
+// ─── Search Sources ───────────────────────────────────────────────────────────
 async function loadSources() {
-  const res = await atFetch(CONFIG.TABLES.SEARCH_SOURCES, '?sort[0][field]=source_name&sort[0][direction]=asc');
-  allSources = res.records || [];
+  await Promise.all([
+    atFetch(CONFIG.TABLES.SEARCH_SOURCES, '?sort[0][field]=source_name&sort[0][direction]=asc').then(r => { allSources = r.records || []; }),
+    loadExclusions()
+  ]);
   renderSources();
 }
 
