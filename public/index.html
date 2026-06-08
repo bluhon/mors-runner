@@ -1024,7 +1024,6 @@ async function createTrack2Canvas(item) {
   const f = item.fields;
   await atCreate(CONFIG.TABLES.RFP_CANVAS, {
     canvas_title: f.headline || 'Untitled Issue',
-    canvas_type: 'Potential Project',
     opportunity_id: '',
     pursuit_status: '1 — Monitoring',
     active: true,
@@ -1444,7 +1443,6 @@ async function saveArticleToPipeline(btn) {
     if (!existingCanvas) {
       const canvas = await atCreate(CONFIG.TABLES.RFP_CANVAS, {
         canvas_title:    title,
-        canvas_type:     'Article',
         active:          true,
         created_by:      currentUser ? currentUser.name : 'MORS',
         notes_log:       '[]',
@@ -1531,7 +1529,7 @@ function renderCanvasGrid(canvas) {
   const dashIdx = rawTitle.search(/ [—–] /);
   const descFromTitle = dashIdx > 0 ? rawTitle.slice(dashIdx+3) : '';
   const descText = f.team_notes || descFromTitle;
-  const isArticle = f.canvas_type === 'Article';
+  const isArticle = opp ? /^[23]/.test((opp.fields.track||'').trim()) : !!(f.rfp_url && !f.proposal_due);
   const articleUrl = f.rfp_url || sourceUrl;
   const articleDesc = f.rfp_description || descText;
   document.getElementById('canvas-grid').innerHTML = isArticle ? `
@@ -1660,7 +1658,6 @@ async function submitAddRFP() {
       pursuit_type:   document.getElementById('add-rfp-pursuit').value,
       geo_tier:       document.getElementById('add-rfp-tier').value,
       potential_prime:document.getElementById('add-rfp-prime').value.trim(),
-      canvas_type:    'RFP',
       pursuit_status: '2 — Building team',
       active:         true,
       created_by:     currentUser.name,
@@ -1935,7 +1932,6 @@ async function makePipelineCanvas(oppId, title, track) {
   const isTrack2 = (track || of.track || '').includes('2');
   const fields = {
     canvas_title:  canvasTitle,
-    canvas_type:   isTrack2 ? 'Article' : 'RFP',
     active:        true,
     created_by:    currentUser ? currentUser.name : 'MORS',
     notes_log:     '[]',
