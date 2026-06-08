@@ -129,6 +129,8 @@ html,body{height:100%;background:var(--bg);color:#000000;font-family:'Source San
 .track-body h3{font-family:'Source Sans 3',Arial,sans-serif;font-size:1.25rem;font-weight:700;color:#000;line-height:1.35;margin:0 0 6px 0;padding:0}
 .track-body p{font-family:'Source Sans 3',Arial,sans-serif;font-size:1.05rem;color:#000;line-height:1.6;margin:0 0 4px 0}
 .track-body p.bluhon-angle{margin-top:6px;display:block}
+.track-item{margin-bottom:32px;padding-bottom:0}
+.track-item-border{padding-top:28px;border-top:1px solid #e0e0e0}
 .track-body ul,.track-body ol{padding-left:22px;margin-top:4px}
 .track-body li{font-size:1.05rem;line-height:1.6;margin-bottom:8px}
 .track-body a{color:var(--brand);text-decoration:none}
@@ -1300,49 +1302,98 @@ function formatTrackItems(html, track = '') {
   tmp.innerHTML = html;
   const items = tmp.querySelectorAll('li');
   if (!items.length) return `<div style="font-family:'Source Sans 3',Arial,sans-serif;font-size:1.05rem;line-height:1.8;color:#333;">${html}</div>`;
+  const isArticleTrack = track === 'Track 2' || track === 'Track 3' || track === 'Track 4';
   let out = '';
   items.forEach((li, i) => {
     const strong = li.querySelector('strong, b');
-    let title = '';
+    let firmOrTitle = '';
     let body = li.innerHTML;
     if (strong) {
-      title = strong.textContent.trim();
+      firmOrTitle = strong.textContent.trim();
       strong.remove();
       body = li.innerHTML.trim().replace(/^[:\-–—\s]+/, '');
     }
+    // Extract source link
     const linkMatch = body.match(/(<a\s[^>]*>.*?<\/a>)/i);
     let sourceLink = '';
     if (linkMatch) {
       sourceLink = linkMatch[1];
       body = body.replace(linkMatch[0], '').replace(/source\s*:/i, '').trim().replace(/[,.\s]+$/, '');
     }
-    // Strip any nested p/div tags that cause blank-line gaps
-    body = body.replace(/<\/?(p|div|br)[^>]*>/gi, ' ').replace(/\s{2,}/g, ' ').trim();
-    // Break "Bluhon angle:" onto its own line
-    const bodyParts = body.split(/(?=\bBluhon angle\b)/i);
-    const mainBody = bodyParts[0].trim();
-    const anglePart = bodyParts[1] ? bodyParts[1].trim() : '';
-    // Extract raw href from sourceLink for pipeline button
     const hrefMatch = sourceLink ? sourceLink.match(/href="([^"]+)"/) : null;
     const sourceHref = hrefMatch ? hrefMatch[1] : '';
-    out += `<div style="margin-bottom:32px;${i > 0 ? 'padding-top:28px;border-top:1px solid #e0e0e0;' : ''}">`;
-    if (title) out += `<h3>${title}</h3>`;
-    if (mainBody) out += `<p>${mainBody}</p>`;
-    if (anglePart) out += `<p class="bluhon-angle">${anglePart}</p>`;
-    if (sourceLink) out += `<p style="margin-top:8px;">${sourceLink}</p>`;
-    if (track === 'Track 2' || track === 'Track 3' || track === 'Track 4') {
-      const rawTitle   = (title || 'Untitled').slice(0, 120);
-      const rawUrl     = sourceHref.slice(0, 300);
-      const rawSummary = (mainBody + (anglePart ? ' ' + anglePart : '')).replace(/<[^>]+>/g, '').slice(0, 500);
-      const trackLabel = track === 'Track 2' ? '2 — Emerging Issue' : track === 'Track 3' ? '3 — Prime Firm' : '4 — Governing Body';
-      // Use data-* attributes to avoid inline JS quoting issues with special characters in article text
-      out += `<div style="margin-top:10px"><button class="btn btn-ghost btn-sm save-to-pipeline-btn"
-        data-title="${escHtml(rawTitle)}"
-        data-url="${escHtml(rawUrl)}"
-        data-summary="${escHtml(rawSummary)}"
-        data-track="${escHtml(trackLabel)}"
-        onclick="saveArticleToPipeline(this)"><i class="ti ti-layout-board"></i> Save to Pipeline</button></div>`;
+    // Strip nested block tags
+    body = body.replace(/<\/?(p|div|br)[^>]*>/gi, ' ').replace(/\s{2,}/g, ' ').trim();
+
+    // For Track 3: firmOrTitle = firm name; parse "| Article Title | Date body..." from body
+    // For Track 2/4: firmOrTitle = article title; body = description
+    let articleTitle = '';
+    let dateStr = '';
+    let mainBody = body;
+
+    if (track === 'Track 3') {
+      // firm name is in firmOrTitle; parse article title + date from pipe-delimited body
+      const pipeMatch = body.match(/^\|?\s*(.+?)\s*\|\s*([\s\S]*)/);
+      if (pipeMatch) {
+        articleTitle = pipeMatch[1].replace(/<[^>]+>/g, '').trim();
+        const rest = pipeMatch[2].trim();
+        // date may be in <em> or plain "Month D, YYYY" at start
+        const emDate = rest.match(/^<em>([^<]+)<\/em>\s*([\s\S]*)/);
+        const plainDate = rest.match(/^([A-Z][a-z]+ \d{1,2},?\s*\d{4})\s+([\s\S]*)/);
+        if (emDate) { dateStr = emDate[1]; mainBody = emDate[2].trim(); }
+        else if (plainDate) { dateStr = plainDate[1]; mainBody = plainDate[2].trim(); }
+        else { mainBody = rest; }
+      } else {
+        // no pipe pattern — treat whole body as mainBody
+        mainBody = body;
+      }
     }
+
+    // Split Bluhon angle
+    const angleSplit = mainBody.split(/\bBluhon\s+angle\s*[:\-–]?\s*/i);
+    const bodyText = angleSplit[0].trim();
+    const angleText = angleSplit[1] ? angleSplit[1].trim() : '';
+
+    out += `<div class="track-item${i > 0 ? ' track-item-border' : ''}">`;
+
+    if (track === 'Track 3' && firmOrTitle) {
+      // Firm name — large blue
+      out += `<div style="font-family:var(--font-head);font-size:1.25rem;font-weight:700;color:var(--brand);margin-bottom:4px">${firmOrTitle}</div>`;
+    }
+
+    // Article title — blue, linked
+    const titleText = track === 'Track 3' ? articleTitle : firmOrTitle;
+    if (titleText) {
+      if (sourceHref) {
+        out += `<div style="margin-bottom:6px"><a href="${sourceHref}" target="_blank" rel="noopener" style="font-family:var(--font-head);font-size:1.05rem;font-weight:600;color:var(--brand);text-decoration:none">${titleText}</a></div>`;
+      } else {
+        out += `<div style="font-family:var(--font-head);font-size:1.05rem;font-weight:600;color:var(--brand);margin-bottom:6px">${titleText}</div>`;
+      }
+    }
+
+    if (dateStr) out += `<div style="font-size:0.875rem;color:var(--muted);margin-bottom:8px">${dateStr}</div>`;
+    if (bodyText) out += `<p style="margin:0 0 10px">${bodyText}</p>`;
+    if (angleText) {
+      out += `<p style="font-weight:700;font-size:0.9rem;margin:12px 0 4px;color:#222">Bluhon Angle</p>`;
+      out += `<p style="margin:0 0 10px;font-style:italic;color:#444">${angleText}</p>`;
+    }
+
+    if (isArticleTrack) {
+      const rawTitle   = (titleText || firmOrTitle || 'Untitled').slice(0, 120);
+      const rawUrl     = sourceHref.slice(0, 300);
+      const rawSummary = (bodyText + (angleText ? ' ' + angleText : '')).replace(/<[^>]+>/g, '').slice(0, 500);
+      const trackLabel = track === 'Track 2' ? '2 — Emerging Issue' : track === 'Track 3' ? '3 — Prime Firm' : '4 — Governing Body';
+      out += `<div style="display:flex;gap:8px;margin-top:12px;align-items:center">
+        <button class="btn btn-ghost btn-sm save-to-pipeline-btn"
+          data-title="${escHtml(rawTitle)}"
+          data-url="${escHtml(rawUrl)}"
+          data-summary="${escHtml(rawSummary)}"
+          data-track="${escHtml(trackLabel)}"
+          onclick="saveArticleToPipeline(this)"><i class="ti ti-layout-board"></i> Save to Pipeline</button>
+        <button class="btn btn-ghost btn-sm" style="color:var(--muted)" title="Dismiss" onclick="this.closest('.track-item').remove()"><i class="ti ti-trash"></i></button>
+      </div>`;
+    }
+
     out += `</div>`;
   });
   return out;
