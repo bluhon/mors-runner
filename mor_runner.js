@@ -1422,6 +1422,7 @@ const STANDALONE_PAGES = [
   { name: 'Cupertino',                url: 'https://apps.cupertino.org/bidmanagement/index.aspx',                                                    baseUrl: 'https://apps.cupertino.org' },
   { name: 'Vallejo',                  url: 'https://vendors.planetbids.com/portal/42510/bo/bo-search',                                               baseUrl: 'https://vendors.planetbids.com' },
   // ── Solano County Cities ──────────────────────────────────────────────────
+  { name: 'Benicia',                  url: 'https://www.ci.benicia.ca.us/bids.aspx',                                                                 baseUrl: 'https://www.ci.benicia.ca.us' },
   { name: 'Fairfield',                url: 'https://www.fairfield.ca.gov/our-city/advanced-components/list-detail-pages/rfp-posts-list',             baseUrl: 'https://www.fairfield.ca.gov' },
   { name: 'Vacaville',                url: 'https://www.cityofvacaville.gov/government/finance/purchasing/current-bids',                             baseUrl: 'https://www.cityofvacaville.gov' },
   { name: 'Dixon',                    url: 'https://www.cityofdixonca.gov/bids',                                                                      baseUrl: 'https://www.cityofdixonca.gov' },
@@ -1726,6 +1727,8 @@ CRITICAL SOLICITATION FILTER: Only include ACTUAL PROCUREMENT SOLICITATIONS — 
 - Meeting agendas or staff reports discussing a future project
 - Any page that does not have a formal bid/proposal submission deadline
 If a result is a news article or project announcement rather than an active procurement, EXCLUDE it entirely from Track 1.
+
+CRITICAL URL RULE: Every source_url you provide MUST be the EXACT URL returned by your web search — copy it character-for-character. NEVER construct, guess, or assemble a URL from parts. If the URL contains a double slash (//) after the domain, or points to a homepage, contacts page, or any non-procurement page, EXCLUDE that result entirely. If you cannot find a direct link to the actual solicitation document or listing, do not include the result.
 
 ${geo.instructions}
 
