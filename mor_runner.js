@@ -1265,7 +1265,7 @@ For each item you select, write:
 - Who at the agency Bluhon should contact
 - Link to the source article
 
-Select the 5–8 most actionable items. Prioritize: land use conflicts, CEQA disputes, facility siting (waste, water, energy), housing EIR opposition, transit project community conflict, water rights disputes.
+Include ALL items that are relevant to Bluhon — do not limit or cull the list. Every item in the pre-fetched set that involves a local conflict, CEQA process, land use dispute, facility siting, or governing body action relevant to public engagement should appear in your output. Prioritize ordering by: items closest to an active procurement or imminent public process first.
 
 TRACK 2 OUTPUT FORMAT: Group items under these <h2> headings based on the source outlet type:
 <h2>Local News</h2>  — neighborhood/city-level outlets
@@ -1316,7 +1316,7 @@ For each award: firm name, agency, contract value if known, scope (flag if publi
 DIRECT COMPETITORS to monitor: MIG, PlaceWorks, Circlepoint, Raimi+Associates, Rincon Consultants, Mintier Harnish, CONCUR, DC&E, Civic Edge, Stakeholder Communications Group
 For competitors: wins, new hires, press mentions that reveal where they are targeting.
 
-Find 4–6 items total. Format each with firm name as heading, details, Bluhon angle on a new line.
+Include ALL relevant items found. Format each with firm name as heading, details, Bluhon angle on a new line.
 
 TRACK 4 INSTRUCTIONS — GOVERNING BODY PIPELINE (pre-RFP signals):
 Goal: Identify projects being DISCUSSED at Bay Area governing bodies that will produce RFPs in 3–18 months.
@@ -1333,7 +1333,7 @@ WHAT TO LOOK FOR:
 - Community task force or advisory committee formation
 
 For each: governing body, meeting date, agenda item title, what was directed, timeline to RFP, Bluhon service fit.
-Find 4–6 items. Flag ⭐ if RFP authorization granted.
+Include ALL relevant items found. Flag ⭐ if RFP authorization was granted.
 
 TRACK 4 OUTPUT FORMAT: Group under <h2> headings:
 <h2>Agency Board</h2>  — MTC, BAAQMD, BCDC, RWQCB, Coastal Commission, BART, etc.
