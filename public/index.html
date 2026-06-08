@@ -1229,10 +1229,8 @@ async function triggerManualRun() {
     }, 15000);
   } catch (err) {
     showToast('Could not reach runner: ' + err.message, 'error');
-    }
+    btn.innerHTML = '↻ Wake up Runner'; btn.disabled = false;
   }
-  btn.innerHTML = '<i class="ti ti-refresh"></i> Re-run now';
-  btn.disabled = false;
 }
 
 async function setInterest(oppId, val) {
