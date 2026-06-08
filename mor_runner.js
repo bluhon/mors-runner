@@ -13,7 +13,7 @@ const AIRTABLE_SOURCES_TABLE  = "tblsQwva2y8ABugYH";  // SEARCH_SOURCES (procure
 const AIRTABLE_MEDIA_TABLE    = "tblANGqT4L4Yt1MFl"; // MEDIA_SOURCES
 
 // Portal credentials — from Render environment variables
-const FINDRFP_LOGIN       = process.env.FINDRFP_LOGIN       || process.env.FINDRFP_LOGIN || '';
+const FINDRFP_LOGIN       = process.env.FINDRFP_LOGIN       || process.env.FINDRFP_EMAIL || '';
 const FINDRFP_PASSWORD    = process.env.FINDRFP_PASSWORD    || '';
 const OPENGOV_LOGIN       = process.env.OPENGOV_LOGIN       || '';
 const OPENGOV_PASSWORD    = process.env.OPENGOV_PASSWORD    || '';
@@ -21,6 +21,12 @@ const BONFIRE_LOGIN       = process.env.BONFIRE_LOGIN       || '';
 const BONFIRE_PASSWORD    = process.env.BONFIRE_PASSWORD    || '';
 const PLANETBIDS_LOGIN    = process.env.PLANETBIDS_LOGIN    || '';
 const PLANETBIDS_PASSWORD = process.env.PLANETBIDS_PASSWORD || '';
+const BIDDINGUSA_LOGIN    = process.env.BIDDINGUSA_LOGIN    || '';
+const BIDDINGUSA_PASSWORD = process.env.BIDDINGUSA_PASSWORD || '';
+const BIDNET_LOGIN        = process.env.BIDNET_LOGIN        || '';
+const BIDNET_PASSWORD     = process.env.BIDNET_PASSWORD     || '';
+const CIVICENGAGE_LOGIN   = process.env.CIVICENGAGE_LOGIN   || '';
+const CIVICENGAGE_PASSWORD= process.env.CIVICENGAGE_PASSWORD|| '';
 
 const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 const app = express();
@@ -1032,21 +1038,24 @@ async function scrapeBonfire() {
 async function scrapePlanetbids() {
   if (!PLANETBIDS_LOGIN || !PLANETBIDS_PASSWORD) { console.log('[PlanetBids] No credentials — skipping'); return []; }
   try {
-    console.log('[PlanetBids] Logging in...');
-    // PlanetBids uses form-based auth
-    const loginPage = await fetch('https://www.planetbids.com/portal/portal.cfm', {
-      headers: { 'User-Agent': 'Mozilla/5.0' }
-    });
-    const cookies = (loginPage.headers.get('set-cookie') || '').split(',').map(c => c.split(';')[0].trim()).join('; ');
+    console.log('[PlanetBids] Logging in to vendorline.planetbids.com...');
+    const BASE = 'https://vendorline.planetbids.com';
 
-    const loginRes = await fetch('https://www.planetbids.com/portal/portal.cfm', {
+    // Step 1: Get login page for CSRF token / cookies
+    const loginPage = await fetch(`${BASE}/portal/portal.cfm`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' }
+    });
+    const cookies = (loginPage.headers.get('set-cookie') || '').split(',').map(c => c.split(';')[0].trim()).filter(Boolean).join('; ');
+
+    // Step 2: POST credentials
+    const loginRes = await fetch(`${BASE}/portal/portal.cfm`, {
       method: 'POST',
       redirect: 'manual',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         'Cookie': cookies,
-        'User-Agent': 'Mozilla/5.0',
-        'Referer': 'https://www.planetbids.com/portal/portal.cfm'
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+        'Referer': `${BASE}/portal/portal.cfm`
       },
       body: new URLSearchParams({
         action: 'login',
@@ -1057,12 +1066,12 @@ async function scrapePlanetbids() {
     const sessionCookies = [cookies, loginRes.headers.get('set-cookie') || '']
       .join('; ').split(',').map(c => c.split(';')[0].trim()).filter(Boolean).join('; ');
 
-    // Search for open bids in California
+    // Step 3: Search for open bids in California
     const keywords = ['public engagement', 'facilitation', 'outreach', 'strategic plan', 'community engagement'];
     const opps = [];
-    for (const kw of keywords.slice(0, 4)) {
+    for (const kw of keywords.slice(0, 5)) {
       try {
-        const res = await fetch(`https://www.planetbids.com/portal/portal.cfm?action=search&state=CA&keyword=${encodeURIComponent(kw)}&status=open`, {
+        const res = await fetch(`${BASE}/portal/portal.cfm?action=search&state=CA&keyword=${encodeURIComponent(kw)}&status=open`, {
           headers: { 'Cookie': sessionCookies, 'User-Agent': 'Mozilla/5.0' }
         });
         const html = await res.text();
@@ -1081,7 +1090,7 @@ async function scrapePlanetbids() {
           }
           if (title && !opps.find(o => o.title === title)) {
             const urlPath = linkMatch ? linkMatch[1] : '';
-            opps.push({ title, agency, deadline, scope: kw, source_url: urlPath.startsWith('http') ? urlPath : `https://www.planetbids.com${urlPath}`, via: 'PlanetBids' });
+            opps.push({ title, agency, deadline, scope: kw, source_url: urlPath.startsWith('http') ? urlPath : `${BASE}${urlPath}`, via: 'PlanetBids' });
           }
         }
         await new Promise(r => setTimeout(r, 700));
@@ -1090,6 +1099,380 @@ async function scrapePlanetbids() {
     console.log(`[PlanetBids] Found ${opps.length} opportunities`);
     return opps;
   } catch(err) { console.warn(`[PlanetBids] Error: ${err.message}`); return []; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BiddingUSA / Biddingo authenticated scraper
+// Same platform, US-facing brand. Covers Santa Clara County, San Jose,
+// and other Bay Area agencies on the Biddingo network.
+// ─────────────────────────────────────────────────────────────────────────────
+const BIDDINGUSA_AGENCIES = [
+  { name: 'Santa Clara County', path: '/santaclaracounty' },
+  { name: 'San Jose',           path: '/sanjose' },
+];
+
+const BIDDINGUSA_KEYWORDS = [
+  'public engagement', 'community outreach', 'facilitation', 'consensus',
+  'stakeholder', 'planning', 'environmental', 'strategic plan',
+  'organizational assessment', 'mediation', 'land use'
+];
+
+async function scrapeBiddingusa() {
+  if (!BIDDINGUSA_LOGIN || !BIDDINGUSA_PASSWORD) {
+    console.log('[BiddingUSA] No credentials — skipping'); return [];
+  }
+  try {
+    console.log('[BiddingUSA] Logging in...');
+    // Step 1: GET login page for CSRF token
+    const loginPage = await fetch('https://www.biddingousa.com/login', {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' }
+    });
+    const loginHtml = await loginPage.text();
+    const cookies = (loginPage.headers.get('set-cookie') || '').split(',').map(c => c.split(';')[0].trim()).join('; ');
+    const csrf = (loginHtml.match(/name="_token"\s+value="([^"]+)"/) || [])[1] || '';
+
+    // Step 2: POST credentials
+    const loginRes = await fetch('https://www.biddingousa.com/login', {
+      method: 'POST',
+      redirect: 'manual',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Cookie': cookies,
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+        'Referer': 'https://www.biddingousa.com/login'
+      },
+      body: new URLSearchParams({ email: BIDDINGUSA_LOGIN, password: BIDDINGUSA_PASSWORD, _token: csrf })
+    });
+    const sessionCookie = [cookies, loginRes.headers.get('set-cookie') || '']
+      .join('; ').split(',').map(c => c.split(';')[0].trim()).join('; ');
+
+    if (loginRes.status !== 302 && loginRes.status !== 200) {
+      console.warn(`[BiddingUSA] Login failed — status ${loginRes.status}`); return [];
+    }
+    console.log('[BiddingUSA] Logged in — searching agencies...');
+
+    const opps = [];
+    for (const agency of BIDDINGUSA_AGENCIES) {
+      try {
+        const url = `https://www.biddingousa.com${agency.path}/bids`;
+        const res = await fetch(url, {
+          headers: {
+            'Cookie': sessionCookie,
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+          }
+        });
+        const html = await res.text();
+        // Parse bid rows — Biddingo uses table or card layout
+        const rowMatches = html.match(/<tr[^>]*>([\s\S]*?)<\/tr>/gi) || [];
+        for (const row of rowMatches) {
+          const text = row.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+          if (!BIDDINGUSA_KEYWORDS.some(kw => text.toLowerCase().includes(kw))) continue;
+          const titleMatch = row.match(/href="([^"]*bid[^"]*)"[^>]*>([^<]{10,})</i);
+          if (!titleMatch) continue;
+          const title = titleMatch[2].trim();
+          const link  = titleMatch[1].startsWith('http') ? titleMatch[1] : `https://www.biddingousa.com${titleMatch[1]}`;
+          const deadlineMatch = text.match(/\b(\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2})\b/);
+          opps.push({
+            title, agency: agency.name,
+            deadline: deadlineMatch ? deadlineMatch[1] : null,
+            scope: text.slice(0, 200),
+            source_url: link
+          });
+        }
+        console.log(`[BiddingUSA] ${agency.name}: found ${opps.length} so far`);
+        await new Promise(r => setTimeout(r, 800));
+      } catch(e) { console.warn(`[BiddingUSA] ${agency.name} failed: ${e.message}`); }
+    }
+    console.log(`[BiddingUSA] Total: ${opps.length} opportunities`);
+    return opps;
+  } catch(err) { console.warn(`[BiddingUSA] Error: ${err.message}`); return []; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BidNet Direct authenticated scraper
+// Covers: Fremont, Livermore, Pleasant Hill, Novato, Tiburon,
+//         Santa Clara (city), Mountain View — add more as discovered
+// ─────────────────────────────────────────────────────────────────────────────
+const BIDNET_AGENCIES = [
+  { name: 'Fremont',        slug: 'cityoffremont' },
+  { name: 'Livermore',      slug: 'cityoflivermore' },
+  { name: 'Pleasant Hill',  slug: 'cityofpleasanthill' },
+  { name: 'Novato',         slug: 'cityofnovato' },
+  { name: 'Tiburon',        slug: 'townoftiburon' },
+  { name: 'Santa Clara',    slug: 'cityofsantaclara' },
+  { name: 'Mountain View',  slug: 'cityofmountainview' },
+];
+
+async function scrapeBidnet() {
+  if (!BIDNET_LOGIN || !BIDNET_PASSWORD) {
+    console.log('[BidNet] No credentials — skipping'); return [];
+  }
+  try {
+    console.log('[BidNet] Logging in...');
+    const loginPage = await fetch('https://www.bidnetdirect.com/login', {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' }
+    });
+    const loginHtml = await loginPage.text();
+    const cookies = (loginPage.headers.get('set-cookie') || '').split(',').map(c => c.split(';')[0].trim()).join('; ');
+    const csrf = (loginHtml.match(/name="_token"\s+value="([^"]+)"/) ||
+                  loginHtml.match(/name="csrf_token"\s+value="([^"]+)"/) || [])[1] || '';
+
+    const loginRes = await fetch('https://www.bidnetdirect.com/login', {
+      method: 'POST',
+      redirect: 'manual',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Cookie': cookies,
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+        'Referer': 'https://www.bidnetdirect.com/login'
+      },
+      body: new URLSearchParams({ email: BIDNET_LOGIN, password: BIDNET_PASSWORD, _token: csrf })
+    });
+    const sessionCookie = [cookies, loginRes.headers.get('set-cookie') || '']
+      .join('; ').split(',').map(c => c.split(';')[0].trim()).join('; ');
+
+    if (loginRes.status !== 302 && loginRes.status !== 200) {
+      console.warn(`[BidNet] Login failed — status ${loginRes.status}`); return [];
+    }
+    console.log('[BidNet] Logged in — searching agencies...');
+
+    const opps = [];
+    for (const agency of BIDNET_AGENCIES) {
+      try {
+        const url = `https://www.bidnetdirect.com/california/${agency.slug}`;
+        const res = await fetch(url, {
+          headers: {
+            'Cookie': sessionCookie,
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+          }
+        });
+        const html = await res.text();
+        const rows = html.match(/<tr[^>]*>([\s\S]*?)<\/tr>/gi) || [];
+        for (const row of rows) {
+          const text = row.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+          if (!BIDDINGUSA_KEYWORDS.some(kw => text.toLowerCase().includes(kw))) continue;
+          const titleMatch = row.match(/href="([^"]+)"[^>]*>([^<]{10,})</i);
+          if (!titleMatch) continue;
+          const title = titleMatch[2].trim();
+          const link  = titleMatch[1].startsWith('http') ? titleMatch[1] : `https://www.bidnetdirect.com${titleMatch[1]}`;
+          const deadlineMatch = text.match(/\b(\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2})\b/);
+          opps.push({
+            title, agency: agency.name,
+            deadline: deadlineMatch ? deadlineMatch[1] : null,
+            scope: text.slice(0, 200),
+            source_url: link
+          });
+        }
+        await new Promise(r => setTimeout(r, 800));
+      } catch(e) { console.warn(`[BidNet] ${agency.name} failed: ${e.message}`); }
+    }
+    console.log(`[BidNet] Total: ${opps.length} opportunities`);
+    return opps;
+  } catch(err) { console.warn(`[BidNet] Error: ${err.message}`); return []; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CivicEngage scraper — no login required, public bid listing pages
+// Covers ~30 Bay Area cities that use the CivicEngage CMS (/Bids.aspx pattern)
+// ─────────────────────────────────────────────────────────────────────────────
+const CIVICENGAGE_AGENCIES = [
+  { name: 'San Leandro',    url: 'https://www.sanleandro.org/Bids.aspx' },
+  { name: 'Dublin',         url: 'https://dublin.ca.gov/Bids.aspx' },
+  { name: 'Albany',         url: 'https://www.albanyca.gov/Departments/City-Clerk/RFP-RFQ-Bids' },
+  { name: 'Antioch',        url: 'https://www.antiochca.gov/bids.aspx' },
+  { name: 'Danville',       url: 'https://www.danville.ca.gov/Bids.aspx' },
+  { name: 'El Cerrito',     url: 'https://www.elcerrito.gov/Bids.aspx' },
+  { name: 'Moraga',         url: 'https://www.moraga.ca.us/Bids.aspx' },
+  { name: 'Orinda',         url: 'https://www.cityoforinda.gov/bids.aspx' },
+  { name: 'San Pablo',      url: 'https://www.sanpabloca.gov/Bids.aspx' },
+  { name: 'Mill Valley',    url: 'https://www.cityofmillvalley.gov/772/Bids-RFPs' },
+  { name: 'Larkspur',       url: 'https://www.ci.larkspur.ca.us/bids.aspx' },
+  { name: 'San Mateo',      url: 'https://www.cityofsanmateo.org/Bids.aspx' },
+  { name: 'Daly City',      url: 'https://www.dalycity.org/Bids.aspx' },
+  { name: 'Burlingame',     url: 'https://www.burlingame.org/Bids.aspx' },
+  { name: 'San Bruno',      url: 'https://www.sanbruno.ca.gov/Bids.aspx' },
+  { name: 'Half Moon Bay',  url: 'https://www.halfmoonbay.gov/bids.aspx' },
+  { name: 'Woodside',       url: 'https://www.woodsideca.gov/Bids.aspx' },
+  { name: 'Atherton',       url: 'https://www.athertonca.gov/bids.aspx' },
+  { name: 'Gilroy',         url: 'https://www.cityofgilroy.org/Bids.aspx' },
+  { name: 'Morgan Hill',    url: 'https://www.morganhill.ca.gov/Bids.aspx' },
+  { name: 'Campbell',       url: 'https://www.campbellca.gov/Bids.aspx' },
+  { name: 'Saratoga',       url: 'https://www.saratoga.ca.us/Bids.aspx' },
+  { name: 'Rohnert Park',   url: 'https://www.rpcity.org/bids.aspx' },
+  { name: 'Cotati',         url: 'https://www.cotaticity.gov/Bids.aspx' },
+  { name: 'Windsor',        url: 'https://www.townofwindsor.ca.gov/Bids.aspx' },
+  { name: 'Healdsburg',     url: 'https://www.ci.healdsburg.ca.us/Bids.aspx' },
+];
+
+async function scrapeCivicengage() {
+  console.log(`[CivicEngage] Scraping ${CIVICENGAGE_AGENCIES.length} public city bid pages...`);
+  const opps = [];
+  // Fetch all pages in parallel — no auth needed
+  const results = await Promise.allSettled(
+    CIVICENGAGE_AGENCIES.map(async agency => {
+      const res = await fetch(agency.url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
+        signal: AbortSignal.timeout(12000)
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const html = await res.text();
+      const agencyOpps = [];
+      // CivicEngage bid rows follow a consistent pattern
+      const rows = html.match(/<tr[^>]*class="[^"]*listingRow[^"]*"[^>]*>([\s\S]*?)<\/tr>/gi) ||
+                   html.match(/<tr[^>]*>([\s\S]*?)<\/tr>/gi) || [];
+      for (const row of rows) {
+        const text = row.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+        if (text.length < 20) continue;
+        if (!BIDDINGUSA_KEYWORDS.some(kw => text.toLowerCase().includes(kw))) continue;
+        const titleMatch = row.match(/href="([^"]+)"[^>]*>([^<]{10,})</i);
+        if (!titleMatch) continue;
+        const title = titleMatch[2].trim();
+        if (title.length < 8) continue;
+        const href = titleMatch[1];
+        const link = href.startsWith('http') ? href : `${new URL(agency.url).origin}${href.startsWith('/') ? '' : '/'}${href}`;
+        const deadlineMatch = text.match(/\b(\d{1,2}\/\d{1,2}\/\d{4})\b/);
+        agencyOpps.push({
+          title, agency: agency.name,
+          deadline: deadlineMatch ? deadlineMatch[1] : null,
+          scope: text.slice(0, 200),
+          source_url: link
+        });
+      }
+      return agencyOpps;
+    })
+  );
+  for (const result of results) {
+    if (result.status === 'fulfilled') opps.push(...result.value);
+  }
+  console.log(`[CivicEngage] Total: ${opps.length} opportunities across ${CIVICENGAGE_AGENCIES.length} cities`);
+  return opps;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Standalone city/agency procurement page scrapers
+// These agencies run their own bid pages outside any portal.
+// Add new entries to STANDALONE_PAGES — no other code change needed.
+// ─────────────────────────────────────────────────────────────────────────────
+const STANDALONE_PAGES = [
+  // ── Ports & Harbors ──────────────────────────────────────────────────────
+  { name: 'Port of Oakland',             url: 'https://www.portofoakland.com/business/bids-rfp-center',              baseUrl: 'https://www.portofoakland.com' },
+  { name: 'Port of San Francisco',       url: 'https://sfport.com/business-opportunities/bids-and-rfps',             baseUrl: 'https://sfport.com' },
+  // ── Regional Transit ─────────────────────────────────────────────────────
+  { name: 'BART',                        url: 'https://www.bart.gov/about/business/bids',                            baseUrl: 'https://www.bart.gov' },
+  { name: 'AC Transit',                  url: 'https://www.actransit.org/procurement/solicitations',                 baseUrl: 'https://www.actransit.org' },
+  { name: 'Caltrain / JPB',             url: 'https://www.caltrain.com/about_caltrain/doing-business/bids-and-rfps.html', baseUrl: 'https://www.caltrain.com' },
+  { name: 'VTA',                         url: 'https://www.vta.org/business-opportunities/current-solicitations',    baseUrl: 'https://www.vta.org' },
+  { name: 'SMART Rail',                  url: 'https://www.sonomamarintrain.org/procurement',                        baseUrl: 'https://www.sonomamarintrain.org' },
+  { name: 'Golden Gate Transit',         url: 'https://www.goldengate.org/about/contracting-opportunities/',         baseUrl: 'https://www.goldengate.org' },
+  { name: 'SamTrans',                    url: 'https://www.samtrans.com/about/contracting/current-opportunities.html', baseUrl: 'https://www.samtrans.com' },
+  { name: 'SFMTA',                       url: 'https://www.sfmta.com/business-sfmta/contracts-bids',                 baseUrl: 'https://www.sfmta.com' },
+  // ── Regional Planning & Environment ──────────────────────────────────────
+  { name: 'MTC / ABAG',                  url: 'https://mtc.ca.gov/about-mtc/doing-business-mtc/requests-proposals',  baseUrl: 'https://mtc.ca.gov' },
+  { name: 'BCDC',                        url: 'https://www.bcdc.ca.gov/about-bcdc/doing-business/',                  baseUrl: 'https://www.bcdc.ca.gov' },
+  { name: 'BAAQMD',                      url: 'https://www.baaqmd.gov/about-the-air-district/business-with-the-air-district/bids-and-rfps', baseUrl: 'https://www.baaqmd.gov' },
+  { name: 'EBRPD',                       url: 'https://www.ebparks.org/about/business/bids',                         baseUrl: 'https://www.ebparks.org' },
+  { name: 'MROSD',                       url: 'https://www.openspace.org/about-us/departments/administrative-services/purchasing', baseUrl: 'https://www.openspace.org' },
+  // ── Water Agencies ───────────────────────────────────────────────────────
+  { name: 'SFPUC',                       url: 'https://sfpuc.org/construction-contracts/contracting-doing-business/bids-rfps', baseUrl: 'https://sfpuc.org' },
+  { name: 'EBMUD',                       url: 'https://www.ebmud.com/about-us/business-opportunities/',              baseUrl: 'https://www.ebmud.com' },
+  { name: 'SCVWD (Valley Water)',        url: 'https://www.valleywater.org/business/bids',                           baseUrl: 'https://www.valleywater.org' },
+  { name: 'Sonoma Water',                url: 'https://sonomawater.org/bids',                                        baseUrl: 'https://sonomawater.org' },
+  { name: 'Marin Municipal Water',       url: 'https://www.marinwater.org/bids',                                     baseUrl: 'https://www.marinwater.org' },
+  { name: 'Zone 7 Water Agency',         url: 'https://www.zone7water.com/bids',                                     baseUrl: 'https://www.zone7water.com' },
+  // ── Counties ─────────────────────────────────────────────────────────────
+  { name: 'Alameda County',              url: 'https://www.acgov.org/gsa/purchasing/bids.htm',                       baseUrl: 'https://www.acgov.org' },
+  { name: 'Contra Costa County',         url: 'https://www.contracosta.ca.gov/government/departments/purchasing/bids-and-rfps', baseUrl: 'https://www.contracosta.ca.gov' },
+  { name: 'Marin County',               url: 'https://www.marincounty.org/depts/pur/bids-and-rfps',                 baseUrl: 'https://www.marincounty.org' },
+  { name: 'Sonoma County',              url: 'https://sonomacounty.ca.gov/general-services/purchasing/bids/',        baseUrl: 'https://sonomacounty.ca.gov' },
+  { name: 'Napa County',               url: 'https://www.countyofnapa.org/bids',                                    baseUrl: 'https://www.countyofnapa.org' },
+  { name: 'Solano County',              url: 'https://www.solanocounty.com/bids',                                    baseUrl: 'https://www.solanocounty.com' },
+  { name: 'San Mateo County',           url: 'https://www.smcgov.org/purchasing/bids-and-rfps',                     baseUrl: 'https://www.smcgov.org' },
+  { name: 'City & County of SF',        url: 'https://sfcitypartner.sfgov.org/pages/solicitations.aspx',            baseUrl: 'https://sfcitypartner.sfgov.org' },
+  // ── Cities ───────────────────────────────────────────────────────────────
+  { name: 'City of Oakland',            url: 'https://www.oaklandca.gov/government/departments/contracting-and-purchasing/bids-and-rfps', baseUrl: 'https://www.oaklandca.gov' },
+  { name: 'City of Berkeley',           url: 'https://www.cityofberkeley.info/bids/',                               baseUrl: 'https://www.cityofberkeley.info' },
+  { name: 'City of Richmond',           url: 'https://www.ci.richmond.ca.us/bids',                                  baseUrl: 'https://www.ci.richmond.ca.us' },
+  { name: 'City of Hayward',            url: 'https://www.hayward-ca.gov/doing-business/bids-rfps',                 baseUrl: 'https://www.hayward-ca.gov' },
+  { name: 'City of Concord',            url: 'https://www.cityofconcord.org/bids',                                  baseUrl: 'https://www.cityofconcord.org' },
+  { name: 'City of Walnut Creek',       url: 'https://www.walnut-creek.org/bids',                                   baseUrl: 'https://www.walnut-creek.org' },
+  { name: 'City of San Ramon',          url: 'https://www.sanramon.ca.gov/bids',                                    baseUrl: 'https://www.sanramon.ca.gov' },
+  { name: 'City of Pleasanton',         url: 'https://www.cityofpleasantonca.gov/bids',                             baseUrl: 'https://www.cityofpleasantonca.gov' },
+  { name: 'City of Vallejo',            url: 'https://www.cityofvallejo.net/bids',                                  baseUrl: 'https://www.cityofvallejo.net' },
+  { name: 'City of Fairfield',          url: 'https://www.fairfield.ca.gov/bids',                                   baseUrl: 'https://www.fairfield.ca.gov' },
+  { name: 'City of Vacaville',          url: 'https://www.cityofvacaville.com/bids',                                baseUrl: 'https://www.cityofvacaville.com' },
+  { name: 'City of Napa',              url: 'https://www.cityofnapa.org/bids',                                      baseUrl: 'https://www.cityofnapa.org' },
+  { name: 'City of Petaluma',          url: 'https://cityofpetaluma.org/bids',                                      baseUrl: 'https://cityofpetaluma.org' },
+  { name: 'City of Santa Rosa',        url: 'https://srcity.org/bids',                                              baseUrl: 'https://srcity.org' },
+  { name: 'City of Redwood City',      url: 'https://www.redwoodcity.org/bids',                                     baseUrl: 'https://www.redwoodcity.org' },
+  { name: 'City of San Mateo',         url: 'https://www.cityofsanmateo.org/bids',                                  baseUrl: 'https://www.cityofsanmateo.org' },
+  { name: 'City of Palo Alto',         url: 'https://www.cityofpaloalto.org/bids',                                  baseUrl: 'https://www.cityofpaloalto.org' },
+  { name: 'City of Sunnyvale',         url: 'https://sunnyvale.ca.gov/bids',                                        baseUrl: 'https://sunnyvale.ca.gov' },
+  { name: 'City of Santa Clara',       url: 'https://www.santaclaraca.gov/bids',                                    baseUrl: 'https://www.santaclaraca.gov' },
+  { name: 'City of Milpitas',          url: 'https://www.ci.milpitas.ca.gov/bids',                                  baseUrl: 'https://www.ci.milpitas.ca.gov' },
+  { name: 'City of Cupertino',         url: 'https://www.cupertino.org/bids',                                       baseUrl: 'https://www.cupertino.org' },
+  { name: 'City of Los Gatos',         url: 'https://www.losgatosca.gov/bids',                                      baseUrl: 'https://www.losgatosca.gov' },
+  { name: 'City of Benicia',           url: 'https://www.ci.benicia.ca.us/bids',                                    baseUrl: 'https://www.ci.benicia.ca.us' },
+  { name: 'City of Emeryville',        url: 'https://www.emeryville.org/bids',                                      baseUrl: 'https://www.emeryville.org' },
+  { name: 'City of Piedmont',          url: 'https://www.piedmont.ca.gov/bids',                                     baseUrl: 'https://www.piedmont.ca.gov' },
+  { name: 'City of San Leandro',       url: 'https://www.sanleandro.org/bids',                                      baseUrl: 'https://www.sanleandro.org' },
+];
+
+const STANDALONE_KEYWORDS = [
+  'engagement', 'outreach', 'facilitation', 'consensus', 'mediation',
+  'strategic plan', 'organizational', 'environmental', 'community',
+  'planning', 'public', 'stakeholder'
+];
+
+async function scrapeStandalonePages() {
+  const opps = [];
+  await Promise.allSettled(STANDALONE_PAGES.map(async page => {
+    try {
+      console.log(`[Standalone] Fetching ${page.name}...`);
+      const res = await fetch(page.url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
+        signal: AbortSignal.timeout(15000)
+      });
+      if (!res.ok) { console.warn(`[Standalone] ${page.name} HTTP ${res.status}`); return; }
+      const html = await res.text();
+
+      // Extract all text blocks that look like bid titles
+      // Strategy: find all links + surrounding text, filter by keyword
+      const linkBlocks = [];
+      const linkRe = /href="([^"]+)"[^>]*>([\s\S]{5,200}?)<\/a>/gi;
+      let m;
+      while ((m = linkRe.exec(html)) !== null) {
+        const href = m[1];
+        const text = m[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+        if (text.length < 8 || text.length > 200) continue;
+        const lower = text.toLowerCase();
+        if (!STANDALONE_KEYWORDS.some(kw => lower.includes(kw))) continue;
+        // Skip nav/footer links
+        if (/^(home|about|contact|news|menu|search|login|sign)/i.test(text)) continue;
+        const fullUrl = href.startsWith('http') ? href : (href.startsWith('/') ? page.baseUrl + href : page.url);
+        linkBlocks.push({ title: text, source_url: fullUrl });
+      }
+
+      // Deduplicate by title within this page
+      const seen = new Set();
+      for (const item of linkBlocks) {
+        const key = item.title.toLowerCase().slice(0, 60);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        opps.push({
+          title:      item.title,
+          agency:     page.name,
+          deadline:   null,
+          scope:      'Direct procurement page',
+          source_url: item.source_url,
+          via:        'Standalone'
+        });
+      }
+      console.log(`[Standalone] ${page.name}: found ${seen.size} keyword-matched items`);
+    } catch(err) {
+      console.warn(`[Standalone] ${page.name} failed: ${err.message}`);
+    }
+  }));
+  return opps;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1252,7 +1635,7 @@ async function runMORSReport() {
   console.log(`[${new Date().toISOString()}] Starting MORS report for ${today} — ${geo.label}`);
 
   // ── Fetch everything in parallel — memory, sources, news RSS, portal scrapers ──
-  const [memoryPatterns, searchSources, mediaSources, existingOpps, newsItems, findrfpOpps, opengovOpps, bonfireOpps, planetbidsOpps] = await Promise.all([
+  const [memoryPatterns, searchSources, mediaSources, existingOpps, newsItems, findrfpOpps, opengovOpps, bonfireOpps, planetbidsOpps, biddingusaOpps, bidnetOpps, civicengageOpps, standaloneOpps] = await Promise.all([
     fetchProjectMemory(),
     fetchSearchSources(),
     fetchMediaSources(),
@@ -1261,7 +1644,11 @@ async function runMORSReport() {
     scrapeFindrfp(),
     scrapeOpengov(),
     scrapeBonfire(),
-    scrapePlanetbids()
+    scrapePlanetbids(),
+    scrapeBiddingusa(),
+    scrapeBidnet(),
+    scrapeCivicengage(),
+    scrapeStandalonePages()
   ]);
 
   // Seen-titles set — grows as we save, prevents within-run and cross-run duplicates
@@ -1501,7 +1888,11 @@ OUTPUT FORMAT — use exactly these delimiters:
   const portalOpps = [
     ...opengovOpps.map(o => ({ ...o, tag: '[via OpenGov]' })),
     ...bonfireOpps.map(o => ({ ...o, tag: '[via Bonfire]' })),
-    ...planetbidsOpps.map(o => ({ ...o, tag: '[via PlanetBids]' }))
+    ...planetbidsOpps.map(o => ({ ...o, tag: '[via PlanetBids]' })),
+    ...biddingusaOpps.map(o => ({ ...o, tag: '[via BiddingUSA]' })),
+    ...bidnetOpps.map(o => ({ ...o, tag: '[via BidNet]' })),
+    ...civicengageOpps.map(o => ({ ...o, tag: '[via CivicEngage]' })),
+    ...standaloneOpps.map(o => ({ ...o, tag: '[via Direct]' }))
   ];
   let portalCount = 0, portalSkipped = 0;
   for (const opp of portalOpps) {
@@ -1518,7 +1909,7 @@ OUTPUT FORMAT — use exactly these delimiters:
       portalCount++;
     } catch(e) { console.warn(`Portal opp save failed (${opp.title}):`, e.message); }
   }
-  if (portalCount > 0 || portalSkipped > 0) console.log(`[${new Date().toISOString()}] Saved ${portalCount} portal opportunities (${portalSkipped} duplicates skipped — OpenGov/Bonfire/PlanetBids)`);
+  if (portalCount > 0 || portalSkipped > 0) console.log(`[${new Date().toISOString()}] Saved ${portalCount} portal opportunities (${portalSkipped} duplicates skipped — OpenGov/Bonfire/PlanetBids/BiddingUSA/BidNet/CivicEngage/Direct)`);
 
   // ── Parse and save Track 2 items individually ─────────────────────────────
   if (track2_html && track2_html !== "<p>No Track 2 data.</p>") {
