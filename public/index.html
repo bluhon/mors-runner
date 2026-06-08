@@ -1154,11 +1154,11 @@ function formatTrackItems(html, track = '') {
     if (mainBody) out += `<p>${mainBody}</p>`;
     if (anglePart) out += `<p class="bluhon-angle">${anglePart}</p>`;
     if (sourceLink) out += `<p style="margin-top:8px;">${sourceLink}</p>`;
-    if (track === ‘Track 2’ || track === ‘Track 3’) {
-      const rawTitle   = (title || ‘Untitled’).slice(0, 120);
+    if (track === 'Track 2' || track === 'Track 3') {
+      const rawTitle   = (title || 'Untitled').slice(0, 120);
       const rawUrl     = sourceHref.slice(0, 300);
-      const rawSummary = (mainBody + (anglePart ? ‘ ‘ + anglePart : ‘’)).replace(/<[^>]+>/g, ‘’).slice(0, 500);
-      const trackLabel = track === ‘Track 2’ ? ‘2 — Emerging Issue’ : ‘3 — Prime Firm’;
+      const rawSummary = (mainBody + (anglePart ? ' ' + anglePart : '')).replace(/<[^>]+>/g, '').slice(0, 500);
+      const trackLabel = track === 'Track 2' ? '2 — Emerging Issue' : '3 — Prime Firm';
       // Use data-* attributes to avoid inline JS quoting issues with special characters in article text
       out += `<div style="margin-top:10px"><button class="btn btn-ghost btn-sm save-to-pipeline-btn"
         data-title="${escHtml(rawTitle)}"
@@ -1315,7 +1315,7 @@ function renderPipeline(opps) {
     const dlStr = dl ? dl.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
     const isUrgent = dl && (dl - new Date()) < 10 * 86400000;
     const shortTitle = (f.title||'—').length > 80 ? (f.title||'—').slice(0,80)+'…' : (f.title||'—');
-    const safeTitle = (f.title||'Untitled').replace(/\\/g,'').replace(/'/g,'’').slice(0,60);
+    const safeTitle = (f.title||'Untitled').replace(/\\/g,'').replace(/'/g,'&#39;').slice(0,60);
     const canvasBtn = canvas
       ? `<button class="btn btn-ghost btn-sm" onclick="openCanvas('${canvas.id}')"><i class="ti ti-layout-board"></i> Canvas</button>`
       : `<button class="btn btn-ghost btn-sm" onclick="makePipelineCanvas('${o.id}','${safeTitle}')"><i class="ti ti-plus"></i> Create Canvas</button>`;
