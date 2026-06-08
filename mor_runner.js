@@ -1606,12 +1606,13 @@ function parseTrack2Items(html) {
 // Routes
 // ─────────────────────────────────────────────────────────────────────────────
 app.post("/run", async (req, res) => {
+  // Respond immediately so the frontend can poll for completion
+  res.json({ success: true, status: 'started' });
   try {
-    const record = await runMORSReport();
-    res.json({ success: true, recordId: record.id });
+    await runMORSReport();
+    console.log(`[${new Date().toISOString()}] Manual run complete`);
   } catch (err) {
     console.error("Report run failed:", err);
-    res.status(500).json({ success: false, error: err.message });
   }
 });
 

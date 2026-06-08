@@ -1175,6 +1175,7 @@ function renderReport() {
   html += `<div class="track-header t1"><span class="track-number">01</span> Active RFPs</div><div id="track1-opps-container"></div>`;
   if (report.fields.track2_html) { html += `<div class="track-header t2"><span class="track-number" style="color:var(--info)">02</span> Emerging Issues</div><div class="track-body">${formatTrackItems(clean(report.fields.track2_html))}</div>`; }
   if (report.fields.track3_html) { html += `<div class="track-header t3"><span class="track-number" style="color:var(--warning)">03</span> Prime Firm Activity</div><div class="track-body">${formatTrackItems(clean(report.fields.track3_html))}</div>`; }
+  if (report.fields.track4_html) { html += `<div class="track-header" style="border-left-color:#7c5cbf"><span class="track-number" style="color:#7c5cbf">04</span> Governing Body Pipeline</div><div class="track-body">${formatTrackItems(clean(report.fields.track4_html))}</div>`; }
   content.innerHTML = `<div class="report-reading-col">${html || '<div class="empty-state"><i class="ti ti-report-search"></i><div class="empty-state-title">No content</div></div>'}</div>`;
 }
 async function navReport(dir) {
@@ -1193,28 +1194,41 @@ async function triggerManualRun() {
   const btn = document.getElementById('rerun-btn');
   btn.innerHTML = '<span class="spinner"></span> Waking up runner…';
   btn.disabled = true;
-  showToast('Waking up runner — may take 60–90 seconds on first call…', 'success');
+  showToast('Report running — will load automatically when ready (3–5 min)…', 'success');
+  const snapshotDate = allReports[0]?.fields?.report_date || '';
+  const snapshotTs   = allReports[0]?.fields?.run_timestamp || '';
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 180000); // 3 min timeout
-    const res = await fetch('https://mors-runner.onrender.com/run', {
-      method: 'POST',
-      signal: controller.signal
-    });
-    clearTimeout(timeout);
-    btn.innerHTML = '<span class="spinner"></span> Saving report…';
+    const res = await fetch('https://mors-runner.onrender.com/run', { method: 'POST' });
     const data = await res.json();
-    if (data.success) {
-      showToast('Report complete! Loading…', 'success');
-      await loadReport();
-    } else {
+    if (!data.success) {
       showToast('Runner error: ' + (data.error || 'unknown'), 'error');
+      btn.innerHTML = '↻ Wake up Runner'; btn.disabled = false; return;
     }
+    // Fast-poll every 15s until a newer report appears (up to 10 minutes)
+    btn.innerHTML = '<span class="spinner"></span> Running…';
+    let attempts = 0;
+    const poll = setInterval(async () => {
+      attempts++;
+      try {
+        const r = await atFetch(CONFIG.TABLES.DAILY_REPORTS, '?sort[0][field]=report_date&sort[0][direction]=desc&maxRecords=1');
+        const latest = (r.records || [])[0];
+        const latestDate = latest?.fields?.report_date || '';
+        const latestTs   = latest?.fields?.run_timestamp || '';
+        const isNewer = latestDate > snapshotDate || (latestDate === snapshotDate && latestTs > snapshotTs);
+        if (isNewer) {
+          clearInterval(poll);
+          btn.innerHTML = '↻ Wake up Runner'; btn.disabled = false;
+          showToast('New report ready — loading now', 'success');
+          await loadReport();
+        } else if (attempts >= 40) { // 40 × 15s = 10 min timeout
+          clearInterval(poll);
+          btn.innerHTML = '↻ Wake up Runner'; btn.disabled = false;
+          showToast('Report is taking longer than expected — try refreshing in a minute', 'error');
+        }
+      } catch { /* keep polling silently */ }
+    }, 15000);
   } catch (err) {
-    if (err.name === 'AbortError') {
-      showToast('Runner timed out — check back in a minute and refresh', 'error');
-    } else {
-      showToast('Could not reach runner: ' + err.message, 'error');
+    showToast('Could not reach runner: ' + err.message, 'error');
     }
   }
   btn.innerHTML = '<i class="ti ti-refresh"></i> Re-run now';
