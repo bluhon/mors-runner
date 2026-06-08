@@ -1669,6 +1669,15 @@ async function runMORSReport() {
     return false;
   }
 
+  // Hard 45-day date gate — drop anything with a deadline older than 45 days ago
+  const _45daysAgo = Date.now() - (45 * 24 * 60 * 60 * 1000);
+  function isTooOld(deadline) {
+    if (!deadline) return false; // no deadline — keep, let reviewer decide
+    const d = new Date(deadline);
+    if (isNaN(d.getTime())) return false; // unparseable — keep
+    return d.getTime() < _45daysAgo;
+  }
+
   // Build dynamic system prompt additions
   let dynamicSystemPrompt = SYSTEM_PROMPT;
   if (memoryPatterns.length > 0) {
@@ -1856,6 +1865,7 @@ OUTPUT FORMAT — use exactly these delimiters:
   let oppCount = 0, oppSkipped = 0;
   for (const opp of opps) {
     if (isDuplicate(opp.title)) { oppSkipped++; continue; }
+    if (isTooOld(opp.deadline)) { oppSkipped++; console.log(`[date-filter] Dropped stale: ${opp.title} (deadline ${opp.deadline})`); continue; }
     try {
       await atPost(AIRTABLE_OPPS_TABLE, {
         title:      opp.title,
@@ -1876,6 +1886,7 @@ OUTPUT FORMAT — use exactly these delimiters:
   let findrfpCount = 0, findrfpSkipped = 0;
   for (const opp of findrfpOpps) {
     if (isDuplicate(opp.title)) { findrfpSkipped++; continue; }
+    if (isTooOld(opp.deadline)) { findrfpSkipped++; console.log(`[date-filter] Dropped stale FindRFP: ${opp.title}`); continue; }
     try {
       await atPost(AIRTABLE_OPPS_TABLE, {
         title:      `${opp.title} [via FindRFP]`,
@@ -1905,6 +1916,7 @@ OUTPUT FORMAT — use exactly these delimiters:
   let portalCount = 0, portalSkipped = 0;
   for (const opp of portalOpps) {
     if (isDuplicate(opp.title)) { portalSkipped++; continue; }
+    if (isTooOld(opp.deadline)) { portalSkipped++; console.log(`[date-filter] Dropped stale portal opp: ${opp.title}`); continue; }
     try {
       await atPost(AIRTABLE_OPPS_TABLE, {
         title:      `${opp.title} ${opp.tag}`,
