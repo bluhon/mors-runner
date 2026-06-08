@@ -1746,10 +1746,15 @@ Run MORS Tracks 1 and 2 only. Search thoroughly.
 
 CRITICAL DATE FILTER: Only include RFPs issued after ${cutoffStr} (last 45 days). Before including any result, verify the issue date or posting date on the source page. If you cannot confirm the posting date is within 45 days, EXCLUDE it.
 
-CRITICAL SOLICITATION FILTER — TRACK 1 REQUIRES ALL THREE OF THESE. IF ANY IS MISSING, IT IS NOT TRACK 1:
-① A solicitation number (RFP-XXXX, RFQ-XXXX, IFB-XXXX, SOQ-XXXX, or equivalent)
-② A specific proposal submission deadline (an actual date, not "TBD" or "coming soon")
-③ A link to an actual procurement document or formal portal listing (not a project homepage)
+CRITICAL SOLICITATION FILTER — TO QUALIFY AS TRACK 1, A RESULT MUST MEET BOTH CONDITIONS:
+
+CONDITION A (ALWAYS REQUIRED — no exceptions):
+A formally posted RFP or RFQ — an actual procurement solicitation document or portal listing. RFP and RFQ are both fully legitimate and equally valid. IFB, SOQ, and Notice of Intent to Award also qualify. If there is no posted solicitation document, it is NOT Track 1, period.
+
+CONDITION B (at least one of these must also be present):
+- A specific submission deadline date, OR
+- A solicitation number (RFP-XXXX, RFQ-XXXX, or equivalent)
+Ideally both are present. If neither exists, the posting is too preliminary to act on — exclude from Track 1.
 
 AUTOMATIC DISQUALIFIERS — these are NEVER Track 1, no matter how relevant the topic:
 - Agency project pages that say "seeking a consultant" or "bringing on a consultant team" but have no posted RFP → Track 2
