@@ -1620,6 +1620,14 @@ async function runClaudeSearch(userPrompt, attempt = 1, systemPromptOverride = n
       await new Promise(resolve => setTimeout(resolve, waitMs));
       return runClaudeSearch(userPrompt, attempt + 1, systemPromptOverride);
     }
+    // Retry on socket/connection errors from Anthropic API (HTTP/2 drops)
+    const isSocketError = err.code === 'UND_ERR_SOCKET' || err.message?.includes('other side closed') || err.message?.includes('socket');
+    if (isSocketError && attempt <= 3) {
+      const waitMs = attempt * 15000;
+      console.log(`[${new Date().toISOString()}] Socket error on Claude API — retrying in ${waitMs/1000}s (attempt ${attempt}/3)`);
+      await new Promise(resolve => setTimeout(resolve, waitMs));
+      return runClaudeSearch(userPrompt, attempt + 1, systemPromptOverride);
+    }
     throw err;
   }
 }
@@ -2277,6 +2285,14 @@ cron.schedule("30 9 * * 1-5", () => {
   console.log("Cron triggered: running MORS report");
   runMORSReport().catch(err => console.error("Cron report failed:", err));
 }, { timezone: "America/Los_Angeles" });
+
+// Prevent socket errors from crashing the process — log and continue
+process.on('uncaughtException', (err) => {
+  console.error(`[${new Date().toISOString()}] Uncaught exception (process kept alive):`, err.message, err.code || '');
+});
+process.on('unhandledRejection', (reason) => {
+  console.error(`[${new Date().toISOString()}] Unhandled rejection (process kept alive):`, reason);
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
