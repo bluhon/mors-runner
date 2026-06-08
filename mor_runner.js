@@ -471,9 +471,46 @@ function parseRSSXml(xml, sourceName) {
   return items;
 }
 
+const KEYWORD_WEIGHTS = {
+  // Tier 1 — core Bluhon services (3 pts)
+  'public engagement': 3, 'community engagement': 3, 'facilitation': 3,
+  'mediation': 3, 'consensus': 3, 'ceqa': 3, 'eir': 3,
+  'environmental impact report': 3, 'conflict resolution': 3,
+  // Tier 2 — strong signals (2 pts)
+  'community outreach': 2, 'stakeholder': 2, 'land use': 2,
+  'planning commission': 2, 'facility siting': 2, 'community opposition': 2,
+  'neighborhood opposition': 2, 'environmental review': 2, 'public hearing': 2,
+  'general plan': 2, 'specific plan': 2, 'entitlement': 2, 'water rights': 2,
+  'board of supervisors': 2, 'city council': 2, 'rezoning': 2,
+  // Tier 3 — general signals (1 pt)
+  'outreach': 1, 'dispute': 1, 'controversy': 1, 'opposition': 1,
+  'contested': 1, 'zoning': 1, 'housing project': 1, 'development project': 1,
+  'infrastructure': 1, 'advisory committee': 1, 'task force': 1,
+  'contract award': 1, 'rfp': 1, 'professional services': 1,
+};
+
+const BAY_AREA_TERMS = [
+  'marin', 'alameda', 'contra costa', 'santa clara', 'sonoma', 'napa',
+  'san mateo', 'solano', 'bay area', 'oakland', 'berkeley', 'san jose',
+  'san francisco', 'richmond', 'novato', 'livermore', 'palo alto',
+  'danville', 'half moon bay', 'redwood city', 'east bay', 'north bay',
+];
+
+function scoreRelevance(item) {
+  const title   = (item.title   || '').toLowerCase();
+  const summary = (item.summary || '').toLowerCase();
+  let score = 0;
+  for (const [kw, pts] of Object.entries(KEYWORD_WEIGHTS)) {
+    if (title.includes(kw))   score += pts * 2; // title match weighted double
+    if (summary.includes(kw)) score += pts;
+  }
+  const fullText = `${title} ${summary}`;
+  if (BAY_AREA_TERMS.some(t => fullText.includes(t))) score += 2;
+  return score;
+}
+
 function isNewsRelevant(item) {
-  const text = `${item.title} ${item.summary}`.toLowerCase();
-  return BLUHON_KEYWORDS.some(kw => text.includes(kw));
+  return scoreRelevance(item) > 0;
 }
 
 async function fetchGoogleNewsRSS(query) {
@@ -545,8 +582,10 @@ async function fetchAllNewsItems() {
     }
   }
 
-  // Sort by pubDate descending (newest first)
+  // Score and sort by relevance to Bluhon's core work (desc), then freshness as tiebreaker
+  items.forEach(item => { item._score = scoreRelevance(item); });
   items.sort((a, b) => {
+    if (b._score !== a._score) return b._score - a._score;
     const da = a.pubDate ? new Date(a.pubDate).getTime() : 0;
     const db = b.pubDate ? new Date(b.pubDate).getTime() : 0;
     return db - da;
@@ -1265,7 +1304,7 @@ For each item you select, write:
 - Who at the agency Bluhon should contact
 - Link to the source article
 
-Include up to 25 items. Prioritize by relevance: items closest to an active procurement or imminent public process first, then local conflicts, CEQA disputes, land use, facility siting, governing body actions.
+Include up to 25 items. The pre-fetched items are already sorted by relevance score (most relevant to Bluhon's core work first). Maintain this ordering in your output, but use your judgment to elevate any item where the headline undersells its significance (e.g. a CEQA dispute buried in a general planning story).
 
 TRACK 2 OUTPUT FORMAT: Group items under these <h2> headings based on the source outlet type:
 <h2>Local News</h2>  — neighborhood/city-level outlets
