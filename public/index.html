@@ -129,6 +129,7 @@ html,body{height:100%;background:var(--bg);color:#000000;font-family:'Source San
 .track-body h3{font-family:'Source Sans 3',Arial,sans-serif;font-size:1.25rem;font-weight:700;color:#000;line-height:1.35;margin:0 0 6px 0;padding:0}
 .track-body p{font-family:'Source Sans 3',Arial,sans-serif;font-size:1.05rem;color:#000;line-height:1.6;margin:0 0 4px 0}
 .track-body p.bluhon-angle{margin-top:6px;display:block}
+.pf-btn.pf-active{box-shadow:0 2px 8px rgba(0,0,0,.18);font-weight:700;border-color:#555!important}
 .track-item{margin-bottom:32px;padding-bottom:0}
 .track-item-border{padding-top:28px;border-top:1px solid #e0e0e0}.track-body ul,.track-body ol{padding-left:22px;margin-top:4px}
 .track-body li{font-size:1.05rem;line-height:1.6;margin-bottom:8px}
@@ -384,11 +385,11 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
       <div class="page-body">
         <div class="page-inner">
         <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
-          <button class="btn btn-ghost btn-sm" onclick="filterPipeline('all',this)">All</button>
-          <button class="btn btn-ghost btn-sm" onclick="filterPipeline('1',this)" style="background:#ddeeff">1 — RFPs</button>
-          <button class="btn btn-ghost btn-sm" onclick="filterPipeline('2',this)" style="background:#fef9c3">2 — Emerging Issues</button>
-          <button class="btn btn-ghost btn-sm" onclick="filterPipeline('3',this)" style="background:#fde8d8">3 — Primes</button>
-          <button class="btn btn-ghost btn-sm" onclick="filterPipeline('4',this)" style="background:#d8f5e0">4 — Gov/Agency</button>
+          <button class="btn btn-ghost btn-sm pf-btn pf-active" onclick="filterPipeline('all',this)">All</button>
+          <button class="btn btn-ghost btn-sm pf-btn" onclick="filterPipeline('1',this)" style="background:#ddeeff" data-bg="#ddeeff" data-active-bg="#aaccff">1 — RFPs</button>
+          <button class="btn btn-ghost btn-sm pf-btn" onclick="filterPipeline('2',this)" style="background:#fef9c3" data-bg="#fef9c3" data-active-bg="#f5e04a">2 — Emerging Issues</button>
+          <button class="btn btn-ghost btn-sm pf-btn" onclick="filterPipeline('3',this)" style="background:#fde8d8" data-bg="#fde8d8" data-active-bg="#f9c5a0">3 — Primes</button>
+          <button class="btn btn-ghost btn-sm pf-btn" onclick="filterPipeline('4',this)" style="background:#d8f5e0" data-bg="#d8f5e0" data-active-bg="#9de0b0">4 — Gov/Agency</button>
         </div>
         <div id="pipeline-content">
           <div class="empty-state">
@@ -1380,12 +1381,14 @@ function formatTrackItems(html, track = '') {
 
     if (isArticleTrack) {
       const rawTitle   = (titleText || firmOrTitle || 'Untitled').slice(0, 120);
+      const rawFirm    = track === 'Track 3' ? escHtml(firmOrTitle.slice(0, 80)) : '';
       const rawUrl     = sourceHref.slice(0, 300);
       const rawSummary = (bodyText + (angleText ? ' ' + angleText : '')).replace(/<[^>]+>/g, '').slice(0, 500);
       const trackLabel = track === 'Track 2' ? '2 — Emerging Issue' : track === 'Track 3' ? '3 — Prime Firm' : '4 — Governing Body';
       out += `<div style="display:flex;gap:8px;margin-top:12px;align-items:center">
         <button class="btn btn-ghost btn-sm save-to-pipeline-btn"
           data-title="${escHtml(rawTitle)}"
+          data-firm="${rawFirm}"
           data-url="${escHtml(rawUrl)}"
           data-summary="${escHtml(rawSummary)}"
           data-track="${escHtml(trackLabel)}"
@@ -1561,8 +1564,14 @@ function renderPipeline(opps) {
   el.innerHTML = html;
 }
 function filterPipeline(trackNum, btn) {
-  document.querySelectorAll('.pipeline-filter-btn').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
+  document.querySelectorAll('.pf-btn').forEach(b => {
+    b.classList.remove('pf-active');
+    if (b.dataset.bg) b.style.background = b.dataset.bg;
+  });
+  if (btn) {
+    btn.classList.add('pf-active');
+    if (btn.dataset.activeBg) btn.style.background = btn.dataset.activeBg;
+  }
   if (trackNum === 'all') { renderPipeline(allOpportunities); return; }
   renderPipeline(allOpportunities.filter(o => (o.fields.track || '').startsWith(trackNum)));
 }
@@ -1589,6 +1598,7 @@ async function deleteOpportunity(recordId, btn) {
 
 async function saveArticleToPipeline(btn) {
   const title      = btn.dataset.title      || 'Untitled';
+  const firm       = btn.dataset.firm       || '';
   const sourceUrl  = btn.dataset.url        || '';
   const summary    = btn.dataset.summary    || '';
   const trackLabel = btn.dataset.track      || '2 — Emerging Issue';
@@ -1596,13 +1606,9 @@ async function saveArticleToPipeline(btn) {
   btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Saving…';
   try {
     // Create opportunity record
-    const opp = await atCreate(CONFIG.TABLES.OPPORTUNITIES, {
-      title,
-      track:      trackLabel,
-      source_url: sourceUrl,
-      scope:      summary,
-      interest:   'Yes',
-    });
+    const oppFields = { title, track: trackLabel, source_url: sourceUrl, scope: summary, interest: 'Yes' };
+    if (firm) oppFields.agency = firm;
+    const opp = await atCreate(CONFIG.TABLES.OPPORTUNITIES, oppFields);
     if (opp && opp.id) allOpportunities.push(opp);
 
     // Create canvas pre-populated with article data
@@ -1616,7 +1622,7 @@ async function saveArticleToPipeline(btn) {
         files_list:      '[]',
         rfp_url:         sourceUrl,
         rfp_description: summary,
-        issuer_agency:   '',
+        issuer_agency:   firm || '',
       });
       if (canvas && canvas.id) allCanvases.push(canvas);
     }
