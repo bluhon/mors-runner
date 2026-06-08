@@ -626,19 +626,118 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
           </div>
         </div>
 
-        <!-- ── PROCUREMENT SOURCES ──────────────────────────────── -->
+        <!-- ── PROCUREMENT PORTALS (authenticated) ──────────────── -->
         <div>
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px">
             <div>
-              <div style="font-family:var(--font-head);font-size:1.25rem;font-weight:700;color:var(--brand)">Procurement Sources</div>
-              <div style="font-size:0.875rem;color:var(--muted);margin-top:2px">Portals the runner logs into and searches for Track 1 RFPs</div>
+              <div style="font-family:var(--font-head);font-size:1.25rem;font-weight:700;color:var(--brand)">Procurement Portals</div>
+              <div style="font-size:0.875rem;color:var(--muted);margin-top:2px">Portals the runner logs into with credentials (OpenGov, Bonfire, PlanetBids, etc.)</div>
             </div>
             <button class="btn btn-primary btn-sm" onclick="openAddSource()">
-              <i class="ti ti-plus"></i> Add Source
+              <i class="ti ti-plus"></i> Add Portal
             </button>
           </div>
           <div id="sources-content">
-            <div class="empty-state"><i class="ti ti-search"></i><div class="empty-state-title">No sources yet</div><p>Add procurement portals to track.</p></div>
+            <div class="empty-state"><i class="ti ti-search"></i><div class="empty-state-title">Loading…</div></div>
+          </div>
+        </div>
+
+        <!-- ── STANDALONE BID PAGES ──────────────────────────────── -->
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px">
+            <div>
+              <div style="font-family:var(--font-head);font-size:1.25rem;font-weight:700;color:var(--brand)">Standalone Bid Pages <span style="font-size:0.85rem;color:var(--muted);font-weight:400;font-family:var(--font-body)">(Track 1)</span></div>
+              <div style="font-size:0.875rem;color:var(--muted);margin-top:2px">Agency websites scraped directly for open solicitations — add any bid page here</div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-ghost btn-sm" onclick="seedStandaloneSources(this)" title="Load the built-in list of ~55 Bay Area agencies"><i class="ti ti-database-import"></i> Load Defaults</button>
+              <button class="btn btn-primary btn-sm" onclick="openAddStandalone()"><i class="ti ti-plus"></i> Add Page</button>
+            </div>
+          </div>
+          <!-- Add form -->
+          <div id="standalone-add-form" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;margin-bottom:14px">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+              <div style="flex:1;min-width:160px">
+                <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Agency Name</div>
+                <input class="form-input" id="new-standalone-name" placeholder="e.g. City of Palo Alto" style="margin:0">
+              </div>
+              <div style="flex:2;min-width:240px">
+                <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Bid Page URL</div>
+                <input class="form-input" id="new-standalone-url" placeholder="https://..." type="url" style="margin:0">
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="saveStandaloneSource()" style="height:40px;align-self:flex-end"><i class="ti ti-check"></i> Save</button>
+              <button class="btn btn-ghost btn-sm" onclick="document.getElementById('standalone-add-form').style.display='none'" style="height:40px;align-self:flex-end">Cancel</button>
+            </div>
+          </div>
+          <div id="standalone-content">
+            <div class="empty-state"><i class="ti ti-world"></i><div class="empty-state-title">No standalone pages yet</div><p>Click "Load Defaults" to seed ~55 Bay Area agencies, or add one manually.</p></div>
+          </div>
+        </div>
+
+        <!-- ── NEWS SOURCES (Track 2) ─────────────────────────────── -->
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px">
+            <div>
+              <div style="font-family:var(--font-head);font-size:1.25rem;font-weight:700;color:var(--brand)">News Sources <span style="font-size:0.85rem;color:var(--muted);font-weight:400;font-family:var(--font-body)">(Track 2)</span></div>
+              <div style="font-size:0.875rem;color:var(--muted);margin-top:2px">RSS feeds and news outlets scanned for emerging conflicts and issues</div>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="openAddNews()"><i class="ti ti-plus"></i> Add Source</button>
+          </div>
+          <div id="news-sources-add-form" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;margin-bottom:14px">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+              <div style="flex:1;min-width:160px">
+                <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Source Name</div>
+                <input class="form-input" id="new-news-name" placeholder="e.g. Berkeleyside" style="margin:0">
+              </div>
+              <div style="flex:2;min-width:240px">
+                <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">RSS Feed URL</div>
+                <input class="form-input" id="new-news-url" placeholder="https://.../feed" type="url" style="margin:0">
+              </div>
+              <div style="min-width:130px">
+                <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Type</div>
+                <select class="form-input" id="new-news-type" style="margin:0">
+                  <option value="RSS Feed">RSS Feed</option>
+                  <option value="Google News">Google News</option>
+                  <option value="Direct">Direct</option>
+                </select>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="saveNewsSource()" style="height:40px;align-self:flex-end"><i class="ti ti-check"></i> Save</button>
+              <button class="btn btn-ghost btn-sm" onclick="document.getElementById('news-sources-add-form').style.display='none'" style="height:40px;align-self:flex-end">Cancel</button>
+            </div>
+          </div>
+          <div id="news-sources-content">
+            <div class="empty-state"><i class="ti ti-rss"></i><div class="empty-state-title">Loading…</div></div>
+          </div>
+        </div>
+
+        <!-- ── FIRMS TO MONITOR (Track 3) ────────────────────────── -->
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px">
+            <div>
+              <div style="font-family:var(--font-head);font-size:1.25rem;font-weight:700;color:var(--brand)">Firms to Monitor <span style="font-size:0.85rem;color:var(--muted);font-weight:400;font-family:var(--font-body)">(Track 3)</span></div>
+              <div style="font-size:0.875rem;color:var(--muted);margin-top:2px">Prime teaming partners and direct competitors tracked for contract awards and moves</div>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="openAddFirm()"><i class="ti ti-plus"></i> Add Firm</button>
+          </div>
+          <div id="firms-add-form" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;margin-bottom:14px">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+              <div style="flex:1;min-width:160px">
+                <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Firm Name</div>
+                <input class="form-input" id="new-firm-name" placeholder="e.g. AECOM" style="margin:0">
+              </div>
+              <div style="min-width:160px">
+                <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Type</div>
+                <select class="form-input" id="new-firm-type" style="margin:0">
+                  <option value="Prime Firm">Prime Firm (teaming partner)</option>
+                  <option value="Competitor">Competitor</option>
+                </select>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="saveFirm()" style="height:40px;align-self:flex-end"><i class="ti ti-check"></i> Save</button>
+              <button class="btn btn-ghost btn-sm" onclick="document.getElementById('firms-add-form').style.display='none'" style="height:40px;align-self:flex-end">Cancel</button>
+            </div>
+          </div>
+          <div id="firms-content">
+            <div class="empty-state"><i class="ti ti-building"></i><div class="empty-state-title">Loading…</div></div>
           </div>
         </div>
 
@@ -752,7 +851,8 @@ const CONFIG = {
     SEARCH_SOURCES:     'tblsQwva2y8ABugYH',
     SEARCH_EXCLUSIONS:  'tblp4DRTk6uJPYsmm',
     USERS:              'tblVZEf4vqSEZiVCc',
-    TRACK2_ITEMS:       'tbl4f7N5EoaKRwRXK'
+    TRACK2_ITEMS:       'tbl4f7N5EoaKRwRXK',
+    MEDIA_SOURCES:      CONFIG.TABLES.MEDIA_SOURCES
   }
 };
 
@@ -2109,12 +2209,247 @@ async function deleteExclusion(id, btn) {
 }
 
 // ─── Search Sources ───────────────────────────────────────────────────────────
+let allNewsSources = [];
+let allStandaloneSources = [];
+let allFirmSources = [];
+
 async function loadSources() {
-  await Promise.all([
-    atFetch(CONFIG.TABLES.SEARCH_SOURCES, '?sort[0][field]=source_name&sort[0][direction]=asc').then(r => { allSources = r.records || []; }),
+  const [sourcesRes, newsRes, exclusionsRes] = await Promise.all([
+    atFetch(CONFIG.TABLES.SEARCH_SOURCES, '?sort[0][field]=source_name&sort[0][direction]=asc'),
+    atFetch(CONFIG.TABLES.MEDIA_SOURCES || CONFIG.TABLES.MEDIA_SOURCES, '?sort[0][field]=name&sort[0][direction]=asc&maxRecords=200'),
     loadExclusions()
   ]);
+  const all = sourcesRes.records || [];
+  allSources = all.filter(r => !['Standalone','Prime Firm','Competitor','Governing Body'].includes(r.fields.source_type));
+  allStandaloneSources = all.filter(r => r.fields.source_type === 'Standalone');
+  allFirmSources = all.filter(r => ['Prime Firm','Competitor'].includes(r.fields.source_type));
+  allNewsSources = newsRes.records || [];
   renderSources();
+  renderStandaloneSources();
+  renderNewsSources();
+  renderFirms();
+}
+
+// ── Standalone Sources ────────────────────────────────────────────────────────
+function renderStandaloneSources() {
+  const el = document.getElementById('standalone-content');
+  if (!el) return;
+  if (allStandaloneSources.length === 0) {
+    el.innerHTML = '<div class="empty-state"><i class="ti ti-world"></i><div class="empty-state-title">No standalone pages yet</div><p>Click "Load Defaults" to seed ~55 Bay Area agencies, or add one manually.</p></div>';
+    return;
+  }
+  let html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:10px">';
+  allStandaloneSources.forEach(s => {
+    const f = s.fields;
+    html += `<div class="card" style="padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+      <div style="min-width:0;flex:1">
+        <div style="font-weight:600;color:#000;font-size:0.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(f.source_name||'—')}</div>
+        ${f.url ? `<a href="${escHtml(f.url)}" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--brand);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:100%">${escHtml(f.url)}</a>` : ''}
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.8rem;color:var(--muted)">
+          <input type="checkbox" ${f.active ? 'checked' : ''} onchange="toggleStandaloneActive('${s.id}',this.checked)" style="accent-color:var(--brand);cursor:pointer">
+          On
+        </label>
+        <button class="btn btn-ghost btn-sm" style="color:var(--danger);padding:4px 6px" onclick="deleteStandaloneSource('${s.id}',this)" title="Delete"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function openAddStandalone() {
+  document.getElementById('new-standalone-name').value = '';
+  document.getElementById('new-standalone-url').value = '';
+  document.getElementById('standalone-add-form').style.display = 'block';
+  document.getElementById('new-standalone-name').focus();
+}
+
+async function saveStandaloneSource() {
+  const name = document.getElementById('new-standalone-name').value.trim();
+  const url  = document.getElementById('new-standalone-url').value.trim();
+  if (!name || !url) { showToast('Name and URL required', 'error'); return; }
+  const rec = await atCreate(CONFIG.TABLES.SEARCH_SOURCES, { source_name: name, url, source_type: 'Standalone', active: true });
+  if (rec && rec.id) {
+    allStandaloneSources.push(rec);
+    renderStandaloneSources();
+    document.getElementById('standalone-add-form').style.display = 'none';
+    showToast('Standalone page added', 'success');
+  }
+}
+
+async function toggleStandaloneActive(id, active) {
+  await atUpdate(CONFIG.TABLES.SEARCH_SOURCES, id, { active });
+  const r = allStandaloneSources.find(s => s.id === id);
+  if (r) r.fields.active = active;
+}
+
+async function deleteStandaloneSource(id, btn) {
+  if (!confirm('Remove this standalone page?')) return;
+  btn.disabled = true;
+  await atDelete(CONFIG.TABLES.SEARCH_SOURCES, id);
+  allStandaloneSources = allStandaloneSources.filter(s => s.id !== id);
+  renderStandaloneSources();
+  showToast('Removed', 'success');
+}
+
+async function seedStandaloneSources(btn) {
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Loading…';
+  try {
+    const res = await fetch('/seed-standalone-sources', { method: 'POST' });
+    const data = await res.json();
+    showToast(`Seeded ${data.added} pages (${data.skipped} already existed)`, 'success');
+    const r = await atFetch(CONFIG.TABLES.SEARCH_SOURCES, `?filterByFormula=${encodeURIComponent('{source_type}="Standalone"')}&sort[0][field]=source_name&sort[0][direction]=asc&maxRecords=200`);
+    allStandaloneSources = r.records || [];
+    renderStandaloneSources();
+  } catch(e) { showToast('Seed failed: ' + e.message, 'error'); }
+  btn.disabled = false;
+  btn.innerHTML = '<i class="ti ti-database-import"></i> Load Defaults';
+}
+
+// ── News Sources ──────────────────────────────────────────────────────────────
+function renderNewsSources() {
+  const el = document.getElementById('news-sources-content');
+  if (!el) return;
+  if (allNewsSources.length === 0) {
+    el.innerHTML = '<div class="empty-state"><i class="ti ti-rss"></i><div class="empty-state-title">No news sources</div><p>Add RSS feeds or news outlets for Track 2.</p></div>';
+    return;
+  }
+  const typeColors = { 'RSS Feed': 'badge-blue', 'Google News': 'badge-green', 'Direct': 'badge-gray' };
+  let html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:10px">';
+  allNewsSources.forEach(s => {
+    const f = s.fields;
+    const badge = typeColors[f.source_type] || 'badge-gray';
+    html += `<div class="card" style="padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+      <div style="min-width:0;flex:1">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+          <span style="font-weight:600;color:#000;font-size:0.95rem">${escHtml(f.name||f.source_name||'—')}</span>
+          ${f.source_type ? `<span class="badge ${badge}" style="font-size:10px">${escHtml(f.source_type)}</span>` : ''}
+        </div>
+        ${f.url ? `<a href="${escHtml(f.url)}" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--brand);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:100%">${escHtml(f.url)}</a>` : ''}
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.8rem;color:var(--muted)">
+          <input type="checkbox" ${f.active !== false ? 'checked' : ''} onchange="toggleNewsActive('${s.id}',this.checked)" style="accent-color:var(--brand);cursor:pointer">
+          On
+        </label>
+        <button class="btn btn-ghost btn-sm" style="color:var(--danger);padding:4px 6px" onclick="deleteNewsSource('${s.id}',this)" title="Delete"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function openAddNews() {
+  ['new-news-name','new-news-url'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('news-sources-add-form').style.display = 'block';
+  document.getElementById('new-news-name').focus();
+}
+
+async function saveNewsSource() {
+  const name = document.getElementById('new-news-name').value.trim();
+  const url  = document.getElementById('new-news-url').value.trim();
+  const type = document.getElementById('new-news-type').value;
+  if (!name) { showToast('Name required', 'error'); return; }
+  const MEDIA_TABLE = CONFIG.TABLES.MEDIA_SOURCES;
+  const rec = await atCreate(MEDIA_TABLE, { name, url, source_type: type, active: true });
+  if (rec && rec.id) {
+    allNewsSources.push(rec);
+    renderNewsSources();
+    document.getElementById('news-sources-add-form').style.display = 'none';
+    showToast('News source added', 'success');
+  }
+}
+
+async function toggleNewsActive(id, active) {
+  await atUpdate(CONFIG.TABLES.MEDIA_SOURCES, id, { active });
+  const r = allNewsSources.find(s => s.id === id);
+  if (r) r.fields.active = active;
+}
+
+async function deleteNewsSource(id, btn) {
+  if (!confirm('Remove this news source?')) return;
+  btn.disabled = true;
+  await atDelete(CONFIG.TABLES.MEDIA_SOURCES, id);
+  allNewsSources = allNewsSources.filter(s => s.id !== id);
+  renderNewsSources();
+  showToast('Removed', 'success');
+}
+
+// ── Firms to Monitor ──────────────────────────────────────────────────────────
+function renderFirms() {
+  const el = document.getElementById('firms-content');
+  if (!el) return;
+  if (allFirmSources.length === 0) {
+    el.innerHTML = '<div class="empty-state"><i class="ti ti-building"></i><div class="empty-state-title">No firms yet</div><p>Add prime teaming partners and competitors to monitor in Track 3.</p></div>';
+    return;
+  }
+  const primes = allFirmSources.filter(s => s.fields.source_type === 'Prime Firm');
+  const competitors = allFirmSources.filter(s => s.fields.source_type === 'Competitor');
+  let html = '';
+  if (primes.length) {
+    html += '<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Prime Firms</div>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px">';
+    primes.forEach(s => { html += firmChip(s); });
+    html += '</div>';
+  }
+  if (competitors.length) {
+    html += '<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Competitors</div>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:8px">';
+    competitors.forEach(s => { html += firmChip(s); });
+    html += '</div>';
+  }
+  el.innerHTML = html;
+}
+
+function firmChip(s) {
+  const f = s.fields;
+  const color = f.source_type === 'Prime Firm' ? 'var(--brand)' : 'var(--warning)';
+  return `<div style="display:inline-flex;align-items:center;gap:6px;background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:0.88rem">
+    <span style="color:${color};font-size:8px">●</span>
+    <span style="font-weight:500">${escHtml(f.source_name||'—')}</span>
+    <label style="display:flex;align-items:center;gap:3px;cursor:pointer;font-size:0.78rem;color:var(--muted)">
+      <input type="checkbox" ${f.active !== false ? 'checked' : ''} onchange="toggleFirmActive('${s.id}',this.checked)" style="accent-color:var(--brand);cursor:pointer;width:12px;height:12px">
+    </label>
+    <button onclick="deleteFirm('${s.id}',this)" style="background:none;border:none;cursor:pointer;color:var(--muted);padding:0;font-size:12px;line-height:1" title="Remove"><i class="ti ti-x"></i></button>
+  </div>`;
+}
+
+function openAddFirm() {
+  document.getElementById('new-firm-name').value = '';
+  document.getElementById('firms-add-form').style.display = 'block';
+  document.getElementById('new-firm-name').focus();
+}
+
+async function saveFirm() {
+  const name = document.getElementById('new-firm-name').value.trim();
+  const type = document.getElementById('new-firm-type').value;
+  if (!name) { showToast('Firm name required', 'error'); return; }
+  const rec = await atCreate(CONFIG.TABLES.SEARCH_SOURCES, { source_name: name, source_type: type, active: true });
+  if (rec && rec.id) {
+    allFirmSources.push(rec);
+    renderFirms();
+    document.getElementById('firms-add-form').style.display = 'none';
+    showToast('Firm added', 'success');
+  }
+}
+
+async function toggleFirmActive(id, active) {
+  await atUpdate(CONFIG.TABLES.SEARCH_SOURCES, id, { active });
+  const r = allFirmSources.find(s => s.id === id);
+  if (r) r.fields.active = active;
+}
+
+async function deleteFirm(id, btn) {
+  if (!confirm('Remove this firm?')) return;
+  btn.disabled = true;
+  await atDelete(CONFIG.TABLES.SEARCH_SOURCES, id);
+  allFirmSources = allFirmSources.filter(s => s.id !== id);
+  renderFirms();
+  showToast('Removed', 'success');
 }
 
 function renderSources() {

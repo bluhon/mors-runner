@@ -670,7 +670,7 @@ async function fetchProjectMemory() {
 
 async function fetchSearchSources() {
   try {
-    const formula = encodeURIComponent(`{active}=TRUE()`);
+    const formula = encodeURIComponent(`AND({active}=TRUE(), NOT({source_type}="Standalone"), NOT({source_type}="Prime Firm"), NOT({source_type}="Competitor"), NOT({source_type}="Governing Body"))`);
     const data = await atGet(AIRTABLE_SOURCES_TABLE, `?filterByFormula=${formula}&maxRecords=100`);
     const records = data.records || [];
     return records.map(r => ({
@@ -682,6 +682,32 @@ async function fetchSearchSources() {
     }));
   } catch (err) {
     console.warn(`[fetchSearchSources] Failed: ${err.message}`);
+    return [];
+  }
+}
+
+async function fetchStandaloneSourcesFromAirtable() {
+  try {
+    const formula = encodeURIComponent(`AND({source_type}="Standalone", {active}=TRUE())`);
+    const data = await atGet(AIRTABLE_SOURCES_TABLE, `?filterByFormula=${formula}&maxRecords=200&sort[0][field]=source_name&sort[0][direction]=asc`);
+    return (data.records || []).map(r => ({
+      name:    r.fields.source_name || '',
+      url:     r.fields.url || '',
+      baseUrl: (() => { try { const u = new URL(r.fields.url||''); return `${u.protocol}//${u.hostname}`; } catch { return ''; } })()
+    })).filter(r => r.name && r.url);
+  } catch (err) {
+    console.warn(`[fetchStandaloneSources] Failed: ${err.message}`);
+    return [];
+  }
+}
+
+async function fetchFirmsFromAirtable() {
+  try {
+    const formula = encodeURIComponent(`AND(OR({source_type}="Prime Firm", {source_type}="Competitor"), {active}=TRUE())`);
+    const data = await atGet(AIRTABLE_SOURCES_TABLE, `?filterByFormula=${formula}&maxRecords=100`);
+    return (data.records || []).map(r => ({ name: r.fields.source_name || '', type: r.fields.source_type || '' })).filter(r => r.name);
+  } catch (err) {
+    console.warn(`[fetchFirms] Failed: ${err.message}`);
     return [];
   }
 }
@@ -1440,8 +1466,11 @@ const STANDALONE_KEYWORDS = [
 ];
 
 async function scrapeStandalonePages() {
+  const airtablePages = await fetchStandaloneSourcesFromAirtable();
+  const pages = airtablePages.length > 0 ? airtablePages : STANDALONE_PAGES;
+  if (airtablePages.length > 0) console.log(`[Standalone] Using ${airtablePages.length} Airtable-managed pages`);
   const opps = [];
-  await Promise.allSettled(STANDALONE_PAGES.map(async page => {
+  await Promise.allSettled(pages.map(async page => {
     try {
       console.log(`[Standalone] Fetching ${page.name}...`);
       const res = await fetch(page.url, {
@@ -1803,6 +1832,11 @@ OUTPUT FORMAT — you MUST output ALL THREE sections below in this exact order. 
 
   const t4Media = mediaSources.filter(s => s.track === 'Track 4').map(s => `${s.name} (${s.url})`).join(', ');
   const t3NewsItems = formatNewsItemsForPrompt(newsItems, 'Track 3');
+  const airtableFirms = await fetchFirmsFromAirtable();
+  const primeFirmsStr = airtableFirms.filter(f => f.type === 'Prime Firm').map(f => f.name).join(', ') ||
+    'AECOM, WSP, HDR, Jacobs, ICF, HNTB, Parsons, Stantec, Arup, Fehr & Peers, Kimley-Horn, GHD, EPS Group, Atkins, Burns & McDonnell, ARCADIS, Dudek';
+  const competitorsStr = airtableFirms.filter(f => f.type === 'Competitor').map(f => f.name).join(', ') ||
+    'MIG, PlaceWorks, Circlepoint, Raimi+Associates, Rincon Consultants, Mintier Harnish, CONCUR, DC&E, Civic Edge, Stakeholder Communications Group';
 
   // ── Call 2: Track 3 (Contract Awards + Firm News) + Track 4 (Governing Body Pipeline) ───
   const prompt2 = `Today is ${today}.
@@ -1819,10 +1853,10 @@ Also search the web for:
 - Bay Area board minutes and city council agendas (past 30 days) for contract awards to prime firms
 - Firm press releases and LinkedIn announcements not captured in the RSS items above
 
-PRIME FIRMS to track for teaming: AECOM, WSP, HDR, Jacobs, ICF, HNTB, Parsons, Stantec, Arup, Fehr & Peers, Kimley-Horn, GHD, EPS Group, Atkins, Burns & McDonnell, ARCADIS, Dudek
+PRIME FIRMS to track for teaming: ${primeFirmsStr}
 For each award: firm name, agency, contract value if known, scope (flag if public engagement sub-scope exists), Bluhon teaming angle.
 
-DIRECT COMPETITORS to monitor: MIG, PlaceWorks, Circlepoint, Raimi+Associates, Rincon Consultants, Mintier Harnish, CONCUR, DC&E, Civic Edge, Stakeholder Communications Group
+DIRECT COMPETITORS to monitor: ${competitorsStr}
 For competitors: wins, new hires, press mentions that reveal where they are targeting.
 
 Include up to 25 items total. Format each with firm name as heading, details, Bluhon angle on a new line.
@@ -2047,6 +2081,29 @@ app.post("/run", async (req, res) => {
     console.log(`[${new Date().toISOString()}] Manual run complete`);
   } catch (err) {
     console.error("Report run failed:", err);
+  }
+});
+
+// ─── POST /seed-standalone-sources ───────────────────────────────────────────
+app.post("/seed-standalone-sources", async (req, res) => {
+  try {
+    const existing = await atGet(AIRTABLE_SOURCES_TABLE, `?filterByFormula=${encodeURIComponent('{source_type}="Standalone"')}&fields[]=source_name&maxRecords=300`);
+    const existingNames = new Set((existing.records || []).map(r => (r.fields.source_name||'').toLowerCase()));
+    let added = 0;
+    for (const page of STANDALONE_PAGES) {
+      if (existingNames.has(page.name.toLowerCase())) continue;
+      await atPost(AIRTABLE_SOURCES_TABLE, {
+        source_name: page.name,
+        url:         page.url,
+        source_type: 'Standalone',
+        active:      true
+      });
+      added++;
+    }
+    res.json({ success: true, added, skipped: STANDALONE_PAGES.length - added });
+  } catch (err) {
+    console.error('[/seed-standalone-sources]', err.message);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
