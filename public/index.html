@@ -1318,7 +1318,7 @@ function renderPipeline(opps) {
     const safeTitle = (f.title||'Untitled').replace(/\\/g,'').replace(/'/g,'&#39;').slice(0,60);
     const canvasBtn = canvas
       ? `<button class="btn btn-ghost btn-sm" onclick="openCanvas('${canvas.id}')"><i class="ti ti-layout-board"></i> Canvas</button>`
-      : `<button class="btn btn-ghost btn-sm" onclick="makePipelineCanvas('${o.id}','${safeTitle}')"><i class="ti ti-plus"></i> Create Canvas</button>`;
+     : `<button class="btn btn-ghost btn-sm" onclick="makePipelineCanvas('${o.id}','${safeTitle}','${f.track||''}')"><i class="ti ti-layout-board"></i> Create Canvas</button>`;
     const trashBtn = `<button class="btn btn-ghost btn-sm" style="color:var(--muted)" title="Delete opportunity" onclick="deleteOpportunity('${o.id}',this)"><i class="ti ti-trash"></i></button>`;
     const rowClick = canvas ? 'openCanvas(\'' + canvas.id + '\')' : '';
     const trackPill = f.track ? '<span style="font-size:11px;background:var(--bg3);padding:3px 8px;border-radius:4px;color:var(--muted)">' + f.track + '</span>' : '—';
@@ -1866,26 +1866,30 @@ async function logToMemory(oppId, signal) {
   await atCreate(CONFIG.TABLES.PROJECT_MEMORY, { project_type: f.title||'', sector: (f.track||'').includes('1')?'planning/environment':'emerging issue', agency_type: f.agency||'', geo_tier: f.geo_tier||'', keywords: f.keywords_matched||'', pursuit_signal: signal, frequency_count: 1, last_seen: new Date().toISOString().split('T')[0], source_opp_title: f.title||'' });
 }
 
-async function makePipelineCanvas(oppId, title) {
+async function makePipelineCanvas(oppId, title, track) {
   const canvasTitle = title || 'Untitled';
   const existing = allCanvases.find(c => c.fields.canvas_title === canvasTitle);
   if (existing) { openCanvas(existing.id); return; }
   const opp = allOpportunities.find(o => o.id === oppId);
   const of = opp ? opp.fields : {};
+  const isTrack2 = (track || of.track || '').includes('2');
   const fields = {
     canvas_title:  canvasTitle,
+    canvas_type:   isTrack2 ? 'Article' : 'RFP',
     active:        true,
     created_by:    currentUser ? currentUser.name : 'MORS',
     notes_log:     '[]',
     files_list:    '[]',
     issuer_agency: of.agency || '',
   };
-  if (of.deadline) fields.proposal_due = of.deadline;
-  if (of.scope)    fields.team_notes   = of.scope;
+  if (!isTrack2 && of.deadline) fields.proposal_due = of.deadline;
+  if (!isTrack2 && of.scope)    fields.team_notes   = of.scope;
+  if (isTrack2 && of.source_url) fields.rfp_url     = of.source_url;
+  if (isTrack2 && of.scope)      fields.rfp_description = of.scope;
   const canvas = await atCreate(CONFIG.TABLES.RFP_CANVAS, fields);
   if (canvas && canvas.id) {
     allCanvases.push(canvas);
-    showToast('RFP Canvas created', 'success');
+    showToast(isTrack2 ? 'Article Canvas created' : 'RFP Canvas created', 'success');
     openCanvas(canvas.id);
   } else {
     const msg = (canvas && canvas.error) ? canvas.error.message : 'Airtable rejected the request';
