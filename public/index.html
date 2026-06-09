@@ -1204,7 +1204,10 @@ function renderReport() {
     .replace(/\s*style='[^']*'/gi, '')
     .replace(/\s*font-size:[^;;"']*/gi, '')
     .replace(/\s*color:[^;;"']*/gi, '');
-  html += `<div class="track-header t1"><span class="track-number">01</span> Active RFPs<span class="track-ts">Refreshed ${runTs}</span></div><div id="track1-opps-container"></div>`;
+  const t1Body = report.fields.track1_html
+    ? `<div class="track-body track1-table-wrap">${clean(report.fields.track1_html)}</div>`
+    : `<div id="track1-opps-container"></div>`;
+  html += `<div class="track-header t1"><span class="track-number">01</span> Active RFPs<span class="track-ts">Refreshed ${runTs}</span></div>${t1Body}`;
   if (report.fields.track2_html) { html += `<div class="track-header t2"><span class="track-number" style="color:var(--info)">02</span> Emerging Issues<span class="track-ts">Refreshed ${runTs}</span></div><div class="track-body">${formatTrackItems(clean(report.fields.track2_html), 'Track 2')}</div>`; }
   if (report.fields.track3_html) { html += `<div class="track-header t3"><span class="track-number" style="color:var(--warning)">03</span> Prime Firm Activity<span class="track-ts">Refreshed ${runTs}</span></div><div class="track-body">${formatTrackItems(clean(report.fields.track3_html), 'Track 3')}</div>`; }
   if (report.fields.track4_html) { html += `<div class="track-header" style="border-left-color:#7c5cbf"><span class="track-number" style="color:#7c5cbf">04</span> Governing Body Pipeline<span class="track-ts">Refreshed ${runTs}</span></div><div class="track-body">${formatTrackItems(clean(report.fields.track4_html), 'Track 4')}</div>`; }
