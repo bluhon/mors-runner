@@ -1866,7 +1866,7 @@ async function runClaudeSearch(userPrompt, attempt = 1, systemPromptOverride = n
 // ─────────────────────────────────────────────────────────────────────────────
 async function runMORSReport() {
   const { today, cutoffStr } = getDateContext();
-  const reportDate = new Date().toISOString().split("T")[0];
+  const reportDate = new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" }); // en-CA gives YYYY-MM-DD in PT
   const geo = getGeoFocus();
 
   console.log(`[${new Date().toISOString()}] Starting MORS report for ${today} — ${geo.label}`);
@@ -2337,7 +2337,7 @@ app.use(express.static("public"));
 app.post("/test-run", async (req, res) => {
   res.json({ success: true, status: "Test run started — check Airtable in 3-4 minutes" });
   const { today, cutoffStr } = getDateContext();
-  const reportDate = new Date().toISOString().split("T")[0];
+  const reportDate = new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
   console.log(`[${new Date().toISOString()}] TEST RUN starting — SF + Marin + Oakland only`);
   try {
     const text = await runClaudeSearch(`Today is ${today}.
