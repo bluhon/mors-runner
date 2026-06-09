@@ -1180,6 +1180,46 @@ function formatTrackItems(html, track = '') {
   });
   return out;
 }
+function parseTrack1Html(html) {
+  // Parse Claude's HTML table and render as cards matching the existing Track 1 card format
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const rows = Array.from(doc.querySelectorAll('tbody tr'));
+  if (!rows.length) return '<div class="t1-no-opps">No new opportunities to review today.</div>';
+  return rows.map(row => {
+    const cells = Array.from(row.querySelectorAll('td'));
+    if (cells.length < 3) return '';
+    const agency  = (cells[0] ? cells[0].textContent : '').trim().replace(/✅/g, '').trim();
+    const priorClient = (cells[0] ? cells[0].textContent : '').includes('✅');
+    const solNum  = (cells[1] ? cells[1].textContent : '').trim();
+    const scope   = (cells[2] ? cells[2].textContent : '').trim();
+    const due     = (cells[3] ? cells[3].textContent : '').trim();
+    const type    = (cells[4] ? cells[4].textContent : '').trim();
+    const linkEl  = cells[5] ? cells[5].querySelector('a') : null;
+    const url     = linkEl ? linkEl.href : '';
+    const urlText = linkEl ? linkEl.textContent.trim() : 'Source';
+    // Extract title from scope (first sentence or up to em dash)
+    const titleMatch = scope.match(/^([^—\n]{10,80}?)(?:\s*—|\n|$)/);
+    const title = titleMatch ? titleMatch[1].trim() : scope.substring(0, 80);
+    const body  = scope.length > title.length ? scope.slice(scope.indexOf('—') + 1).trim() : '';
+    const dueDisplay = due && due !== 'see portal' && due !== '—' ? due : null;
+    return `<div class="t1-card">
+      <div class="t1-card-top">
+        <div class="t1-agency">${agency}${priorClient ? ' <span class="prior-client-badge">✅ Prior Client</span>' : ''}</div>
+        <div class="t1-meta">${type ? `<span class="t1-type">${type}</span>` : ''}${dueDisplay ? `<span class="t1-due">${dueDisplay}</span>` : ''}</div>
+      </div>
+      <div class="t1-title">${title}</div>
+      ${body ? `<div class="t1-scope">${body}</div>` : ''}
+      ${solNum && solNum !== 'see portal' ? `<div class="t1-solnum">Solicitation: ${solNum}</div>` : ''}
+      <div class="t1-actions">
+        ${url ? `<a href="${url}" target="_blank" class="t1-source-link">&#x2197; Source</a>` : ''}
+        <button class="btn-pipeline" onclick="saveArticleToPipeline('${title.replace(/'/g,"\\'")}','${url}','${body.replace(/'/g,"\\'")}','Track 1',this)">→ Pipeline</button>
+        <button class="btn-reject" onclick="this.closest('.t1-card').remove()">Reject</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 function renderReport() {
   const label = document.getElementById('report-date-label');
   const todayBadge = document.getElementById('today-badge');
@@ -1205,8 +1245,8 @@ function renderReport() {
     .replace(/\s*font-size:[^;;"']*/gi, '')
     .replace(/\s*color:[^;;"']*/gi, '');
   const t1Body = report.fields.track1_html
-    ? `<div class="track-body track1-table-wrap">${clean(report.fields.track1_html)}</div>`
-    : `<div id="track1-opps-container"></div>`;
+    ? `<div id="track1-opps-container">${parseTrack1Html(report.fields.track1_html)}</div>`
+    : `<div id="track1-opps-container"><div class="t1-no-opps">No new opportunities to review today.</div></div>`;
   html += `<div class="track-header t1"><span class="track-number">01</span> Active RFPs<span class="track-ts">Refreshed ${runTs}</span></div>${t1Body}`;
   if (report.fields.track2_html) { html += `<div class="track-header t2"><span class="track-number" style="color:var(--info)">02</span> Emerging Issues<span class="track-ts">Refreshed ${runTs}</span></div><div class="track-body">${formatTrackItems(clean(report.fields.track2_html), 'Track 2')}</div>`; }
   if (report.fields.track3_html) { html += `<div class="track-header t3"><span class="track-number" style="color:var(--warning)">03</span> Prime Firm Activity<span class="track-ts">Refreshed ${runTs}</span></div><div class="track-body">${formatTrackItems(clean(report.fields.track3_html), 'Track 3')}</div>`; }
