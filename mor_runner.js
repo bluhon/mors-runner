@@ -1447,11 +1447,11 @@ const STANDALONE_PAGES = [
   { name: 'Marin Municipal Water',    url: 'https://www.marinwaterplans.com/',                                                                          baseUrl: 'https://www.marinwaterplans.com' },
   { name: 'Zone 7 Water Agency',      url: 'https://zone7water.com/business/construction-business-opportunities',                                    baseUrl: 'https://zone7water.com' },
   // ── Counties ─────────────────────────────────────────────────────────────
-  { name: 'Alameda County',           url: 'https://www.acgov.org/gsa/purchasing/bids.htm',                                                          baseUrl: 'https://www.acgov.org' },
+  // Alameda County — on OpenGov (procurement.opengov.com/portal/acgov); covered by OpenGov scraper
   { name: 'Contra Costa County',      url: 'https://www.contracosta.ca.gov/Bids.aspx',                                                              baseUrl: 'https://www.contracosta.ca.gov' },
   { name: 'Marin County',             url: 'https://www.marincounty.gov/contracting-opportunities',                                                  baseUrl: 'https://www.marincounty.gov' },
   { name: 'Sonoma County',            url: 'https://esupplier.sonomacounty.ca.gov/psc/FN92PRD/SUPPLIER/ERP/c/SCP_PUBLIC_MENU_FL.SCP_PUB_BID_CMP_FL.GBL', baseUrl: 'https://esupplier.sonomacounty.ca.gov' },
-  { name: 'Napa County',              url: 'https://www.countyofnapa.org/Bids.aspx',                                                                 baseUrl: 'https://www.countyofnapa.org' },
+  { name: 'Napa County',              url: 'https://www.napacounty.gov/Bids.aspx',                                                                      baseUrl: 'https://www.napacounty.gov' },
   // Solano County — on OpenGov (procurement.opengov.com/portal/solanocounty); covered by OpenGov scraper
   { name: 'San Mateo County',         url: 'https://www.smcgov.org/ceo/bid-opportunities-project-documents',                                        baseUrl: 'https://www.smcgov.org' },
   { name: 'City & County of SF',      url: 'https://sfcitypartner.sfgov.org/pages/Events-BS3/event-search.aspx',                                        baseUrl: 'https://sfcitypartner.sfgov.org' },
