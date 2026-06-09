@@ -1438,7 +1438,7 @@ const STANDALONE_PAGES = [
   { name: 'BCDC',                     url: 'https://www.bcdc.ca.gov/permits/',                                                                       baseUrl: 'https://www.bcdc.ca.gov' },
   { name: 'BAAQMD',                   url: 'https://www.baaqmd.gov/about-the-air-district/request-for-proposals-rfp-rfq',                           baseUrl: 'https://www.baaqmd.gov' },
   { name: 'EBRPD',                    url: 'https://www.ebparks.org/public-info/bids-rfps',                                                          baseUrl: 'https://www.ebparks.org' },
-  { name: 'MROSD',                    url: 'https://www.openspace.org/about-us/district-administration/bids',                                        baseUrl: 'https://www.openspace.org' },
+  // MROSD — on BidNet (bidnetdirect.com/california/openspace); covered by BidNet scraper when credentials added
   // ── Water Agencies ───────────────────────────────────────────────────────
   { name: 'SFPUC',                    url: 'https://webapps.sfpuc.org/bids/',                                                                        baseUrl: 'https://webapps.sfpuc.org' },
   { name: 'EBMUD',                    url: 'https://www.ebmud.com/business-center/requests-proposal-rfps',                                           baseUrl: 'https://www.ebmud.com' },
@@ -1481,7 +1481,7 @@ const STANDALONE_PAGES = [
   { name: 'San Carlos',               url: 'https://www.cityofsancarlos.org/business/bids_and_proposals/',                                           baseUrl: 'https://www.cityofsancarlos.org' },
   { name: 'Menlo Park',               url: 'https://menlopark.gov/government/departments/public-works/bids-rfps',                                    baseUrl: 'https://menlopark.gov' },
   { name: 'East Palo Alto',           url: 'https://www.cityofepa.org/rfps',                                                                         baseUrl: 'https://www.cityofepa.org' },
-  { name: 'Pacifica',                 url: 'https://www.cityofpacifica.org/government/rfps-bids',                                                    baseUrl: 'https://www.cityofpacifica.org' },
+  // Pacifica — redirects to OpenGov portal; covered by OpenGov scraper
   // Brisbane — no accessible bids page
   { name: 'Colma',                    url: 'https://www.colma.ca.gov/rfp-and-bids/',                                                                 baseUrl: 'https://www.colma.ca.gov' },
   { name: 'Portola Valley',           url: 'https://www.portolavalley.net/departments/request-for-proposals',                                        baseUrl: 'https://www.portolavalley.net' },
