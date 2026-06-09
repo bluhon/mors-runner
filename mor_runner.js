@@ -1450,9 +1450,9 @@ const STANDALONE_PAGES = [
   { name: 'Alameda County',           url: 'https://www.acgov.org/gsa/purchasing/bids.htm',                                                          baseUrl: 'https://www.acgov.org' },
   { name: 'Contra Costa County',      url: 'https://www.contracosta.ca.gov/Bids.aspx',                                                              baseUrl: 'https://www.contracosta.ca.gov' },
   { name: 'Marin County',             url: 'https://www.marincounty.gov/contracting-opportunities',                                                  baseUrl: 'https://www.marincounty.gov' },
-  { name: 'Sonoma County',            url: 'https://sonomacounty.ca.gov/departments/general-services-and-purchasing/purchasing/bids-and-rfps',       baseUrl: 'https://sonomacounty.ca.gov' },
+  { name: 'Sonoma County',            url: 'https://esupplier.sonomacounty.ca.gov/psc/FN92PRD/SUPPLIER/ERP/c/SCP_PUBLIC_MENU_FL.SCP_PUB_BID_CMP_FL.GBL', baseUrl: 'https://esupplier.sonomacounty.ca.gov' },
   { name: 'Napa County',              url: 'https://www.countyofnapa.org/Bids.aspx',                                                                 baseUrl: 'https://www.countyofnapa.org' },
-  { name: 'Solano County',            url: 'https://www.solanocounty.com/depts/genserv/purchasing/bids_rfps.asp',                                    baseUrl: 'https://www.solanocounty.com' },
+  // Solano County — on OpenGov (procurement.opengov.com/portal/solanocounty); covered by OpenGov scraper
   { name: 'San Mateo County',         url: 'https://www.smcgov.org/ceo/bid-opportunities-project-documents',                                        baseUrl: 'https://www.smcgov.org' },
   { name: 'City & County of SF',      url: 'https://sfcitypartner.sfgov.org/',                                                                       baseUrl: 'https://sfcitypartner.sfgov.org' },
   // ── Alameda County Cities ─────────────────────────────────────────────────
@@ -1471,7 +1471,7 @@ const STANDALONE_PAGES = [
   { name: 'Lafayette',                url: 'https://www.lovelafayette.org/city-hall/components/rfp-postings',                                        baseUrl: 'https://www.lovelafayette.org' },
   // ── Marin County Cities ───────────────────────────────────────────────────
   { name: 'San Rafael',               url: 'https://www.cityofsanrafael.org/bids-and-proposals/',                                                    baseUrl: 'https://www.cityofsanrafael.org' },
-  { name: 'Sausalito',                url: 'https://www.sausalito.gov/bids.aspx',                                                                    baseUrl: 'https://www.sausalito.gov' },
+  // Sausalito — URL needs verification
   { name: 'Corte Madera',             url: 'https://www.cortemadera.gov/625/Town-Bids-and-RFPs',                                                     baseUrl: 'https://www.cortemadera.gov' },
   // ── San Mateo County Cities ───────────────────────────────────────────────
   { name: 'Redwood City',             url: 'https://www.redwoodcity.org/business/bids-proposals',                                                    baseUrl: 'https://www.redwoodcity.org' },
