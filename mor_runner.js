@@ -2308,6 +2308,119 @@ app.post("/seed-standalone-sources", async (req, res) => {
   }
 });
 
+// ─── POST /setup-airtable ─────────────────────────────────────────────────────
+// One-time setup: creates RFP_SEARCH_QUERIES + RELEVANCE_KEYWORDS tables,
+// seeds them with all hardcoded data from JS, and seeds SEARCH_SOURCES.
+app.post("/setup-airtable", async (req, res) => {
+  const log = [];
+  const baseUrl = `https://api.airtable.com/v0/meta/bases/${AIRTABLE_BASE_ID}/tables`;
+  const headers = { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' };
+
+  async function createTable(name, fields) {
+    try {
+      const r = await fetch(baseUrl, { method: 'POST', headers, body: JSON.stringify({ name, fields }) });
+      const d = await r.json();
+      if (d.id) { log.push(`✅ Created table: ${name} (${d.id})`); return d.id; }
+      if (d.error?.type === 'TABLE_ALREADY_EXISTS' || (d.error && d.error.message && d.error.message.includes('already exists'))) {
+        log.push(`⚠️ Table already exists: ${name} — fetching ID`);
+        const list = await fetch(baseUrl, { headers });
+        const ld = await list.json();
+        const t = (ld.tables || []).find(t => t.name === name);
+        if (t) return t.id;
+      }
+      log.push(`❌ Failed to create ${name}: ${JSON.stringify(d.error || d)}`);
+      return null;
+    } catch (e) { log.push(`❌ Exception creating ${name}: ${e.message}`); return null; }
+  }
+
+  async function batchCreate(tableId, records) {
+    // Airtable allows max 10 records per request
+    let added = 0;
+    for (let i = 0; i < records.length; i += 10) {
+      const batch = records.slice(i, i + 10);
+      const r = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${tableId}`, {
+        method: 'POST', headers,
+        body: JSON.stringify({ records: batch.map(f => ({ fields: f })) })
+      });
+      const d = await r.json();
+      added += (d.records || []).length;
+      await new Promise(resolve => setTimeout(resolve, 200)); // rate limit
+    }
+    return added;
+  }
+
+  // ── 1. RFP_SEARCH_QUERIES table ─────────────────────────────────────────────
+  const sqId = await createTable('RFP_SEARCH_QUERIES', [
+    { name: 'query',       type: 'singleLineText' },
+    { name: 'description', type: 'singleLineText' },
+    { name: 'active',      type: 'checkbox', options: { icon: 'check', color: 'greenBright' } },
+    { name: 'track',       type: 'singleLineText' },
+  ]);
+
+  if (sqId) {
+    const searchQueries = [
+      // Track 1 — Open RFP searches
+      { query: '"request for proposal" "public engagement" OR "community engagement" OR "facilitation" "bay area" 2026', description: 'Bay Area public engagement RFPs', active: true, track: 'Track 1' },
+      { query: '"request for proposal" "community outreach" OR "stakeholder" OR "mediation" site:.gov california 2026', description: 'CA gov community outreach RFPs', active: true, track: 'Track 1' },
+      { query: '"request for qualifications" "public engagement" OR "facilitation" OR "consensus" bay area california 2026', description: 'Bay Area RFQs for engagement', active: true, track: 'Track 1' },
+      { query: '"RFP" "environmental conflict" OR "CEQA" "public engagement" OR "outreach" bay area 2025 2026', description: 'CEQA/environmental engagement RFPs', active: true, track: 'Track 1' },
+      { query: '"request for proposal" "conflict resolution" OR "consensus building" california 2025 2026', description: 'Conflict resolution RFPs statewide', active: true, track: 'Track 1' },
+      { query: '"invitation to bid" OR "RFP" "community engagement" OR "facilitation" site:ca.gov 2026', description: 'CA state agency engagement RFPs', active: true, track: 'Track 1' },
+      { query: '"request for proposal" "general plan" OR "specific plan" "community engagement" OR "outreach" bay area 2026', description: 'Planning + engagement RFPs', active: true, track: 'Track 1' },
+      { query: '"RFP" "stakeholder engagement" OR "public participation" "alameda" OR "contra costa" OR "marin" OR "sonoma" 2026', description: 'East/North Bay stakeholder RFPs', active: true, track: 'Track 1' },
+      { query: '"RFP" "strategic plan" OR "master plan" "community engagement" OR "public engagement" "san francisco" OR "santa clara" OR "san mateo" 2026', description: 'Peninsula/SF strategic plan RFPs', active: true, track: 'Track 1' },
+      { query: '"solicitation" "facilitation" OR "mediation" OR "community engagement" site:opengov.com bay area', description: 'OpenGov portal search', active: true, track: 'Track 1' },
+      { query: '"request for proposal" "outreach" OR "engagement" "water" OR "transit" OR "transportation" bay area california 2026', description: 'Infrastructure agency engagement RFPs', active: true, track: 'Track 1' },
+      { query: '"professional services" "public engagement" OR "community outreach" OR "facilitation" "request for proposal" california 2026', description: 'Professional services engagement RFPs', active: true, track: 'Track 1' },
+    ];
+    const sqAdded = await batchCreate(sqId, searchQueries);
+    log.push(`✅ Seeded RFP_SEARCH_QUERIES: ${sqAdded} rows`);
+  }
+
+  // ── 2. RELEVANCE_KEYWORDS table ──────────────────────────────────────────────
+  const rkId = await createTable('RELEVANCE_KEYWORDS', [
+    { name: 'keyword', type: 'singleLineText' },
+    { name: 'weight',  type: 'number', options: { precision: 0 } },
+    { name: 'tier',    type: 'singleLineText' },
+    { name: 'active',  type: 'checkbox', options: { icon: 'check', color: 'greenBright' } },
+    { name: 'category', type: 'singleLineText' },
+  ]);
+
+  if (rkId) {
+    const keywords = [
+      // Tier 1
+      ...['public engagement','community engagement','facilitation','mediation','consensus','conflict resolution','community outreach','stakeholder','land use','facility siting','community opposition','neighborhood opposition','dispute','opposition','land use dispute','environmental conflict','environmental dispute','development proposal']
+        .map(k => ({ keyword: k, weight: 3, tier: 'Tier 1', active: true, category: 'relevance' })),
+      // Tier 2
+      ...['planning commission','environmental review','public hearing','general plan','specific plan','entitlement','water rights','board of supervisors','city council','rezoning','annexation','outreach','controversy','contested']
+        .map(k => ({ keyword: k, weight: 2, tier: 'Tier 2', active: true, category: 'relevance' })),
+      // Tier 3
+      ...['ceqa','eir','environmental impact report','zoning','housing project','development project','infrastructure','advisory committee','task force','contract award','rfp','professional services']
+        .map(k => ({ keyword: k, weight: 1, tier: 'Tier 3', active: true, category: 'relevance' })),
+    ];
+    const rkAdded = await batchCreate(rkId, keywords);
+    log.push(`✅ Seeded RELEVANCE_KEYWORDS: ${rkAdded} rows`);
+  }
+
+  // ── 3. Seed SEARCH_SOURCES with STANDALONE_PAGES ────────────────────────────
+  try {
+    const existing = await atGet(AIRTABLE_SOURCES_TABLE, `?filterByFormula=${encodeURIComponent('{source_type}="Standalone"')}&fields[]=source_name&maxRecords=300`);
+    const existingNames = new Set((existing.records || []).map(r => (r.fields.source_name || '').toLowerCase()));
+    const toAdd = STANDALONE_PAGES.filter(p => !existingNames.has(p.name.toLowerCase()))
+      .map(p => ({ source_name: p.name, url: p.url, source_type: 'Standalone', active: true }));
+    if (toAdd.length > 0) {
+      const ssAdded = await batchCreate(AIRTABLE_SOURCES_TABLE, toAdd);
+      log.push(`✅ Seeded SEARCH_SOURCES (Standalone): ${ssAdded} added, ${STANDALONE_PAGES.length - toAdd.length} already existed`);
+    } else {
+      log.push(`⚠️ SEARCH_SOURCES already fully seeded (${STANDALONE_PAGES.length} Standalone entries exist)`);
+    }
+  } catch (e) {
+    log.push(`❌ SEARCH_SOURCES seed failed: ${e.message}`);
+  }
+
+  res.json({ success: true, log });
+});
+
 app.get("/health", (req, res) => {
   res.json({ status: "ok", service: "MORS Runner", timestamp: new Date().toISOString() });
 });
