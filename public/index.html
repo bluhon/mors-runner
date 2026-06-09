@@ -1181,43 +1181,70 @@ function formatTrackItems(html, track = '') {
   return out;
 }
 function parseTrack1Html(html) {
-  // Parse Claude's HTML table and render as cards matching the existing Track 1 card format
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
   const rows = Array.from(doc.querySelectorAll('tbody tr'));
   if (!rows.length) return '<div class="t1-no-opps">No new opportunities to review today.</div>';
-  return rows.map(row => {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const rejectReasons = ['News / Article (not a solicitation)','Not an RFP','Not in scope','Not in geography','Due date past','Low budget','No interest'];
+  const rowsHtml = rows.map((row, i) => {
     const cells = Array.from(row.querySelectorAll('td'));
     if (cells.length < 3) return '';
-    const agency  = (cells[0] ? cells[0].textContent : '').trim().replace(/✅/g, '').trim();
-    const priorClient = (cells[0] ? cells[0].textContent : '').includes('✅');
-    const solNum  = (cells[1] ? cells[1].textContent : '').trim();
-    const scope   = (cells[2] ? cells[2].textContent : '').trim();
-    const due     = (cells[3] ? cells[3].textContent : '').trim();
-    const type    = (cells[4] ? cells[4].textContent : '').trim();
-    const linkEl  = cells[5] ? cells[5].querySelector('a') : null;
-    const url     = linkEl ? linkEl.href : '';
-    const urlText = linkEl ? linkEl.textContent.trim() : 'Source';
-    // Extract title from scope (first sentence or up to em dash)
-    const titleMatch = scope.match(/^([^—\n]{10,80}?)(?:\s*—|\n|$)/);
-    const title = titleMatch ? titleMatch[1].trim() : scope.substring(0, 80);
-    const body  = scope.length > title.length ? scope.slice(scope.indexOf('—') + 1).trim() : '';
-    const dueDisplay = due && due !== 'see portal' && due !== '—' ? due : null;
-    return `<div class="t1-card">
-      <div class="t1-card-top">
-        <div class="t1-agency">${agency}${priorClient ? ' <span class="prior-client-badge">✅ Prior Client</span>' : ''}</div>
-        <div class="t1-meta">${type ? `<span class="t1-type">${type}</span>` : ''}${dueDisplay ? `<span class="t1-due">${dueDisplay}</span>` : ''}</div>
-      </div>
-      <div class="t1-title">${title}</div>
-      ${body ? `<div class="t1-scope">${body}</div>` : ''}
-      ${solNum && solNum !== 'see portal' ? `<div class="t1-solnum">Solicitation: ${solNum}</div>` : ''}
-      <div class="t1-actions">
-        ${url ? `<a href="${url}" target="_blank" class="t1-source-link">&#x2197; Source</a>` : ''}
-        <button class="btn-pipeline" onclick="saveArticleToPipeline('${title.replace(/'/g,"\\'")}','${url}','${body.replace(/'/g,"\\'")}','Track 1',this)">→ Pipeline</button>
-        <button class="btn-reject" onclick="this.closest('.t1-card').remove()">Reject</button>
-      </div>
-    </div>`;
-  }).join('');
+    const agencyRaw = (cells[0] ? cells[0].textContent : '').trim();
+    const agency    = agencyRaw.replace(/✅/g,'').trim();
+    const scope     = (cells[2] ? cells[2].textContent : '').trim();
+    const dueRaw    = (cells[3] ? cells[3].textContent : '').trim();
+    const linkEl    = row.querySelector('a');
+    const url       = linkEl ? linkEl.getAttribute('href') : '';
+    // Title = first part before em dash
+    const dashIdx = scope.search(/ [—–] /);
+    const displayTitle = dashIdx > 0 ? scope.slice(0, dashIdx) : scope.slice(0, 80);
+    const scopeBody    = dashIdx > 0 ? scope.slice(dashIdx + 3) : (scope.length > 80 ? scope.slice(80) : '');
+    const scopeShort   = scopeBody.length > 200 ? scopeBody.slice(0, 200) + '…' : scopeBody;
+    // Deadline display
+    let dlStr = '—'; let urgentClass = '';
+    const dateMatch = dueRaw.match(/(\w+ \d{1,2},?\s*\d{4}|\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2})/);
+    if (dateMatch) {
+      const dl = new Date(dateMatch[1]);
+      if (!isNaN(dl)) {
+        if (dl < today) return ''; // expired — skip
+        const diff = (dl - today) / 86400000;
+        dlStr = dl.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+        if (diff <= 7) urgentClass = 'urgent';
+        else if (diff <= 21) urgentClass = 'warning';
+      }
+    }
+    const srcCell = url
+      ? `<div class="t1-link"><a href="${url}" target="_blank"><i class="ti ti-external-link"></i> Source</a></div>`
+      : '<div class="t1-link" style="color:var(--muted);font-size:12px">Direct procurement page</div>';
+    const safeTitle  = displayTitle.replace(/'/g,"\\'").replace(/"/g,'&quot;').slice(0,80);
+    const safeAgency = agency.replace(/'/g,"\\'").slice(0,60);
+    const safeUrl    = url.replace(/'/g,"\\'");
+    const id = `t1c-html-${i}`;
+    return `<tr id="${id}">
+      <td></td>
+      <td>
+        <div class="t1-row-agency">${agency}</div>
+        <div class="t1-row-title">${displayTitle}</div>
+        ${scopeShort ? `<div class="t1-row-scope">${scopeShort}</div>` : ''}
+        <div style="display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap">
+          <button onclick="saveArticleToPipeline('${safeTitle}','${safeUrl}','${scopeShort.replace(/'/g,"\\'").slice(0,200)}','Track 1',this)" style="font-family:'Source Sans 3',Arial,sans-serif;font-size:0.9rem;font-weight:600;background:var(--brand);color:#fff;border:none;border-radius:6px;padding:6px 16px;cursor:pointer">→ Pipeline</button>
+          <div style="position:relative;display:inline-block" id="reject-wrap-${id}">
+            <button onclick="document.getElementById('reject-menu-${id}').style.display=document.getElementById('reject-menu-${id}').style.display==='none'?'block':'none'" style="font-family:'Source Sans 3',Arial,sans-serif;font-size:0.9rem;font-weight:500;background:#fff;color:#666;border:1px solid #ccc;border-radius:6px;padding:6px 14px;cursor:pointer">Reject ▾</button>
+            <div id="reject-menu-${id}" style="display:none;position:absolute;top:100%;left:0;z-index:50;background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.12);min-width:220px;padding:10px 14px 12px;margin-top:4px">
+              <div style="font-family:'Roboto Condensed',Arial,sans-serif;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#888;margin-bottom:8px">Select all that apply</div>
+              ${rejectReasons.map(r => `<label style="display:flex;align-items:center;gap:8px;font-family:'Source Sans 3',Arial,sans-serif;font-size:0.95rem;color:#333;padding:4px 0;cursor:pointer"><input type="checkbox" value="${r}" style="accent-color:var(--brand);width:15px;height:15px"> ${r}</label>`).join('')}
+              <button onclick="document.getElementById('${id}').remove()" style="margin-top:10px;width:100%;font-family:'Source Sans 3',Arial,sans-serif;font-size:0.9rem;font-weight:600;background:#d44;color:#fff;border:none;border-radius:6px;padding:7px 0;cursor:pointer">Confirm Reject</button>
+            </div>
+          </div>
+        </div>
+      </td>
+      <td>${srcCell}</td>
+      <td><div class="t1-due-date ${urgentClass}">${dlStr}</div></td>
+    </tr>`;
+  }).filter(Boolean).join('');
+  if (!rowsHtml) return '<div class="t1-no-opps">No new opportunities to review today.</div>';
+  return `<div style="margin-top:8px"><table class="t1-list"><thead><tr><th style="width:0;padding:0"></th><th>Opportunity</th><th>Link</th><th style="text-align:right">Due</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
 }
 
 function renderReport() {
