@@ -2417,10 +2417,7 @@ app.post("/feedback", async (req, res) => {
 
     // Write a new memory pattern record
     await atPost(AIRTABLE_MEMORY_TABLE, {
-      pattern_type: 'poor_result',
-      description:  description,
-      created_date: today,
-      last_seen:    today
+      description: description
     });
 
     res.json({ success: true });
