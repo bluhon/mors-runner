@@ -1570,7 +1570,7 @@ const STANDALONE_PAGES = [
   { name: 'Valley Water (SCVWD)',     url: 'https://vendors.planetbids.com/portal/48397/bo/bo-search',                                               baseUrl: 'https://vendors.planetbids.com' },
   { name: 'Sonoma Water',             url: 'https://www.sonomawater.org/rfp',                                                                        baseUrl: 'https://www.sonomawater.org' },
   { name: 'Marin Municipal Water',    url: 'https://www.marinwaterplans.com/',                                                                          baseUrl: 'https://www.marinwaterplans.com' },
-  { name: 'Zone 7 Water Agency',      url: 'https://zone7water.com/business/construction-business-opportunities',                                    baseUrl: 'https://zone7water.com' },
+  { name: 'Zone 7 Water Agency',      url: 'https://www.zone7waterca.gov/construction-business-opportunities',                                    baseUrl: 'https://www.zone7waterca.gov' },
   // ── Counties ─────────────────────────────────────────────────────────────
   // Alameda County — covered by OpenGov vendor feed
   { name: 'Contra Costa County',      url: 'https://www.contracosta.ca.gov/Bids.aspx',                                                              baseUrl: 'https://www.contracosta.ca.gov' },
