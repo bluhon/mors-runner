@@ -901,6 +901,7 @@ async function scrapeFindrfp() {
     const sessionCookie = [cookies, loginRes.headers.get('set-cookie') || '']
       .join('; ').split(',').map(c => c.split(';')[0].trim()).join('; ');
 
+    console.log(`[FindRFP] Login response: ${loginRes.status}`);
     if (loginRes.status !== 302 && loginRes.status !== 200) {
       console.warn(`[FindRFP] Login failed — status ${loginRes.status}`);
       return [];
@@ -980,8 +981,8 @@ async function scrapeOpengov() {
     });
     const authData = await authRes.json();
     const token = authData.token || authData.access_token || authData.data?.token || '';
+    console.log(`[OpenGov] Auth response: ${authRes.status}, token: ${token ? 'yes' : 'no'}, keys: ${Object.keys(authData).join(',')}`);
     if (!token) {
-      // Fallback: try session-based login
       console.warn('[OpenGov] JWT auth failed — trying session login');
       return await scrapeOpengovSession();
     }
@@ -1443,13 +1444,13 @@ const STANDALONE_PAGES = [
   { name: 'EBMUD',                    url: 'https://www.ebmud.com/business-center/requests-proposal-rfps',                                           baseUrl: 'https://www.ebmud.com' },
   { name: 'Valley Water (SCVWD)',     url: 'https://www.valleywater.org/doing-business/active-solicitations',                                        baseUrl: 'https://www.valleywater.org' },
   { name: 'Sonoma Water',             url: 'https://www.sonomawater.org/rfp',                                                                        baseUrl: 'https://www.sonomawater.org' },
-  { name: 'Marin Municipal Water',    url: 'https://www.marinwater.org/296/Bids-RFPs',                                                              baseUrl: 'https://www.marinwater.org' },
+  { name: 'Marin Municipal Water',    url: 'https://www.marinwater.org/bids-rfps',                                                                  baseUrl: 'https://www.marinwater.org' },
   { name: 'Zone 7 Water Agency',      url: 'https://zone7water.com/business/construction-business-opportunities',                                    baseUrl: 'https://zone7water.com' },
   // ── Counties ─────────────────────────────────────────────────────────────
   { name: 'Alameda County',           url: 'https://www.acgov.org/gsa/purchasing/bids.htm',                                                          baseUrl: 'https://www.acgov.org' },
   { name: 'Contra Costa County',      url: 'https://www.contracosta.ca.gov/Bids.aspx',                                                              baseUrl: 'https://www.contracosta.ca.gov' },
   { name: 'Marin County',             url: 'https://www.marincounty.org/depts/pur/bids-and-rfps',                                                    baseUrl: 'https://www.marincounty.org' },
-  { name: 'Sonoma County',            url: 'https://sonomacounty.ca.gov/general-services/purchasing/bids/',                                          baseUrl: 'https://sonomacounty.ca.gov' },
+  { name: 'Sonoma County',            url: 'https://sonomacounty.ca.gov/departments/general-services-and-purchasing/purchasing/bids-and-rfps',       baseUrl: 'https://sonomacounty.ca.gov' },
   { name: 'Napa County',              url: 'https://www.countyofnapa.org/Bids.aspx',                                                                 baseUrl: 'https://www.countyofnapa.org' },
   { name: 'Solano County',            url: 'https://www.solanocounty.com/depts/genserv/purchasing/bids_rfps.asp',                                    baseUrl: 'https://www.solanocounty.com' },
   { name: 'San Mateo County',         url: 'https://www.smcgov.org/ceo/bid-opportunities-project-documents',                                        baseUrl: 'https://www.smcgov.org' },
@@ -1459,7 +1460,7 @@ const STANDALONE_PAGES = [
   { name: 'Berkeley',                 url: 'https://www.berkeleyca.gov/doing-business/working-city/bid-proposal-opportunities',                       baseUrl: 'https://www.berkeleyca.gov' },
   { name: 'Pleasanton',               url: 'https://www.cityofpleasantonca.gov/business/bids/',                                                       baseUrl: 'https://www.cityofpleasantonca.gov' },
   { name: 'Emeryville',               url: 'https://www.emeryvilleplanroom.com/projects/public',                                                      baseUrl: 'https://www.emeryvilleplanroom.com' },
-  { name: 'Alameda',                  url: 'https://www.alamedaca.gov/BUSINESS/Bid-on-City-Contracts',                                                baseUrl: 'https://www.alamedaca.gov' },
+  { name: 'Alameda',                  url: 'https://www.alamedaca.gov/Bids.aspx',                                                                       baseUrl: 'https://www.alamedaca.gov' },
   { name: 'Piedmont',                 url: 'https://www.piedmontplanroom.com/projects/public',                                                        baseUrl: 'https://www.piedmontplanroom.com' },
   // ── Contra Costa County Cities ────────────────────────────────────────────
   { name: 'Richmond',                 url: 'https://www.ci.richmond.ca.us/3300/BidsOnline',                                                          baseUrl: 'https://www.ci.richmond.ca.us' },
@@ -1478,10 +1479,10 @@ const STANDALONE_PAGES = [
   { name: 'Foster City',              url: 'https://www.fostercity.org/rfps',                                                                         baseUrl: 'https://www.fostercity.org' },
   { name: 'Belmont',                  url: 'https://www.belmont.gov/i-want-to/find/bidding-contract-opportunities',                                   baseUrl: 'https://www.belmont.gov' },
   { name: 'San Carlos',               url: 'https://www.cityofsancarlos.org/business/bids_and_proposals/',                                           baseUrl: 'https://www.cityofsancarlos.org' },
-  { name: 'Menlo Park',               url: 'https://www.menlopark.gov/bids.aspx',                                                                    baseUrl: 'https://www.menlopark.gov' },
+  { name: 'Menlo Park',               url: 'https://menlopark.gov/government/departments/public-works/bids-rfps',                                    baseUrl: 'https://menlopark.gov' },
   { name: 'East Palo Alto',           url: 'https://www.cityofepa.org/rfps',                                                                         baseUrl: 'https://www.cityofepa.org' },
   { name: 'Pacifica',                 url: 'https://www.cityofpacifica.org/government/rfps-bids',                                                    baseUrl: 'https://www.cityofpacifica.org' },
-  { name: 'Brisbane',                 url: 'https://www.brisbaneca.org/rfps',                                                                         baseUrl: 'https://www.brisbaneca.org' },
+  // Brisbane — no accessible bids page
   { name: 'Colma',                    url: 'https://www.colma.ca.gov/rfp-and-bids/',                                                                 baseUrl: 'https://www.colma.ca.gov' },
   { name: 'Portola Valley',           url: 'https://www.portolavalley.net/departments/request-for-proposals',                                        baseUrl: 'https://www.portolavalley.net' },
   // ── Santa Clara County Cities ─────────────────────────────────────────────
@@ -1493,10 +1494,10 @@ const STANDALONE_PAGES = [
   { name: 'Fairfield',                url: 'https://www.fairfield.ca.gov/our-city/advanced-components/list-detail-pages/rfp-posts-list',             baseUrl: 'https://www.fairfield.ca.gov' },
   { name: 'Vacaville',                url: 'https://www.cityofvacaville.gov/government/finance/purchasing/current-bids',                             baseUrl: 'https://www.cityofvacaville.gov' },
   { name: 'Dixon',                    url: 'https://www.cityofdixonca.gov/bids',                                                                      baseUrl: 'https://www.cityofdixonca.gov' },
-  { name: 'Rio Vista',                url: 'https://www.riovistacity.com/rfps',                                                                       baseUrl: 'https://www.riovistacity.com' },
+  // Rio Vista — 403 bot protection
   // ── Sonoma County Cities ──────────────────────────────────────────────────
   { name: 'Santa Rosa',               url: 'https://vendors.planetbids.com/portal/20314/bo/bo-search',                                               baseUrl: 'https://vendors.planetbids.com' },
-  { name: 'Petaluma',                 url: 'https://www.cityofpetaluma.org/bid-opportunities',                                                       baseUrl: 'https://www.cityofpetaluma.org' },
+  // Petaluma — 403 bot protection
   { name: 'Sonoma',                   url: 'https://www.sonomacity.org/request-for-proposals/',                                                      baseUrl: 'https://www.sonomacity.org' },
 ];
 
