@@ -69,12 +69,13 @@ html,body{height:100%;background:var(--bg);color:#000000;font-family:'Source San
 .main{flex:1;overflow-y:auto;display:flex;flex-direction:column}
 .page{display:none;flex-direction:column;min-height:100%}
 .page.active{display:flex}
-.page-header{padding:40px 0 28px 50px;border-bottom:1px solid var(--border);flex-shrink:0}
-.page-inner{max-width:1060px;width:100%}
+.page-header{padding:0;border-bottom:1px solid var(--border);flex-shrink:0}
+.page-header-inner{max-width:1060px;width:100%;padding:40px 0 28px 50px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.page-inner{max-width:1060px;width:100%;padding-left:50px}
 .page-title{font-family:var(--font-head);font-size:clamp(1.4rem,2vw,1.9rem);font-weight:700;letter-spacing:0;line-height:1.2;color:var(--brand)}
 .page-title span{color:inherit}
 .page-subtitle{font-family:var(--font-body);font-size:0.95rem;color:#555;margin-top:8px}
-.page-body{padding:36px 0 36px 50px;flex:1}
+.page-body{padding:36px 0;flex:1}
 .report-reading-col{max-width:800px}
 .metric-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:28px}
 .metric{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px}
@@ -335,6 +336,7 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
 
     <section class="page active" id="page-report">
       <div class="page-header">
+        <div class="page-header-inner">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
           <div>
             <div class="page-title">Today's <span>Report</span></div>
@@ -344,6 +346,7 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
             <i class="ti ti-refresh"></i> Re-run now
           </button>
         </div>
+        </div><!-- /.page-header-inner -->
       </div>
       <div class="page-body" id="report-body">
         <div class="page-inner">
@@ -381,8 +384,12 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
 
     <section class="page" id="page-pipeline">
       <div class="page-header">
-        <div class="page-title">Active <span>Pipeline</span></div>
-        <div class="page-subtitle">All opportunities marked Interest = Yes</div>
+        <div class="page-header-inner">
+          <div>
+            <div class="page-title">Active <span>Pipeline</span></div>
+            <div class="page-subtitle">All opportunities marked Interest = Yes</div>
+          </div>
+        </div>
       </div>
       <div class="page-body">
         <div class="page-inner">
@@ -438,8 +445,12 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
 
     <section class="page" id="page-canvas-list">
       <div class="page-header">
-        <div class="page-title">RFP <span>Canvases</span></div>
-        <div class="page-subtitle">Active and inactive project workspaces</div>
+        <div class="page-header-inner">
+          <div>
+            <div class="page-title">RFP <span>Canvases</span></div>
+            <div class="page-subtitle">Active and inactive project workspaces</div>
+          </div>
+        </div>
       </div>
       <div class="page-body">
         <div class="page-inner">
@@ -464,12 +475,14 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
 
     <section class="page" id="page-canvas">
       <div class="page-header">
-        <button class="btn btn-ghost btn-sm" onclick="showPage('canvas-list')">
-          <i class="ti ti-arrow-left"></i> All Canvases
-        </button>
-        <div style="margin-top:16px">
-          <div id="canvas-page-title" style="font-family:'Noto Serif KR',serif;font-size:1.8rem;font-weight:700;color:#048BC9;line-height:1.2;max-width:800px"></div>
-          <div id="canvas-page-subtitle" style="font-size:1rem;color:#555;margin-top:6px;font-family:'Source Sans 3',Arial,sans-serif"></div>
+        <div class="page-header-inner" style="flex-direction:column;align-items:flex-start;gap:12px">
+          <button class="btn btn-ghost btn-sm" onclick="showPage('canvas-list')">
+            <i class="ti ti-arrow-left"></i> All Canvases
+          </button>
+          <div>
+            <div id="canvas-page-title" style="font-family:'Noto Serif KR',serif;font-size:1.8rem;font-weight:700;color:#048BC9;line-height:1.2;max-width:800px"></div>
+            <div id="canvas-page-subtitle" style="font-size:1rem;color:#555;margin-top:6px;font-family:'Source Sans 3',Arial,sans-serif"></div>
+          </div>
         </div>
       </div>
       <div class="page-body">
@@ -490,7 +503,7 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
 
     <section class="page" id="page-contacts">
       <div class="page-header">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+        <div class="page-header-inner">
           <div>
             <div class="page-title"><span>Contacts</span> & Relationships</div>
             <div class="page-subtitle">Clients, agencies, primes, partners</div>
@@ -518,7 +531,7 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
 
     <section class="page" id="page-primes">
       <div class="page-header">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+        <div class="page-header-inner">
           <div>
             <div class="page-title"><span>Prime</span> Firms</div>
             <div class="page-subtitle">Teaming intelligence — who's winning what</div>
@@ -543,8 +556,12 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
 
     <section class="page" id="page-memory">
       <div class="page-header">
-        <div class="page-title">Project <span>Memory</span></div>
-        <div class="page-subtitle">AI learning engine — what Bluhon has recognized as relevant</div>
+        <div class="page-header-inner">
+          <div>
+            <div class="page-title">Project <span>Memory</span></div>
+            <div class="page-subtitle">AI learning engine — what Bluhon has recognized as relevant</div>
+          </div>
+        </div>
       </div>
       <div class="page-body">
         <div class="page-inner">
@@ -583,8 +600,12 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
 
     <section class="page" id="page-sources">
       <div class="page-header">
-        <div class="page-title">Search <span>Settings</span></div>
-        <div class="page-subtitle">Control what the runner searches for and what it ignores</div>
+        <div class="page-header-inner">
+          <div>
+            <div class="page-title">Search <span>Settings</span></div>
+            <div class="page-subtitle">Control what the runner searches for and what it ignores</div>
+          </div>
+        </div>
       </div>
       <div class="page-body">
         <div class="page-inner" style="display:flex;flex-direction:column;gap:32px">
