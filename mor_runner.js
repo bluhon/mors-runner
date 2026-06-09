@@ -1463,7 +1463,7 @@ const STANDALONE_PAGES = [
   { name: 'Alameda',                  url: 'https://www.alamedaca.gov/Bids.aspx',                                                                       baseUrl: 'https://www.alamedaca.gov' },
   { name: 'Piedmont',                 url: 'https://www.piedmontplanroom.com/projects/public',                                                        baseUrl: 'https://www.piedmontplanroom.com' },
   // ── Contra Costa County Cities ────────────────────────────────────────────
-  { name: 'Richmond',                 url: 'https://www.ci.richmond.ca.us/3300/BidsOnline',                                                          baseUrl: 'https://www.ci.richmond.ca.us' },
+  { name: 'Richmond',                 url: 'https://vendors.planetbids.com/portal/14590/bo/bo-search',                                               baseUrl: 'https://vendors.planetbids.com' },
   { name: 'Walnut Creek',             url: 'https://vendors.planetbids.com/portal/64254/bo/bo-search',                                               baseUrl: 'https://vendors.planetbids.com' },
   { name: 'San Ramon',                url: 'https://www.sanramon.ca.gov/our_city/bids___r_f_p',                                                      baseUrl: 'https://www.sanramon.ca.gov' },
   { name: 'Martinez',                 url: 'https://www.cityofmartinez.org/departments/engineering/rfq-rfp',                                         baseUrl: 'https://www.cityofmartinez.org' },
