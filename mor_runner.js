@@ -1458,7 +1458,7 @@ const STANDALONE_PAGES = [
   // ── Alameda County Cities ─────────────────────────────────────────────────
   { name: 'Oakland',                  url: 'https://apps.oaklandca.gov/ContractOpportunities/',                                                       baseUrl: 'https://apps.oaklandca.gov' },
   { name: 'Berkeley',                 url: 'https://www.berkeleyca.gov/doing-business/working-city/bid-proposal-opportunities',                       baseUrl: 'https://www.berkeleyca.gov' },
-  { name: 'Pleasanton',               url: 'https://www.cityofpleasantonca.gov/business/bids/',                                                       baseUrl: 'https://www.cityofpleasantonca.gov' },
+  // Pleasanton — site not responding
   { name: 'Emeryville',               url: 'https://www.emeryvilleplanroom.com/projects/public',                                                      baseUrl: 'https://www.emeryvilleplanroom.com' },
   { name: 'Alameda',                  url: 'https://www.alamedaca.gov/Bids.aspx',                                                                       baseUrl: 'https://www.alamedaca.gov' },
   { name: 'Piedmont',                 url: 'https://www.piedmontplanroom.com/projects/public',                                                        baseUrl: 'https://www.piedmontplanroom.com' },
