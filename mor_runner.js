@@ -1821,6 +1821,7 @@ async function runClaudeSearch(userPrompt, attempt = 1, systemPromptOverride = n
     const stream = client.messages.stream({
       model: "claude-sonnet-4-6",
       max_tokens: 8000,
+      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 20 }],
       system: systemPromptOverride || SYSTEM_PROMPT,
       messages: [{ role: "user", content: userPrompt }]
     });
@@ -1965,11 +1966,26 @@ CRITICAL TITLE RULE: When outputting Track 1 rows, use only the project title �
 ${geo.instructions}
 
 TRACK 1 INSTRUCTIONS:
-Your PRIMARY source is the PRE-SCRAPED PORTAL OPPORTUNITIES list below — these were pulled from procurement portals this morning. Review each one and ONLY include it if it is a genuine open solicitation (RFP, RFQ, IFB, SOQ) with a formal submission deadline. If any item looks like a community meeting notice, project announcement, public hearing, or agency newsletter — EXCLUDE it even if it came from this list. Select the 8-12 most relevant genuine solicitations to Bluhon's services (public engagement, facilitation, mediation, community outreach, consensus building, environmental conflict resolution, strategic planning).
+You have two sources for Track 1 — use BOTH:
 
-If the pre-scraped list has fewer than 5 strong matches, you may supplement by searching caleprocure.ca.gov for: "public engagement", "community outreach", "facilitation", "consensus", "strategic plan" — but ONLY add results you can verify are open solicitations with a direct procurement URL.
+SOURCE A — PRE-SCRAPED PORTAL DATA (authenticated portals: FindRFP, OpenGov, Bonfire, PlanetBids, BiddingUSA, BidNet):
+${portalBlock ? portalBlock : 'No authenticated portal results this run.'}
 
-Flag prior Bluhon clients: ABAG ✅, BCDC ✅, SF Regional Water Board ✅, Cities of Berkeley/Oakland/Palo Alto/San Jose/San Mateo/Redwood City/Livermore/Novato/Half Moon Bay/Danville ✅, Contra Costa County ✅, Alameda County ✅, Marin County ✅, Santa Clara County ✅, Sonoma County ✅${sourcesInjection}${portalBlock}
+SOURCE B — DIRECT AGENCY BID PAGES (visit these URLs using your web search tool):
+CRITICAL RULES FOR SOURCE B:
+- Visit ONLY the URLs listed below — do NOT search the open web
+- For each URL, read the page and identify currently OPEN solicitations (RFP, RFQ, IFB, SOQ, ITB) with a future submission deadline
+- SKIP anything with a deadline already passed
+- SKIP meeting notices, public hearings, events, announcements, newsletters
+- Each result MUST have: a project title, a future due date, and a direct URL to the solicitation
+- If the page links to OpenGov, BidNet, or Bonfire, you may follow that link
+
+AGENCY BID PAGE URLs TO VISIT:
+${STANDALONE_PAGES.map(p => `- ${p.name}: ${p.url}`).join('\n')}
+
+Combine results from Source A and Source B. Select the 8-12 most relevant to Bluhon's services (public engagement, facilitation, mediation, community outreach, consensus building, environmental conflict resolution, strategic planning).
+
+Flag prior Bluhon clients: ABAG ✅, BCDC ✅, SF Regional Water Board ✅, Cities of Berkeley/Oakland/Palo Alto/San Jose/San Mateo/Redwood City/Livermore/Novato/Half Moon Bay/Danville ✅, Contra Costa County ✅, Alameda County ✅, Marin County ✅, Santa Clara County ✅, Sonoma County ✅${sourcesInjection}
 
 TRACK 2 INSTRUCTIONS — LOCAL CONFLICTS & EMERGING ISSUES:
 The news items below were pre-fetched this morning from ${newsItems.length} Bay Area and California local news outlets via RSS. You do NOT need to search the web for Track 2. Your job is to ANALYZE these pre-fetched items and identify the most relevant ones for Bluhon.
