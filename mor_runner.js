@@ -1678,10 +1678,11 @@ async function scrapeStandalonePages() {
           || /\d{2,}-\d{3,}/.test(text); // e.g. 2026-001, 24-0123
 
         // Hard-exclude community notices, meetings, announcements regardless
-        const isMeetingNotice = /\b(meeting|workshop|hearing|open house|survey|newsletter|announcement|notice of|calendar|agenda|minutes|event|webinar)\b/i.test(text);
+        const isMeetingNotice = /\b(meeting|workshop|hearing|open house|survey|newsletter|announcement|notice of|calendar|agenda|minutes|event|webinar|comment period|public comment|town hall|community meeting|information session)\b/i.test(text);
 
-        if (!hasSolicitationNumber && isMeetingNotice) continue;
-        if (isMeetingNotice && !STANDALONE_KEYWORDS.slice(0,9).some(kw => lower.includes(kw))) continue;
+        // Every item MUST have a solicitation number — no exceptions
+        if (!hasSolicitationNumber) continue;
+        if (isMeetingNotice) continue;
 
         const fullUrl = href.startsWith('http') ? href : (href.startsWith('/') ? page.baseUrl + href : page.url);
         linkBlocks.push({ title: text, source_url: fullUrl });
