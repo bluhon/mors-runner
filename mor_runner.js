@@ -1240,44 +1240,12 @@ async function scrapePlanetbids() {
     cookies = [cookies, newCookies].filter(Boolean).join('; ');
     console.log(`[PlanetBids] Login status: ${loginRes.status}`);
 
-    // Step 3: Hit each agency portal's open bids API
-    // Extract portal IDs from STANDALONE_PAGES that are on vendors.planetbids.com
+    // PlanetBids portals are JavaScript SPAs — API endpoint discovery needed.
+    // For now, portal URLs are passed to Claude via web_search for direct page visits.
+    // Login above establishes session; future enhancement: reverse-engineer portal API.
     const pbPages = STANDALONE_PAGES.filter(p => p.url.includes('vendors.planetbids.com/portal/'));
-    const opps = [];
-
-    await Promise.allSettled(pbPages.map(async page => {
-      const portalMatch = page.url.match(/portal\/(\d+)/);
-      if (!portalMatch) return;
-      const portalId = portalMatch[1];
-      try {
-        // Try the PlanetBids API endpoint for open bids
-        const res = await fetch(`${BASE}/api/v2/portal/${portalId}/bids?status=open&page=1&per_page=50`, {
-          headers: { 'Cookie': cookies, 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json', 'Referer': page.url }
-        });
-        if (!res.ok) {
-          console.warn(`[PlanetBids] ${page.name} portal ${portalId}: HTTP ${res.status}`);
-          return;
-        }
-        const data = await res.json();
-        const bids = data.bids || data.data || data.results || [];
-        console.log(`[PlanetBids] ${page.name}: ${bids.length} open bids`);
-        for (const bid of bids) {
-          const title = bid.bid_name || bid.name || bid.title || '';
-          const deadline = bid.due_date || bid.close_date || bid.deadline || null;
-          const bidId = bid.bid_id || bid.id || '';
-          const source_url = bidId ? `${BASE}/portal/${portalId}/bo/bo-detail/${bidId}` : page.url;
-          if (!title) continue;
-          const deadlineDate = deadline ? new Date(deadline) : null;
-          if (deadlineDate && deadlineDate < new Date()) continue; // skip expired
-          opps.push({ title, agency: page.name, deadline: deadlineDate ? deadlineDate.toISOString().split('T')[0] : null, source_url, via: 'PlanetBids' });
-        }
-      } catch(e) {
-        console.warn(`[PlanetBids] ${page.name}: ${e.message}`);
-      }
-    }));
-
-    console.log(`[PlanetBids] Found ${opps.length} opportunities across ${pbPages.length} portals`);
-    return opps;
+    console.log(`[PlanetBids] Login OK — ${pbPages.length} portal URLs passed to Claude for direct visits`);
+    return [];
   } catch(err) { console.warn(`[PlanetBids] Error: ${err.message}`); return []; }
 }
 
