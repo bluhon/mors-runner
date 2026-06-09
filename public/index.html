@@ -70,7 +70,7 @@ html,body{height:100%;background:var(--bg);color:#000000;font-family:'Source San
 .page{display:none;flex-direction:column;min-height:100%}
 .page.active{display:flex}
 .page-header{padding:40px 0 28px 50px;border-bottom:1px solid var(--border);flex-shrink:0}
-.page-inner{max-width:1110px;width:100%}
+.page-inner{max-width:1060px;width:100%}
 .page-title{font-family:var(--font-head);font-size:clamp(1.4rem,2vw,1.9rem);font-weight:700;letter-spacing:0;line-height:1.2;color:var(--brand)}
 .page-title span{color:inherit}
 .page-subtitle{font-family:var(--font-body);font-size:0.95rem;color:#555;margin-top:8px}
@@ -346,6 +346,7 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
         </div>
       </div>
       <div class="page-body" id="report-body">
+        <div class="page-inner">
         <div class="report-nav">
           <div class="report-nav-btn" onclick="navReport(-1)"><i class="ti ti-chevron-left"></i></div>
           <div class="report-date-label" id="report-date-label">Loading...</div>
@@ -374,6 +375,7 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
           <div style="font-size:13px;color:var(--muted);margin-bottom:16px">Click <strong>Interested</strong> on any issue to create a Potential Project Canvas for it.</div>
           <div id="track2-items-list"></div>
         </div>
+        </div><!-- /.page-inner -->
       </div>
     </section>
 
