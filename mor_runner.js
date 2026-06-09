@@ -1852,7 +1852,7 @@ async function runClaudeSearch(userPrompt, attempt = 1, systemPromptOverride = n
     const stream = client.messages.stream({
       model: "claude-sonnet-4-6",
       max_tokens: 8000,
-      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 20 }],
+      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 40 }],
       system: systemPromptOverride || SYSTEM_PROMPT,
       messages: [{ role: "user", content: userPrompt }]
     });
@@ -1893,7 +1893,7 @@ async function runMORSReport() {
   console.log(`[${new Date().toISOString()}] Starting MORS report for ${today} — ${geo.label}`);
 
   // ── Fetch everything in parallel — memory, sources, news RSS, portal scrapers ──
-  const [memoryPatterns, searchSources, mediaSources, existingOpps, newsItems, airtableSearchQueries, airtableKeywords, findrfpOpps, opengovOpps, bonfireOpps, planetbidsOpps, biddingusaOpps, bidnetOpps, civicengageOpps, standaloneOpps] = await Promise.all([
+  const [memoryPatterns, searchSources, mediaSources, existingOpps, newsItems, airtableSearchQueries, airtableKeywords, airtableStandalonePages, findrfpOpps, opengovOpps, bonfireOpps, planetbidsOpps, biddingusaOpps, bidnetOpps, civicengageOpps] = await Promise.all([
     fetchProjectMemory(),
     fetchSearchSources(),
     fetchMediaSources(),
@@ -1901,6 +1901,7 @@ async function runMORSReport() {
     fetchAllNewsItems(),
     fetchSearchQueriesFromAirtable(),
     fetchRelevanceKeywordsFromAirtable(),
+    fetchStandaloneSourcesFromAirtable(),
     scrapeFindrfp(),
     scrapeOpengov(),
     scrapeBonfire(),
@@ -1908,7 +1909,6 @@ async function runMORSReport() {
     scrapeBiddingusa(),
     scrapeBidnet(),
     scrapeCivicengage(),
-    scrapeStandalonePages()
   ]);
 
   // Use Airtable keywords if available, fall back to hardcoded
@@ -1976,7 +1976,8 @@ async function runMORSReport() {
       ).join('\n')
     : '';
 
-  console.log(`[SCRAPERS] FindRFP:${findrfpOpps.length} OpenGov:${opengovOpps.length} Bonfire:${bonfireOpps.length} PlanetBids:${planetbidsOpps.length} BiddingUSA:${biddingusaOpps.length} BidNet:${bidnetOpps.length} CivicEngage:${civicengageOpps.length} Standalone:${standaloneOpps.length} TOTAL:${allPortalOpps.length}`);
+  console.log(`[SCRAPERS] FindRFP:${findrfpOpps.length} OpenGov:${opengovOpps.length} Bonfire:${bonfireOpps.length} PlanetBids:${planetbidsOpps.length} BiddingUSA:${biddingusaOpps.length} BidNet:${bidnetOpps.length} CivicEngage:${civicengageOpps.length} TOTAL:${allPortalOpps.length}`);
+  console.log(`[Standalone URLs] Using ${airtableStandalonePages.length > 0 ? airtableStandalonePages.length : STANDALONE_PAGES.length} agency bid page URLs from ${airtableStandalonePages.length > 0 ? 'Airtable' : 'hardcoded list'} — passing to Claude for direct page visits`);
   console.log(`[${new Date().toISOString()}] Memory patterns: ${memoryPatterns.length}, Search sources: ${searchSources.length}, Portal opps for prompt: ${allPortalOpps.length}`);
   console.log(`[${new Date().toISOString()}] Call 1: Tracks 1+2`);
 
@@ -2016,22 +2017,20 @@ You have two sources for Track 1 — use BOTH:
 SOURCE A — PRE-SCRAPED PORTAL DATA (authenticated portals: FindRFP, OpenGov, Bonfire, PlanetBids, BiddingUSA, BidNet):
 ${portalBlock ? portalBlock : 'No authenticated portal results this run.'}
 
-SOURCE B — WEB SEARCH FOR OPEN RFPs:
-Use your web_search tool to run each of the following searches. For each search result, click through to confirm the solicitation is:
-- Currently OPEN with a future deadline (not expired)
-- A formal solicitation (RFP, RFQ, IFB, SOQ, ITB) — NOT a news article, meeting notice, or event
-- Issued by a Bay Area public agency, transit authority, water district, or county/city government
-- Related to Bluhon's services: public engagement, facilitation, community outreach, mediation, consensus building, environmental review, strategic planning
+SOURCE B — AGENCY BID PAGES (visit each URL using your web_search tool):
+These are the official bid/RFP pages for Bay Area public agencies. Visit each one and find currently OPEN solicitations.
 
-SEARCH QUERIES TO RUN (run each one):
-${activeSearchQueries.map((q, i) => `${i + 1}. ${q}`).join('\n')}
+YOUR JOB ON EACH PAGE:
+- Look for any RFP, RFQ, IFB, ITB, SOQ, or formal solicitation listed
+- Check the deadline — skip anything with a deadline already passed (before today, ${today})
+- Skip meeting notices, public hearings, surveys, events, newsletters, press releases
+- Skip items where the agency is inviting public comment — only include items where the agency is hiring a firm
+- Record: project title, issuing agency, deadline date, and direct URL to the solicitation
 
-CRITICAL RULES FOR SOURCE B:
-- Every result MUST be a real, currently open solicitation with a future due date
-- SKIP anything with a deadline already passed
-- SKIP meeting notices, public hearings, events, announcements, press releases, news articles
-- SKIP results where the agency is inviting public comment — only include results where the agency is hiring a firm
-- Each result MUST have: project title, issuing agency, future due date, direct URL to the solicitation document or listing
+AGENCY BID PAGES TO VISIT:
+${(airtableStandalonePages.length > 0 ? airtableStandalonePages : STANDALONE_PAGES).map((p, i) => `${i + 1}. ${p.name}: ${p.url}`).join('\n')}
+
+Visit as many as you can. Prioritize agencies most likely to need Bluhon's services (public agencies, transit, water districts, counties, cities).
 
 Combine results from Source A and Source B. Select the 8-12 most relevant to Bluhon's services (public engagement, facilitation, mediation, community outreach, consensus building, environmental conflict resolution, strategic planning).
 
