@@ -1214,65 +1214,69 @@ async function scrapeBonfire() {
 async function scrapePlanetbids() {
   if (!PLANETBIDS_LOGIN || !PLANETBIDS_PASSWORD) { console.log('[PlanetBids] No credentials — skipping'); return []; }
   try {
-    console.log('[PlanetBids] Logging in to vendorline.planetbids.com...');
-    const BASE = 'https://vendorline.planetbids.com';
+    console.log('[PlanetBids] Logging in to vendors.planetbids.com...');
+    const BASE = 'https://vendors.planetbids.com';
 
-    // Step 1: Get login page for CSRF token / cookies
-    const loginPage = await fetch(`${BASE}/portal/portal.cfm`, {
+    // Step 1: GET login page for cookies
+    const loginPage = await fetch(`${BASE}/api/auth/login`, {
+      method: 'GET',
       headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' }
     });
-    const cookies = (loginPage.headers.get('set-cookie') || '').split(',').map(c => c.split(';')[0].trim()).filter(Boolean).join('; ');
+    let cookies = (loginPage.headers.get('set-cookie') || '').split(',').map(c => c.split(';')[0].trim()).filter(Boolean).join('; ');
 
-    // Step 2: POST credentials
-    const loginRes = await fetch(`${BASE}/portal/portal.cfm`, {
+    // Step 2: POST credentials to API
+    const loginRes = await fetch(`${BASE}/api/auth/login`, {
       method: 'POST',
-      redirect: 'manual',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Type': 'application/json',
         'Cookie': cookies,
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-        'Referer': `${BASE}/portal/portal.cfm`
+        'Origin': BASE,
+        'Referer': `${BASE}/login`
       },
-      body: new URLSearchParams({
-        action: 'login',
-        email: PLANETBIDS_LOGIN,
-        password: PLANETBIDS_PASSWORD
-      })
+      body: JSON.stringify({ email: PLANETBIDS_LOGIN, password: PLANETBIDS_PASSWORD })
     });
-    const sessionCookies = [cookies, loginRes.headers.get('set-cookie') || '']
-      .join('; ').split(',').map(c => c.split(';')[0].trim()).filter(Boolean).join('; ');
+    const newCookies = (loginRes.headers.get('set-cookie') || '').split(',').map(c => c.split(';')[0].trim()).filter(Boolean).join('; ');
+    cookies = [cookies, newCookies].filter(Boolean).join('; ');
+    console.log(`[PlanetBids] Login status: ${loginRes.status}`);
 
-    // Step 3: Search for open bids in California
-    const keywords = ['public engagement', 'facilitation', 'outreach', 'strategic plan', 'community engagement'];
+    // Step 3: Hit each agency portal's open bids API
+    // Extract portal IDs from STANDALONE_PAGES that are on vendors.planetbids.com
+    const pbPages = STANDALONE_PAGES.filter(p => p.url.includes('vendors.planetbids.com/portal/'));
     const opps = [];
-    for (const kw of keywords.slice(0, 5)) {
+
+    await Promise.allSettled(pbPages.map(async page => {
+      const portalMatch = page.url.match(/portal\/(\d+)/);
+      if (!portalMatch) return;
+      const portalId = portalMatch[1];
       try {
-        const res = await fetch(`${BASE}/portal/portal.cfm?action=search&state=CA,NV,OR&keyword=${encodeURIComponent(kw)}&status=open`, {
-          headers: { 'Cookie': sessionCookies, 'User-Agent': 'Mozilla/5.0' }
+        // Try the PlanetBids API endpoint for open bids
+        const res = await fetch(`${BASE}/api/v2/portal/${portalId}/bids?status=open&page=1&per_page=50`, {
+          headers: { 'Cookie': cookies, 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json', 'Referer': page.url }
         });
-        const html = await res.text();
-        const rowMatches = html.match(/<tr[^>]*class="[^"]*bid[^"]*row[^"]*"[^>]*>([\s\S]*?)<\/tr>/gi) || [];
-        for (const row of rowMatches.slice(0, 10)) {
-          const cells = (row.match(/<td[^>]*>([\s\S]*?)<\/td>/gi) || []).map(td => td.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim());
-          const linkMatch = row.match(/href="([^"]*bid[^"]*)"[^>]*>([^<]{5,})</i);
-          const title = linkMatch ? linkMatch[2].trim() : cells[1] || '';
-          const agency = cells[0] || '';
-          const dueDateRaw = cells[3] || cells[2] || '';
-          const dateMatch = dueDateRaw.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
-          let deadline = null;
-          if (dateMatch) {
-            const d = new Date(dateMatch[1]);
-            if (!isNaN(d) && d > new Date()) deadline = d.toISOString().split('T')[0];
-          }
-          if (title && !opps.find(o => o.title === title)) {
-            const urlPath = linkMatch ? linkMatch[1] : '';
-            opps.push({ title, agency, deadline, scope: kw, source_url: urlPath.startsWith('http') ? urlPath : `${BASE}${urlPath}`, via: 'PlanetBids' });
-          }
+        if (!res.ok) {
+          console.warn(`[PlanetBids] ${page.name} portal ${portalId}: HTTP ${res.status}`);
+          return;
         }
-        await new Promise(r => setTimeout(r, 700));
-      } catch(e) { console.warn(`[PlanetBids] Search "${kw}" failed: ${e.message}`); }
-    }
-    console.log(`[PlanetBids] Found ${opps.length} opportunities`);
+        const data = await res.json();
+        const bids = data.bids || data.data || data.results || [];
+        console.log(`[PlanetBids] ${page.name}: ${bids.length} open bids`);
+        for (const bid of bids) {
+          const title = bid.bid_name || bid.name || bid.title || '';
+          const deadline = bid.due_date || bid.close_date || bid.deadline || null;
+          const bidId = bid.bid_id || bid.id || '';
+          const source_url = bidId ? `${BASE}/portal/${portalId}/bo/bo-detail/${bidId}` : page.url;
+          if (!title) continue;
+          const deadlineDate = deadline ? new Date(deadline) : null;
+          if (deadlineDate && deadlineDate < new Date()) continue; // skip expired
+          opps.push({ title, agency: page.name, deadline: deadlineDate ? deadlineDate.toISOString().split('T')[0] : null, source_url, via: 'PlanetBids' });
+        }
+      } catch(e) {
+        console.warn(`[PlanetBids] ${page.name}: ${e.message}`);
+      }
+    }));
+
+    console.log(`[PlanetBids] Found ${opps.length} opportunities across ${pbPages.length} portals`);
     return opps;
   } catch(err) { console.warn(`[PlanetBids] Error: ${err.message}`); return []; }
 }
@@ -1555,7 +1559,7 @@ const STANDALONE_PAGES = [
   { name: 'MROSD',                    url: 'https://www.bidnetdirect.com/california/openspace',                                                         baseUrl: 'https://www.bidnetdirect.com' },
   { name: 'Fremont',                  url: 'https://www.bidnetdirect.com/california/cityoffremont',                                                      baseUrl: 'https://www.bidnetdirect.com' },
   { name: 'Livermore',                url: 'https://www.bidnetdirect.com/california/cityoflivermore',                                                    baseUrl: 'https://www.bidnetdirect.com' },
-  { name: 'Pleasant Hill',            url: 'https://www.bidnetdirect.com/california/cityofpleasanthill',                                                 baseUrl: 'https://www.bidnetdirect.com' },
+  { name: 'Pleasant Hill',            url: 'https://vendors.planetbids.com/portal/80113/bo/bo-search',                                               baseUrl: 'https://vendors.planetbids.com' },
   { name: 'Novato',                   url: 'https://www.bidnetdirect.com/california/cityofnovato',                                                       baseUrl: 'https://www.bidnetdirect.com' },
   { name: 'Tiburon',                  url: 'https://www.bidnetdirect.com/california/townoftiburon',                                                      baseUrl: 'https://www.bidnetdirect.com' },
   { name: 'Santa Clara',              url: 'https://www.bidnetdirect.com/california/cityofsantaclara',                                                   baseUrl: 'https://www.bidnetdirect.com' },
@@ -1563,7 +1567,7 @@ const STANDALONE_PAGES = [
   // ── Water Agencies ───────────────────────────────────────────────────────
   { name: 'SFPUC',                    url: 'https://webapps.sfpuc.org/bids/',                                                                        baseUrl: 'https://webapps.sfpuc.org' },
   { name: 'EBMUD',                    url: 'https://www.ebmud.com/business-center/requests-proposal-rfps',                                           baseUrl: 'https://www.ebmud.com' },
-  { name: 'Valley Water (SCVWD)',     url: 'https://www.valleywater.org/doing-business/active-solicitations',                                        baseUrl: 'https://www.valleywater.org' },
+  { name: 'Valley Water (SCVWD)',     url: 'https://vendors.planetbids.com/portal/48397/bo/bo-search',                                               baseUrl: 'https://vendors.planetbids.com' },
   { name: 'Sonoma Water',             url: 'https://www.sonomawater.org/rfp',                                                                        baseUrl: 'https://www.sonomawater.org' },
   { name: 'Marin Municipal Water',    url: 'https://www.marinwaterplans.com/',                                                                          baseUrl: 'https://www.marinwaterplans.com' },
   { name: 'Zone 7 Water Agency',      url: 'https://zone7water.com/business/construction-business-opportunities',                                    baseUrl: 'https://zone7water.com' },
