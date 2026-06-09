@@ -2154,7 +2154,8 @@ OUTPUT FORMAT — use exactly these delimiters:
         deadline:   opp.deadline || null,
         track:      "1 — Active RFP",
         scope:      opp.scope,
-        source_url: opp.source_url
+        source_url: opp.source_url,
+        report_date: reportDate
       });
       oppCount++;
     } catch(e) {
@@ -2174,7 +2175,8 @@ OUTPUT FORMAT — use exactly these delimiters:
         deadline:   opp.deadline || null,
         track:      "1 — Active RFP",
         scope:      opp.scope,
-        source_url: opp.source_url
+        source_url: opp.source_url,
+        report_date: reportDate
       });
       findrfpCount++;
     } catch(e) {
@@ -2202,7 +2204,8 @@ OUTPUT FORMAT — use exactly these delimiters:
         deadline:   opp.deadline || null,
         track:      "1 — Active RFP",
         scope:      opp.scope,
-        source_url: opp.source_url
+        source_url: opp.source_url,
+        report_date: reportDate
       });
       portalCount++;
     } catch(e) { console.warn(`Portal opp save failed (${opp.title}):`, e.message); }

@@ -949,19 +949,15 @@ async function createTrack2Canvas(item) {
 async function loadProspects() {
   const container = document.getElementById('track1-opps-container');
   if (!container) return;
-  if (currentReportIndex !== 0) {
-    container.innerHTML = '<div class="t1-no-opps">View today\'s report to mark interest in opportunities.</div>';
-    return;
-  }
-  const res = await atFetch(CONFIG.TABLES.OPPORTUNITIES, `?sort[0][field]=deadline&sort[0][direction]=asc&maxRecords=100`);
+  // Get the date of the currently displayed report
+  const currentReport = allReports[currentReportIndex];
+  const reportDate = currentReport ? (currentReport.fields.report_date || '') : '';
+  const formula = reportDate
+    ? encodeURIComponent(`AND(OR({interest}="", {interest}=BLANK()), {report_date}="${reportDate}")`)
+    : encodeURIComponent(`OR({interest}="", {interest}=BLANK())`);
+  const res = await atFetch(CONFIG.TABLES.OPPORTUNITIES, `?filterByFormula=${formula}&sort[0][field]=deadline&sort[0][direction]=asc&maxRecords=100`);
   const allOpps = res.records || [];
-  // Only show undecided opportunities from the last 2 days
-  const twoDaysAgo = new Date(); twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-  const prospects = allOpps.filter(p => {
-    if (p.fields.interest && p.fields.interest !== '') return false;
-    const created = new Date(p.createdTime || 0);
-    return created >= twoDaysAgo;
-  });
+  const prospects = allOpps.filter(p => !p.fields.interest || p.fields.interest === '');
   if (prospects.length === 0) {
     container.innerHTML = '<div class="t1-no-opps">No new opportunities to review today.</div>';
     return;
