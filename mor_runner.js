@@ -1437,7 +1437,7 @@ const STANDALONE_PAGES = [
   { name: 'BCDC',                     url: 'https://www.bcdc.ca.gov/permits/',                                                                       baseUrl: 'https://www.bcdc.ca.gov' },
   { name: 'BAAQMD',                   url: 'https://www.baaqmd.gov/about-the-air-district/request-for-proposals-rfp-rfq',                           baseUrl: 'https://www.baaqmd.gov' },
   { name: 'EBRPD',                    url: 'https://www.ebparks.org/public-info/bids-rfps',                                                          baseUrl: 'https://www.ebparks.org' },
-  // MROSD — on BidNet (bidnetdirect.com/california/openspace); covered by BidNet scraper when credentials added
+  { name: 'MROSD',                    url: 'https://www.bidnetdirect.com/california/openspace',                                                         baseUrl: 'https://www.bidnetdirect.com' },
   // ── Water Agencies ───────────────────────────────────────────────────────
   { name: 'SFPUC',                    url: 'https://webapps.sfpuc.org/bids/',                                                                        baseUrl: 'https://webapps.sfpuc.org' },
   { name: 'EBMUD',                    url: 'https://www.ebmud.com/business-center/requests-proposal-rfps',                                           baseUrl: 'https://www.ebmud.com' },
