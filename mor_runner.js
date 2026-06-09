@@ -1124,22 +1124,27 @@ async function scrapeBonfire() {
     let authCookie = '';
     if (BONFIRE_LOGIN && BONFIRE_PASSWORD) {
       try {
-        // Bonfire uses Ory/Kratos — must initiate a flow first, then POST with flow token
-        const flowRes = await fetch('https://account.bonfirehub.com/self-service/login/browser', {
-          headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' }
+        // Bonfire uses Ory/Kratos — GET /login redirects to /login?flow=xxx
+        const flowPage = await fetch('https://account.bonfirehub.com/login', {
+          redirect: 'follow',
+          headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'text/html' }
         });
-        const flowCookies = (flowRes.headers.get('set-cookie') || '').split(',').map(c => c.split(';')[0].trim()).join('; ');
-        const flowData = await flowRes.json().catch(() => ({}));
-        const flowId = flowData.id || '';
-        const csrfToken = flowData.ui?.nodes?.find(n => n.attributes?.name === 'csrf_token')?.attributes?.value || '';
-        console.log(`[Bonfire] Flow: ${flowId ? flowId.slice(0,8) : 'none'}`);
+        const flowHtml = await flowPage.text();
+        const flowCookies = (flowPage.headers.get('set-cookie') || '').split(',').map(c => c.split(';')[0].trim()).join('; ');
+        // Extract flow ID from final URL or hidden input
+        const flowIdMatch = flowPage.url.match(/[?&]flow=([a-f0-9-]+)/)
+          || flowHtml.match(/name="flow"\s+value="([a-f0-9-]+)"/);
+        const flowId = flowIdMatch ? flowIdMatch[1] : '';
+        const csrfMatch = flowHtml.match(/name="csrf_token"\s+value="([^"]+)"/);
+        const csrfToken = csrfMatch ? csrfMatch[1] : '';
+        console.log(`[Bonfire] Flow: ${flowId ? flowId.slice(0,8) : 'none'}, csrf: ${csrfToken ? 'yes' : 'no'}`);
 
         if (flowId) {
-          const loginRes = await fetch(`https://account.bonfirehub.com/self-service/login?flow=${flowId}`, {
+          const loginRes = await fetch(`https://account.bonfirehub.com/login?flow=${flowId}`, {
             method: 'POST', redirect: 'manual',
-            headers: { 'Content-Type': 'application/json', 'Cookie': flowCookies,
-              'User-Agent': 'Mozilla/5.0', 'X-CSRF-Token': csrfToken },
-            body: JSON.stringify({ method: 'password', identifier: BONFIRE_LOGIN, password: BONFIRE_PASSWORD, csrf_token: csrfToken })
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Cookie': flowCookies,
+              'User-Agent': 'Mozilla/5.0', 'Referer': `https://account.bonfirehub.com/login?flow=${flowId}` },
+            body: new URLSearchParams({ method: 'password', identifier: BONFIRE_LOGIN, password: BONFIRE_PASSWORD, csrf_token: csrfToken })
           });
           authCookie = [flowCookies, loginRes.headers.get('set-cookie') || '']
             .join('; ').split(',').map(c => c.split(';')[0].trim()).join('; ');
