@@ -1994,10 +1994,13 @@ These are the official bid/RFP pages for Bay Area public agencies. Visit each on
 
 YOUR JOB ON EACH PAGE:
 - Look for any RFP, RFQ, IFB, ITB, SOQ, or formal solicitation listed
-- Check the deadline — skip anything with a deadline already passed (before today, ${today})
+- TODAY IS ${today}. Any deadline before today is EXPIRED — do NOT include it under any circumstances
+- If you cannot find a clear deadline, look harder. If still no date found, skip it
 - Skip meeting notices, public hearings, surveys, events, newsletters, press releases
-- Skip items where the agency is inviting public comment — only include items where the agency is hiring a firm
+- Skip items where the agency is inviting public comment — only include items where the agency is HIRING A FIRM
 - Record: project title, issuing agency, deadline date, and direct URL to the solicitation
+
+ABSOLUTE RULE: If the deadline year is 2024 or earlier, or the deadline month/year is before ${today} — DO NOT INCLUDE IT. Old RFPs are worthless.
 
 AGENCY BID PAGES TO VISIT:
 ${(airtableStandalonePages.length > 0 ? airtableStandalonePages : STANDALONE_PAGES).map((p, i) => `${i + 1}. ${p.name}: ${p.url}`).join('\n')}
