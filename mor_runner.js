@@ -11,6 +11,8 @@ const AIRTABLE_TRACK2_TABLE   = "tbl4f7N5EoaKRwRXK";
 const AIRTABLE_MEMORY_TABLE   = "tblNgcBpooPK9wOkD";  // PROJECT_MEMORY
 const AIRTABLE_SOURCES_TABLE  = "tblsQwva2y8ABugYH";  // SEARCH_SOURCES (procurement portals)
 const AIRTABLE_MEDIA_TABLE    = "tblANGqT4L4Yt1MFl"; // MEDIA_SOURCES
+const AIRTABLE_SEARCH_QUERIES_TABLE = "tblWft5ytQe3NHByq"; // RFP_SEARCH_QUERIES
+const AIRTABLE_KEYWORDS_TABLE = "tblRKf4ftCpv1q65Z";  // RELEVANCE_KEYWORDS
 
 // Portal credentials — from Render environment variables
 const FINDRFP_LOGIN       = process.env.FINDRFP_LOGIN       || process.env.FINDRFP_EMAIL || '';
@@ -562,11 +564,12 @@ const BAY_AREA_TERMS = [
   'alum rock', 'cupertino', 'los altos', 'gilroy', 'morgan hill',
 ];
 
-function scoreRelevance(item) {
+function scoreRelevance(item, keywordWeights) {
+  const weights = keywordWeights || KEYWORD_WEIGHTS;
   const title   = (item.title   || '').toLowerCase();
   const summary = (item.summary || '').toLowerCase();
   let score = 0;
-  for (const [kw, pts] of Object.entries(KEYWORD_WEIGHTS)) {
+  for (const [kw, pts] of Object.entries(weights)) {
     if (title.includes(kw))   score += pts * 2; // title match weighted double
     if (summary.includes(kw)) score += pts;
   }
@@ -748,6 +751,34 @@ async function fetchStandaloneSourcesFromAirtable() {
   } catch (err) {
     console.warn(`[fetchStandaloneSources] Failed: ${err.message}`);
     return [];
+  }
+}
+
+async function fetchSearchQueriesFromAirtable() {
+  try {
+    const formula = encodeURIComponent(`AND({active}=TRUE(), {track}="Track 1")`);
+    const data = await atGet(AIRTABLE_SEARCH_QUERIES_TABLE, `?filterByFormula=${formula}&maxRecords=50&sort[0][field]=query&sort[0][direction]=asc`);
+    return (data.records || []).map(r => r.fields.query || '').filter(Boolean);
+  } catch (err) {
+    console.warn(`[fetchSearchQueries] Failed: ${err.message}`);
+    return [];
+  }
+}
+
+async function fetchRelevanceKeywordsFromAirtable() {
+  try {
+    const formula = encodeURIComponent(`{active}=TRUE()`);
+    const data = await atGet(AIRTABLE_KEYWORDS_TABLE, `?filterByFormula=${formula}&maxRecords=200`);
+    const weights = {};
+    for (const r of (data.records || [])) {
+      if (r.fields.keyword && r.fields.weight) {
+        weights[r.fields.keyword] = Number(r.fields.weight);
+      }
+    }
+    return weights;
+  } catch (err) {
+    console.warn(`[fetchRelevanceKeywords] Failed: ${err.message}`);
+    return {};
   }
 }
 
@@ -1862,12 +1893,14 @@ async function runMORSReport() {
   console.log(`[${new Date().toISOString()}] Starting MORS report for ${today} — ${geo.label}`);
 
   // ── Fetch everything in parallel — memory, sources, news RSS, portal scrapers ──
-  const [memoryPatterns, searchSources, mediaSources, existingOpps, newsItems, findrfpOpps, opengovOpps, bonfireOpps, planetbidsOpps, biddingusaOpps, bidnetOpps, civicengageOpps, standaloneOpps] = await Promise.all([
+  const [memoryPatterns, searchSources, mediaSources, existingOpps, newsItems, airtableSearchQueries, airtableKeywords, findrfpOpps, opengovOpps, bonfireOpps, planetbidsOpps, biddingusaOpps, bidnetOpps, civicengageOpps, standaloneOpps] = await Promise.all([
     fetchProjectMemory(),
     fetchSearchSources(),
     fetchMediaSources(),
     fetchExistingOppTitles(cutoffStr),
     fetchAllNewsItems(),
+    fetchSearchQueriesFromAirtable(),
+    fetchRelevanceKeywordsFromAirtable(),
     scrapeFindrfp(),
     scrapeOpengov(),
     scrapeBonfire(),
@@ -1877,6 +1910,18 @@ async function runMORSReport() {
     scrapeCivicengage(),
     scrapeStandalonePages()
   ]);
+
+  // Use Airtable keywords if available, fall back to hardcoded
+  const activeKeywords = Object.keys(airtableKeywords).length > 0 ? airtableKeywords : KEYWORD_WEIGHTS;
+  console.log(`[Keywords] Using ${Object.keys(activeKeywords).length} keywords from ${Object.keys(airtableKeywords).length > 0 ? 'Airtable' : 'hardcoded fallback'}`);
+
+  // Use Airtable search queries if available
+  const activeSearchQueries = airtableSearchQueries.length > 0 ? airtableSearchQueries : [
+    '"request for proposal" "public engagement" OR "community engagement" bay area 2026',
+    '"request for proposal" "facilitation" OR "mediation" OR "consensus" california 2026',
+    '"RFP" "community outreach" OR "stakeholder engagement" site:.gov bay area 2026',
+  ];
+  console.log(`[SearchQueries] Using ${activeSearchQueries.length} queries from ${airtableSearchQueries.length > 0 ? 'Airtable' : 'hardcoded fallback'}`);
 
   // Seen-titles set — grows as we save, prevents within-run and cross-run duplicates
   const seenTitles = existingOpps.map(o => normalizeTitle(o.title));
@@ -1971,17 +2016,22 @@ You have two sources for Track 1 — use BOTH:
 SOURCE A — PRE-SCRAPED PORTAL DATA (authenticated portals: FindRFP, OpenGov, Bonfire, PlanetBids, BiddingUSA, BidNet):
 ${portalBlock ? portalBlock : 'No authenticated portal results this run.'}
 
-SOURCE B — DIRECT AGENCY BID PAGES (visit these URLs using your web search tool):
-CRITICAL RULES FOR SOURCE B:
-- Visit ONLY the URLs listed below — do NOT search the open web
-- For each URL, read the page and identify currently OPEN solicitations (RFP, RFQ, IFB, SOQ, ITB) with a future submission deadline
-- SKIP anything with a deadline already passed
-- SKIP meeting notices, public hearings, events, announcements, newsletters
-- Each result MUST have: a project title, a future due date, and a direct URL to the solicitation
-- If the page links to OpenGov, BidNet, or Bonfire, you may follow that link
+SOURCE B — WEB SEARCH FOR OPEN RFPs:
+Use your web_search tool to run each of the following searches. For each search result, click through to confirm the solicitation is:
+- Currently OPEN with a future deadline (not expired)
+- A formal solicitation (RFP, RFQ, IFB, SOQ, ITB) — NOT a news article, meeting notice, or event
+- Issued by a Bay Area public agency, transit authority, water district, or county/city government
+- Related to Bluhon's services: public engagement, facilitation, community outreach, mediation, consensus building, environmental review, strategic planning
 
-AGENCY BID PAGE URLs TO VISIT:
-${STANDALONE_PAGES.map(p => `- ${p.name}: ${p.url}`).join('\n')}
+SEARCH QUERIES TO RUN (run each one):
+${activeSearchQueries.map((q, i) => `${i + 1}. ${q}`).join('\n')}
+
+CRITICAL RULES FOR SOURCE B:
+- Every result MUST be a real, currently open solicitation with a future due date
+- SKIP anything with a deadline already passed
+- SKIP meeting notices, public hearings, events, announcements, press releases, news articles
+- SKIP results where the agency is inviting public comment — only include results where the agency is hiring a firm
+- Each result MUST have: project title, issuing agency, future due date, direct URL to the solicitation document or listing
 
 Combine results from Source A and Source B. Select the 8-12 most relevant to Bluhon's services (public engagement, facilitation, mediation, community outreach, consensus building, environmental conflict resolution, strategic planning).
 
