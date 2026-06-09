@@ -2128,7 +2128,7 @@ OUTPUT FORMAT — use exactly these delimiters:
   const track4Match = text2.match(/---TRACK4_START---([\s\S]*?)---TRACK4_END---/);
   const oppsMatch   = text1.match(/---OPPORTUNITIES_JSON_START---([\s\S]*?)---OPPORTUNITIES_JSON_END---/);
 
-  const track1_html = track1Match ? track1Match[1].trim() : "<p>No Track 1 data.</p>";
+  const track1_html = stripExpiredTrack1Rows(track1Match ? track1Match[1].trim() : "<p>No Track 1 data.</p>");
   const track2_html = track2Match ? track2Match[1].trim() : "<p>No Track 2 data.</p>";
   const track3_html = track3Match ? track3Match[1].trim() : "<p>No Track 3 data.</p>";
   const track4_html = track4Match ? track4Match[1].trim() : "<p>No Track 4 data.</p>";
@@ -2242,6 +2242,23 @@ OUTPUT FORMAT — use exactly these delimiters:
 }
 
 // Parse Track 1 HTML table rows into opportunity objects
+function stripExpiredTrack1Rows(html) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  // Remove any <tr> whose cells contain a date that is in the past
+  return html.replace(/<tr[^>]*>([\s\S]*?)<\/tr>/gi, (row) => {
+    const text = row.replace(/<[^>]+>/g, ' ');
+    const dateMatches = [...text.matchAll(/\b(\w+ \d{1,2},?\s*\d{4}|\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2})\b/g)];
+    for (const m of dateMatches) {
+      const d = new Date(m[1]);
+      if (!isNaN(d) && d.getFullYear() > 2020 && d < today) {
+        console.log(`[Track1 Filter] Stripped expired row — found date ${m[1]} in: ${text.substring(0,80)}`);
+        return ''; // remove this row entirely
+      }
+    }
+    return row;
+  });
+}
+
 function parseTrack1Opps(html, reportDate) {
   const opps = [];
   const rowMatches = html.match(/<tr[^>]*>([\s\S]*?)<\/tr>/gi) || [];
@@ -2265,6 +2282,15 @@ function parseTrack1Opps(html, reportDate) {
       if (!isNaN(parsed)) deadline = parsed.toISOString().split('T')[0];
     }
     if (!agency && !title) continue;
+    // Hard date filter — drop anything with a deadline before today, no exceptions
+    if (deadline) {
+      const deadlineDate = new Date(deadline);
+      const today = new Date(); today.setHours(0,0,0,0);
+      if (deadlineDate < today) {
+        console.log(`[Track1 Filter] Dropped expired RFP: "${title}" — deadline ${deadline}`);
+        continue;
+      }
+    }
     opps.push({ title: title || 'Untitled', agency, deadline, scope: scope || type, source_url });
   }
   return opps;
