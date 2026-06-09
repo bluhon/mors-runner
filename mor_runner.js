@@ -2191,7 +2191,6 @@ OUTPUT FORMAT — use exactly these delimiters:
     ...biddingusaOpps.map(o => ({ ...o, tag: '[via BiddingUSA]' })),
     ...bidnetOpps.map(o => ({ ...o, tag: '[via BidNet]' })),
     ...civicengageOpps.map(o => ({ ...o, tag: '[via CivicEngage]' })),
-    ...standaloneOpps.map(o => ({ ...o, tag: '[via Direct]' }))
   ];
   let portalCount = 0, portalSkipped = 0;
   for (const opp of portalOpps) {
