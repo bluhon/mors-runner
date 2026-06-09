@@ -39,6 +39,15 @@ console.log('[CREDS]',
 );
 
 const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+
+const POSTED_CUTOFF_DAYS = 45;
+function withinCutoff(dateStr) {
+  if (!dateStr) return true; // unknown post date — include by default
+  const d = new Date(dateStr);
+  if (isNaN(d)) return true;
+  return (Date.now() - d.getTime()) <= POSTED_CUTOFF_DAYS * 24 * 60 * 60 * 1000;
+}
+
 const app = express();
 app.use(express.json());
 app.use((req, res, next) => {
@@ -912,7 +921,8 @@ async function scrapeFindrfp() {
     // Step 3: Search each keyword, filter to California
     for (const keyword of FINDRFP_KEYWORDS.slice(0, 5)) { // limit to 5 to avoid rate limits
       try {
-        const searchUrl = `https://www.findrfp.com/rfp-search?keyword=${encodeURIComponent(keyword)}&state=CA,NV,OR&status=open`;
+        const cutoffDate = new Date(Date.now() - POSTED_CUTOFF_DAYS * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const searchUrl = `https://www.findrfp.com/rfp-search?keyword=${encodeURIComponent(keyword)}&state=CA,NV,OR&status=open&posted_after=${cutoffDate}`;
         const searchRes = await fetch(searchUrl, {
           headers: {
             'Cookie': sessionCookie,
@@ -1007,6 +1017,8 @@ async function scrapeOpengov() {
           const title = item.title || item.name || '';
           const agency = item.department_name || item.organization_name || item.agency || item.department || '';
           const deadline = item.close_date || item.due_date || item.deadline || null;
+          const posted = item.release_date || item.posted_date || item.open_date || item.created_at || null;
+          if (!withinCutoff(posted)) continue;
           const portalSlug = item.portal_slug || item.slug || item.id || '';
           const source_url = portalSlug
             ? `https://procurement.opengov.com/portal/${portalSlug}`
@@ -1014,7 +1026,7 @@ async function scrapeOpengov() {
           if (title && !opps.find(o => o.title === title)) {
             const deadlineDate = deadline ? new Date(deadline) : null;
             if (!deadlineDate || deadlineDate > new Date()) {
-              opps.push({ title, agency, deadline: deadlineDate ? deadlineDate.toISOString().split('T')[0] : null, scope: '', source_url, via: 'OpenGov' });
+              opps.push({ title, agency, deadline: deadlineDate ? deadlineDate.toISOString().split('T')[0] : null, posted: posted || null, scope: '', source_url, via: 'OpenGov' });
             }
           }
         }
@@ -1871,7 +1883,7 @@ CRITICAL DATE FILTER: Only include RFPs issued after ${cutoffStr} (last 45 days)
 
 CRITICAL SOLICITATION FILTER:
 
-FOR PRE-SCRAPED PORTAL ITEMS (marked [via:...]): These come from authenticated Bay Area procurement portals and are real solicitations. Include all relevant ones. Do not reject them for lacking a visible solicitation number — that number exists on the linked page. You may filter out portal items that are clearly irrelevant to Bluhon's services (road paving, IT hardware, food services, etc.).
+FOR PRE-SCRAPED PORTAL ITEMS (marked [via:...]): These come from authenticated CA/NV/OR procurement portals and are real solicitations. Include all relevant ones. Do not reject them for lacking a visible solicitation number — that number exists on the linked page. You may filter out portal items that are clearly irrelevant to Bluhon's services (road paving, IT hardware, food services, etc.). KEY DATE RULE: Only include items posted within the last 45 days — if a posted/release date is visible and older than 45 days, omit it.
 
 FOR ANY ITEM YOU FIND VIA WEB SEARCH (not in the pre-scraped list): Apply strict verification — only include if ALL of the following are true:
 1. Has a solicitation number (RFP 2026-01, RFQ-24-003, Bid No. 12345, IFB #2026-002, etc.)
