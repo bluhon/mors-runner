@@ -912,7 +912,7 @@ async function scrapeFindrfp() {
     // Step 3: Search each keyword, filter to California
     for (const keyword of FINDRFP_KEYWORDS.slice(0, 5)) { // limit to 5 to avoid rate limits
       try {
-        const searchUrl = `https://www.findrfp.com/rfp-search?keyword=${encodeURIComponent(keyword)}&state=CA&status=open`;
+        const searchUrl = `https://www.findrfp.com/rfp-search?keyword=${encodeURIComponent(keyword)}&state=CA,NV,OR&status=open`;
         const searchRes = await fetch(searchUrl, {
           headers: {
             'Cookie': sessionCookie,
@@ -995,7 +995,7 @@ async function scrapeOpengov() {
     while (page <= 5) { // cap at 5 pages (~250 opps)
       try {
         const res = await fetch(
-          `https://procurement.opengov.com/api/procurement/vendors/${OPENGOV_VENDOR_ID}/bids?states=CA&status=open&per_page=50&page=${page}`,
+          `https://procurement.opengov.com/api/procurement/vendors/${OPENGOV_VENDOR_ID}/bids?states=CA,NV,OR&status=open&per_page=50&page=${page}`,
           { headers }
         );
         console.log(`[OpenGov] Vendor bids page ${page}: status ${res.status}`);
@@ -1037,7 +1037,7 @@ async function scrapeOpengov() {
 async function scrapeOpengovVendorPage(headers = {}) {
   try {
     const res = await fetch(
-      `https://procurement.opengov.com/vendors/${OPENGOV_VENDOR_ID}/open-bids?states=CA`,
+      `https://procurement.opengov.com/vendors/${OPENGOV_VENDOR_ID}/open-bids?states=CA,NV,OR`,
       { headers: { ...headers, 'Accept': 'text/html', 'User-Agent': 'Mozilla/5.0' } }
     );
     const text = await res.text();
@@ -1164,7 +1164,7 @@ async function scrapePlanetbids() {
     const opps = [];
     for (const kw of keywords.slice(0, 5)) {
       try {
-        const res = await fetch(`${BASE}/portal/portal.cfm?action=search&state=CA&keyword=${encodeURIComponent(kw)}&status=open`, {
+        const res = await fetch(`${BASE}/portal/portal.cfm?action=search&state=CA,NV,OR&keyword=${encodeURIComponent(kw)}&status=open`, {
           headers: { 'Cookie': sessionCookies, 'User-Agent': 'Mozilla/5.0' }
         });
         const html = await res.text();
@@ -1852,7 +1852,7 @@ async function runMORSReport() {
     ...standaloneOpps
   ];
   const portalBlock = allPortalOpps.length > 0
-    ? `\n\nPRE-SCRAPED PORTAL OPPORTUNITIES (${allPortalOpps.length} items pulled directly from authenticated Bay Area procurement portals — FindRFP, OpenGov, Bonfire, PlanetBids, BiddingUSA, BidNet, CivicEngage, and agency bid pages. These ARE real solicitations. Include all that are relevant to Bluhon's services — do NOT reject them for lacking a visible solicitation number, the number exists on the linked page):\n` +
+    ? `\n\nPRE-SCRAPED PORTAL OPPORTUNITIES (${allPortalOpps.length} items pulled directly from authenticated CA/NV/OR procurement portals — FindRFP, OpenGov, Bonfire, PlanetBids, BiddingUSA, BidNet, CivicEngage, and agency bid pages. These ARE real solicitations. Include all that are relevant to Bluhon's services — do NOT reject them for lacking a visible solicitation number, the number exists on the linked page):\n` +
       allPortalOpps.slice(0, 150).map((o, i) =>
         `${i+1}. [via:${o.via||'portal'}] ${o.title} | ${o.agency || ''} | Due: ${o.deadline || 'unknown'} | ${o.source_url || ''}`
       ).join('\n')
