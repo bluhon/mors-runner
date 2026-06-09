@@ -1449,7 +1449,7 @@ const STANDALONE_PAGES = [
   // ── Counties ─────────────────────────────────────────────────────────────
   { name: 'Alameda County',           url: 'https://www.acgov.org/gsa/purchasing/bids.htm',                                                          baseUrl: 'https://www.acgov.org' },
   { name: 'Contra Costa County',      url: 'https://www.contracosta.ca.gov/Bids.aspx',                                                              baseUrl: 'https://www.contracosta.ca.gov' },
-  { name: 'Marin County',             url: 'https://www.marincounty.org/depts/pur/bids-and-rfps',                                                    baseUrl: 'https://www.marincounty.org' },
+  { name: 'Marin County',             url: 'https://www.marincounty.gov/contracting-opportunities',                                                  baseUrl: 'https://www.marincounty.gov' },
   { name: 'Sonoma County',            url: 'https://sonomacounty.ca.gov/departments/general-services-and-purchasing/purchasing/bids-and-rfps',       baseUrl: 'https://sonomacounty.ca.gov' },
   { name: 'Napa County',              url: 'https://www.countyofnapa.org/Bids.aspx',                                                                 baseUrl: 'https://www.countyofnapa.org' },
   { name: 'Solano County',            url: 'https://www.solanocounty.com/depts/genserv/purchasing/bids_rfps.asp',                                    baseUrl: 'https://www.solanocounty.com' },
