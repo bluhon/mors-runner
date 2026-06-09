@@ -1427,11 +1427,10 @@ const STANDALONE_PAGES = [
   // ── Regional Transit ─────────────────────────────────────────────────────
   { name: 'BART',                     url: 'https://www.bart.gov/about/business/procurement/contractsout',                                           baseUrl: 'https://www.bart.gov' },
   { name: 'AC Transit',               url: 'https://www.actransit.org/business-opportunities',                                                       baseUrl: 'https://www.actransit.org' },
-  { name: 'Caltrain / JPB',           url: 'https://www.caltrain.com/about_caltrain/doing-business/bids-and-rfps.html',                              baseUrl: 'https://www.caltrain.com' },
+  { name: 'Caltrain / JPB / SamTrans / SMCTD', url: 'https://vendors.planetbids.com/portal/68007/bo/bo-search',                                    baseUrl: 'https://vendors.planetbids.com' },
   { name: 'VTA',                      url: 'https://www.vta.org/business-center/solicitations',                                                      baseUrl: 'https://www.vta.org' },
-  { name: 'SMART Rail',               url: 'https://www.sonomamarintrain.org/business',                                                              baseUrl: 'https://www.sonomamarintrain.org' },
-  { name: 'Golden Gate Transit',      url: 'https://www.goldengate.org/about/contracting-opportunities/',                                            baseUrl: 'https://www.goldengate.org' },
-  { name: 'SamTrans',                 url: 'https://www.samtrans.com/about/contracting/current-opportunities.html',                                  baseUrl: 'https://www.samtrans.com' },
+  // SMART Rail — on Bonfire (sonomamarintrain.bonfirehub.com); covered by Bonfire scraper
+  // Golden Gate Transit — on Bonfire (ggbhtd.bonfirehub.com); covered by Bonfire scraper
   { name: 'SFMTA',                    url: 'https://www.sfmta.com/services/business-services/doing-business-sfmta/upcoming-construction-contracts',  baseUrl: 'https://www.sfmta.com' },
   // ── Regional Planning & Environment ──────────────────────────────────────
   { name: 'MTC / ABAG',               url: 'https://mtc.ca.gov/about-mtc/doing-business-mtc',                                                       baseUrl: 'https://mtc.ca.gov' },
@@ -1490,7 +1489,7 @@ const STANDALONE_PAGES = [
   { name: 'Cupertino',                url: 'https://apps.cupertino.org/bidmanagement/index.aspx',                                                    baseUrl: 'https://apps.cupertino.org' },
   { name: 'Vallejo',                  url: 'https://vendors.planetbids.com/portal/42510/bo/bo-search',                                               baseUrl: 'https://vendors.planetbids.com' },
   // ── Solano County Cities ──────────────────────────────────────────────────
-  { name: 'Benicia',                  url: 'https://www.ci.benicia.ca.us/bids.aspx',                                                                 baseUrl: 'https://www.ci.benicia.ca.us' },
+  // Benicia — bids page not accessible
   { name: 'Fairfield',                url: 'https://www.fairfield.ca.gov/our-city/advanced-components/list-detail-pages/rfp-posts-list',             baseUrl: 'https://www.fairfield.ca.gov' },
   { name: 'Vacaville',                url: 'https://www.cityofvacaville.gov/government/finance/purchasing/current-bids',                             baseUrl: 'https://www.cityofvacaville.gov' },
   { name: 'Dixon',                    url: 'https://www.cityofdixonca.gov/bids',                                                                      baseUrl: 'https://www.cityofdixonca.gov' },
