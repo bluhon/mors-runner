@@ -883,34 +883,48 @@ async function scrapeFindrfp() {
   }
   try {
     console.log('[FindRFP] Logging in...');
-    // Step 1: GET login page to grab CSRF token
-    const loginPage = await fetch('https://www.findrfp.com/login', {
+    const LOGIN_URL = 'https://www.findrfp.com/service/login.aspx';
+    // Step 1: GET login page to grab ASP.NET form state
+    const loginPage = await fetch(LOGIN_URL, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' }
     });
     const loginHtml = await loginPage.text();
     const cookieHeader = loginPage.headers.get('set-cookie') || '';
     const cookies = cookieHeader.split(',').map(c => c.split(';')[0].trim()).join('; ');
-    // Extract CSRF token from form
-    const csrfMatch = loginHtml.match(/name="_token"\s+value="([^"]+)"/);
-    const csrf = csrfMatch ? csrfMatch[1] : '';
+    // Extract ASP.NET hidden fields
+    const viewstate = (loginHtml.match(/id="__VIEWSTATE"\s+value="([^"]*)"/) || [])[1] || '';
+    const viewstateGen = (loginHtml.match(/id="__VIEWSTATEGENERATOR"\s+value="([^"]*)"/) || [])[1] || '';
+    const eventVal = (loginHtml.match(/id="__EVENTVALIDATION"\s+value="([^"]*)"/) || [])[1] || '';
+    // Find the username/password input names from the form
+    const userFieldMatch = loginHtml.match(/id="([^"]*[Uu]ser[^"]*|[^"]*[Ee]mail[^"]*|[^"]*[Ll]ogin[^"]*)"[^>]*type="(?:text|email)"/);
+    const passFieldMatch = loginHtml.match(/id="([^"]*[Pp]ass[^"]*|[^"]*[Pp]wd[^"]*)"[^>]*type="password"/);
+    const userField = userFieldMatch ? userFieldMatch[1] : 'ctl00$MainContent$txtEmail';
+    const passField = passFieldMatch ? passFieldMatch[1] : 'ctl00$MainContent$txtPassword';
+    console.log(`[FindRFP] Form fields: user=${userField} pass=${passField} viewstate=${viewstate.slice(0,20)}...`);
 
     // Step 2: POST login
-    const loginRes = await fetch('https://www.findrfp.com/login', {
+    const loginRes = await fetch(LOGIN_URL, {
       method: 'POST',
       redirect: 'manual',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         'Cookie': cookies,
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-        'Referer': 'https://www.findrfp.com/login'
+        'Referer': LOGIN_URL
       },
-      body: new URLSearchParams({ email: FINDRFP_LOGIN, password: FINDRFP_PASSWORD, _token: csrf })
+      body: new URLSearchParams({
+        __VIEWSTATE: viewstate,
+        __VIEWSTATEGENERATOR: viewstateGen,
+        __EVENTVALIDATION: eventVal,
+        [userField]: FINDRFP_LOGIN,
+        [passField]: FINDRFP_PASSWORD,
+        ctl00$MainContent$btnLogin: 'Log In'
+      })
     });
-    // Capture session cookie from login response
     const sessionCookie = [cookies, loginRes.headers.get('set-cookie') || '']
       .join('; ').split(',').map(c => c.split(';')[0].trim()).join('; ');
 
-    console.log(`[FindRFP] Login response: ${loginRes.status}`);
+    console.log(`[FindRFP] Login response: ${loginRes.status}, location: ${loginRes.headers.get('location') || 'none'}`);
     if (loginRes.status !== 302 && loginRes.status !== 200) {
       console.warn(`[FindRFP] Login failed — status ${loginRes.status}`);
       return [];
@@ -986,14 +1000,29 @@ async function scrapeOpengov() {
   if (!OPENGOV_LOGIN || !OPENGOV_PASSWORD) { console.log('[OpenGov] No credentials — skipping'); return []; }
   try {
     console.log('[OpenGov] Logging in...');
-    const authRes = await fetch('https://procurement.opengov.com/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
-      body: JSON.stringify({ email: OPENGOV_LOGIN, password: OPENGOV_PASSWORD })
-    });
-    const authData = await authRes.json();
-    const token = authData.token || authData.access_token || authData.data?.token || '';
-    console.log(`[OpenGov] Auth response: ${authRes.status}, token: ${token ? 'yes' : 'no'}, keys: ${Object.keys(authData).join(',')}`);
+    // Try multiple known OpenGov auth endpoint patterns
+    let token = '';
+    for (const authUrl of [
+      'https://procurement.opengov.com/api/sessions',
+      'https://procurement.opengov.com/api/v1/auth/login',
+      'https://procurement.opengov.com/api/auth/login',
+      'https://procurement.opengov.com/api/users/sign_in',
+    ]) {
+      try {
+        const authRes = await fetch(authUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' },
+          body: JSON.stringify({ email: OPENGOV_LOGIN, password: OPENGOV_PASSWORD })
+        });
+        const text = await authRes.text();
+        console.log(`[OpenGov] Auth ${authUrl}: status ${authRes.status}, starts: ${text.slice(0,60)}`);
+        if (authRes.ok && text.startsWith('{')) {
+          const authData = JSON.parse(text);
+          token = authData.token || authData.access_token || authData.data?.token || authData.jwt || '';
+          if (token) { console.log('[OpenGov] Got token'); break; }
+        }
+      } catch(e) { /* try next */ }
+    }
 
     const headers = token
       ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' }
@@ -1079,59 +1108,93 @@ async function scrapeOpengovVendorPage(headers = {}) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Bonfire authenticated scraper
-// Searches multiple Bay Area agency subdomains with one login
+// Bonfire public portal scraper
+// Bonfire portals are publicly accessible — no login required
+// Add agencies as { name, slug } where slug = the subdomain on bonfirehub.com
 // ─────────────────────────────────────────────────────────────────────────────
 const BONFIRE_SUBDOMAINS = [
-  'baaqmd', 'mtc', 'vendor', 'weta',
-  'alamedacounty', 'contracosta', 'marinwater', 'sfpuc',
-  'samtrans', 'scvwd', 'ebmud', 'bart'
+  { name: 'SMART Rail',          slug: 'sonomamarintrain' },
+  { name: 'Golden Gate Transit', slug: 'ggbhtd' },
 ];
 
 async function scrapeBonfire() {
-  if (!BONFIRE_LOGIN || !BONFIRE_PASSWORD) { console.log('[Bonfire] No credentials — skipping'); return []; }
   const opps = [];
   try {
-    console.log('[Bonfire] Authenticating...');
-    // Bonfire uses per-subdomain auth — start with vendor portal then search public opportunities
-    // First try the public opportunities API which is accessible after auth on vendor portal
-    const loginRes = await fetch('https://vendor.bonfirehub.com/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
-      body: JSON.stringify({ email: BONFIRE_LOGIN, password: BONFIRE_PASSWORD })
-    });
-    const loginData = await loginRes.json();
-    const token = loginData.token || loginData.access_token || '';
-    const authHeader = token ? { 'Authorization': `Bearer ${token}` } : {};
-
-    for (const subdomain of BONFIRE_SUBDOMAINS) {
+    // Try authenticated session first for broader access
+    let authCookie = '';
+    if (BONFIRE_LOGIN && BONFIRE_PASSWORD) {
       try {
-        const res = await fetch(`https://${subdomain}.bonfirehub.com/opportunities?status=open`, {
-          headers: { ...authHeader, 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' }
+        const loginPage = await fetch('https://account.bonfirehub.com/login', {
+          headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'text/html' }
         });
-        if (!res.ok) continue;
-        const data = await res.json();
-        const items = data.opportunities || data.data || data.results || [];
-        for (const item of items) {
-          const title = item.title || item.name || '';
-          const deadline = item.closingDate || item.closing_date || item.dueDate || null;
-          const deadlineDate = deadline ? new Date(deadline) : null;
-          if (!title || (deadlineDate && deadlineDate < new Date())) continue;
-          if (!opps.find(o => o.title === title)) {
-            opps.push({
-              title,
-              agency: item.organization || item.department || subdomain.toUpperCase(),
-              deadline: deadlineDate ? deadlineDate.toISOString().split('T')[0] : null,
-              scope: item.category || item.type || '',
-              source_url: item.url || `https://${subdomain}.bonfirehub.com/opportunities/${item.id || ''}`,
-              via: 'Bonfire'
-            });
+        const loginHtml = await loginPage.text();
+        const cookieHeader = loginPage.headers.get('set-cookie') || '';
+        const cookies = cookieHeader.split(',').map(c => c.split(';')[0].trim()).join('; ');
+        const csrfMatch = loginHtml.match(/name="csrf[_-]token"\s+value="([^"]+)"/i)
+          || loginHtml.match(/name="_token"\s+value="([^"]+)"/);
+        const csrf = csrfMatch ? csrfMatch[1] : '';
+        const loginRes = await fetch('https://account.bonfirehub.com/login', {
+          method: 'POST', redirect: 'manual',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Cookie': cookies,
+            'User-Agent': 'Mozilla/5.0', 'Referer': 'https://account.bonfirehub.com/login' },
+          body: new URLSearchParams({ email: BONFIRE_LOGIN, password: BONFIRE_PASSWORD, _token: csrf })
+        });
+        authCookie = [cookies, loginRes.headers.get('set-cookie') || '']
+          .join('; ').split(',').map(c => c.split(';')[0].trim()).join('; ');
+        console.log(`[Bonfire] Login: ${loginRes.status}`);
+      } catch(e) { console.warn(`[Bonfire] Auth failed: ${e.message}`); }
+    }
+    console.log('[Bonfire] Scraping public portals...');
+    for (const agency of BONFIRE_SUBDOMAINS) {
+      try {
+        // Try JSON API first (tab=openOpportunities returns JSON on some portals)
+        const portalUrl = `https://${agency.slug}.bonfirehub.com/portal/?tab=openOpportunities`;
+        const res = await fetch(portalUrl, {
+          headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json, text/html',
+            ...(authCookie ? { 'Cookie': authCookie } : {}) }
+        });
+        if (!res.ok) { console.log(`[Bonfire] ${agency.name}: HTTP ${res.status}`); continue; }
+        const text = await res.text();
+
+        // Try parsing as JSON
+        if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
+          try {
+            const data = JSON.parse(text);
+            const items = data.opportunities || data.data || data.results || (Array.isArray(data) ? data : []);
+            for (const item of items) {
+              const title = item.title || item.name || '';
+              const deadline = item.closingDate || item.closing_date || item.dueDate || null;
+              const posted = item.publishDate || item.created_at || item.postedDate || null;
+              if (!withinCutoff(posted)) continue;
+              const deadlineDate = deadline ? new Date(deadline) : null;
+              if (!title || (deadlineDate && deadlineDate < new Date())) continue;
+              if (!opps.find(o => o.title === title)) {
+                opps.push({ title, agency: agency.name, deadline: deadlineDate ? deadlineDate.toISOString().split('T')[0] : null,
+                  source_url: `https://${agency.slug}.bonfirehub.com/portal/?tab=openOpportunities`, via: 'Bonfire' });
+              }
+            }
+            continue;
+          } catch(e) { /* fall through to HTML parse */ }
+        }
+
+        // Parse HTML — look for opportunity links/titles
+        const titleMatches = [...text.matchAll(/class="[^"]*opportunity[^"]*"[^>]*>[\s\S]*?<[^>]*>([^<]{8,})<\/[^>]+>/gi)];
+        const linkMatches = [...text.matchAll(/href="(\/portal\/[^"]*opportunity[^"]*)"[^>]*>([^<]{8,})</gi)];
+        const rows = linkMatches.length ? linkMatches : titleMatches;
+        let found = 0;
+        for (const m of rows.slice(0, 20)) {
+          const title = (m[2] || m[1] || '').trim();
+          const href = m[1] && m[1].startsWith('/') ? `https://${agency.slug}.bonfirehub.com${m[1]}` : portalUrl;
+          if (title.length > 8 && !opps.find(o => o.title === title)) {
+            opps.push({ title, agency: agency.name, deadline: null, source_url: href, via: 'Bonfire' });
+            found++;
           }
         }
+        console.log(`[Bonfire] ${agency.name}: found ${found} items`);
         await new Promise(r => setTimeout(r, 400));
-      } catch(e) { console.warn(`[Bonfire] ${subdomain} failed: ${e.message}`); }
+      } catch(e) { console.warn(`[Bonfire] ${agency.name} failed: ${e.message}`); }
     }
-    console.log(`[Bonfire] Found ${opps.length} opportunities`);
+    console.log(`[Bonfire] Total: ${opps.length} opportunities`);
     return opps;
   } catch(err) { console.warn(`[Bonfire] Error: ${err.message}`); return []; }
 }
