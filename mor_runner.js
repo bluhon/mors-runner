@@ -195,7 +195,7 @@ LAYER 1 — Auto-disqualify if any of:
 - No public dimension (purely internal private org, no community impact)
 - Pure construction/IT/engineering/maintenance with no engagement component
 - Routine operations procurement (janitorial, fleet, accounting, legal services)
-- Issued >45 days ago with deadline already passed
+- Deadline already passed (ANY past deadline = immediate disqualification, no exceptions)
 
 LAYER 2 — Public Realm Test: "Does the work shape outcomes that affect how the public experiences their community, environment, or governance?" If yes → proceed.
 
@@ -1507,9 +1507,15 @@ async function scrapeCivicengage() {
         const href = titleMatch[1];
         const link = href.startsWith('http') ? href : `${new URL(agency.url).origin}${href.startsWith('/') ? '' : '/'}${href}`;
         const deadlineMatch = text.match(/\b(\d{1,2}\/\d{1,2}\/\d{4})\b/);
+        let deadline = null;
+        if (deadlineMatch) {
+          const parsed = new Date(deadlineMatch[1]);
+          if (!isNaN(parsed) && parsed < new Date()) continue; // skip expired
+          deadline = deadlineMatch[1];
+        }
         agencyOpps.push({
           title, agency: agency.name,
-          deadline: deadlineMatch ? deadlineMatch[1] : null,
+          deadline,
           scope: text.slice(0, 200),
           source_url: link
         });
