@@ -1654,7 +1654,21 @@ async function scrapeStandalonePages() {
         if (isMeetingNotice) continue;
 
         const fullUrl = href.startsWith('http') ? href : (href.startsWith('/') ? page.baseUrl + href : page.url);
-        linkBlocks.push({ title: text, source_url: fullUrl });
+        // Find the nearest date in surrounding HTML (within 800 chars before/after the link)
+        const linkPos = m.index || 0;
+        const surrounding = html.slice(Math.max(0, linkPos - 400), linkPos + 400)
+          .replace(/<[^>]+>/g, ' ');
+        const dateMatches = [...surrounding.matchAll(/\b(\d{1,2}\/\d{1,2}\/\d{4}|\w+ \d{1,2},?\s*\d{4}|\d{4}-\d{2}-\d{2})\b/g)];
+        let nearbyDeadline = null;
+        for (const dm of dateMatches) {
+          const parsed = new Date(dm[1]);
+          if (!isNaN(parsed)) {
+            if (parsed < new Date()) { nearbyDeadline = 'expired'; break; }
+            else nearbyDeadline = parsed.toISOString().split('T')[0];
+          }
+        }
+        if (nearbyDeadline === 'expired') continue; // skip expired RFPs
+        linkBlocks.push({ title: text, source_url: fullUrl, deadline: nearbyDeadline });
       }
 
       // Deduplicate by title within this page
@@ -1666,7 +1680,7 @@ async function scrapeStandalonePages() {
         opps.push({
           title:      item.title,
           agency:     page.name,
-          deadline:   null,
+          deadline:   item.deadline,
           scope:      'Direct procurement page',
           source_url: item.source_url,
           via:        'Standalone'
