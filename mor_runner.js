@@ -1475,11 +1475,11 @@ const STANDALONE_PAGES = [
   { name: 'Corte Madera',             url: 'https://www.cortemadera.gov/625/Town-Bids-and-RFPs',                                                     baseUrl: 'https://www.cortemadera.gov' },
   // ── San Mateo County Cities ───────────────────────────────────────────────
   { name: 'Redwood City',             url: 'https://www.redwoodcity.org/business/bids-proposals',                                                    baseUrl: 'https://www.redwoodcity.org' },
-  { name: 'South San Francisco',      url: 'https://www.ssfca.gov/Services/RFPs-and-Bids',                                                           baseUrl: 'https://www.ssfca.gov' },
+  // South San Francisco — on OpenGov (procurement.opengov.com/portal/ssf); covered by OpenGov scraper
   { name: 'Foster City',              url: 'https://www.fostercity.org/rfps',                                                                         baseUrl: 'https://www.fostercity.org' },
   { name: 'Belmont',                  url: 'https://www.belmont.gov/i-want-to/find/bidding-contract-opportunities',                                   baseUrl: 'https://www.belmont.gov' },
-  { name: 'San Carlos',               url: 'https://www.cityofsancarlos.org/business/bids_and_proposals/',                                           baseUrl: 'https://www.cityofsancarlos.org' },
-  { name: 'Menlo Park',               url: 'https://menlopark.gov/government/departments/public-works/bids-rfps',                                    baseUrl: 'https://menlopark.gov' },
+  { name: 'San Carlos',               url: 'https://cityofsancarlos.org/business/bids_and_proposals/call_for_bids_rfpsrfqs.php',                       baseUrl: 'https://www.cityofsancarlos.org' },
+  { name: 'Menlo Park',               url: 'https://vendors.planetbids.com/portal/46202/bo/bo-search',                                               baseUrl: 'https://vendors.planetbids.com' },
   { name: 'East Palo Alto',           url: 'https://www.cityofepa.org/rfps',                                                                         baseUrl: 'https://www.cityofepa.org' },
   // Pacifica — redirects to OpenGov portal; covered by OpenGov scraper
   // Brisbane — no accessible bids page
