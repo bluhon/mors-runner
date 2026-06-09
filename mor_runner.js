@@ -1959,6 +1959,7 @@ async function runMORSReport() {
   }
 
   // Build portal scraped opps block for Track 1 prompt
+  // Standalone scraper results excluded — Claude now searches agency pages directly via web_search
   const allPortalOpps = [
     ...findrfpOpps,
     ...opengovOpps,
@@ -1967,7 +1968,6 @@ async function runMORSReport() {
     ...biddingusaOpps,
     ...bidnetOpps,
     ...civicengageOpps,
-    ...standaloneOpps
   ];
   const portalBlock = allPortalOpps.length > 0
     ? `\n\nPRE-SCRAPED PORTAL OPPORTUNITIES (${allPortalOpps.length} items pulled directly from authenticated CA/NV/OR procurement portals — FindRFP, OpenGov, Bonfire, PlanetBids, BiddingUSA, BidNet, CivicEngage, and agency bid pages. These ARE real solicitations. Include all that are relevant to Bluhon's services — do NOT reject them for lacking a visible solicitation number, the number exists on the linked page):\n` +
