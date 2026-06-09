@@ -1438,6 +1438,13 @@ const STANDALONE_PAGES = [
   { name: 'BAAQMD',                   url: 'https://www.baaqmd.gov/about-the-air-district/request-for-proposals-rfp-rfq',                           baseUrl: 'https://www.baaqmd.gov' },
   { name: 'EBRPD',                    url: 'https://www.ebparks.org/public-info/bids-rfps',                                                          baseUrl: 'https://www.ebparks.org' },
   { name: 'MROSD',                    url: 'https://www.bidnetdirect.com/california/openspace',                                                         baseUrl: 'https://www.bidnetdirect.com' },
+  { name: 'Fremont',                  url: 'https://www.bidnetdirect.com/california/cityoffremont',                                                      baseUrl: 'https://www.bidnetdirect.com' },
+  { name: 'Livermore',                url: 'https://www.bidnetdirect.com/california/cityoflivermore',                                                    baseUrl: 'https://www.bidnetdirect.com' },
+  { name: 'Pleasant Hill',            url: 'https://www.bidnetdirect.com/california/cityofpleasanthill',                                                 baseUrl: 'https://www.bidnetdirect.com' },
+  { name: 'Novato',                   url: 'https://www.bidnetdirect.com/california/cityofnovato',                                                       baseUrl: 'https://www.bidnetdirect.com' },
+  { name: 'Tiburon',                  url: 'https://www.bidnetdirect.com/california/townoftiburon',                                                      baseUrl: 'https://www.bidnetdirect.com' },
+  { name: 'Santa Clara',              url: 'https://www.bidnetdirect.com/california/cityofsantaclara',                                                   baseUrl: 'https://www.bidnetdirect.com' },
+  { name: 'Mountain View',            url: 'https://www.bidnetdirect.com/california/cityofmountainview',                                                 baseUrl: 'https://www.bidnetdirect.com' },
   // ── Water Agencies ───────────────────────────────────────────────────────
   { name: 'SFPUC',                    url: 'https://webapps.sfpuc.org/bids/',                                                                        baseUrl: 'https://webapps.sfpuc.org' },
   { name: 'EBMUD',                    url: 'https://www.ebmud.com/business-center/requests-proposal-rfps',                                           baseUrl: 'https://www.ebmud.com' },
