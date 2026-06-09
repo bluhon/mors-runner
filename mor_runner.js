@@ -365,7 +365,7 @@ async function atPost(tableId, fields) {
   const res = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${tableId}`, {
     method: "POST",
     headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ fields })
+    body: JSON.stringify({ fields, typecast: true })
   });
   if (!res.ok) {
     const err = await res.text();
