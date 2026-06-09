@@ -953,7 +953,7 @@ async function loadProspects() {
   const currentReport = allReports[currentReportIndex];
   const reportDate = currentReport ? (currentReport.fields.report_date || '') : '';
   const formula = reportDate
-    ? encodeURIComponent(`AND(OR({interest}="", {interest}=BLANK()), {report_date}="${reportDate}")`)
+    ? encodeURIComponent(`AND(OR({interest}="", {interest}=BLANK()), OR({report_date}="${reportDate}", {report_date}=BLANK()))`)
     : encodeURIComponent(`OR({interest}="", {interest}=BLANK())`);
   const res = await atFetch(CONFIG.TABLES.OPPORTUNITIES, `?filterByFormula=${formula}&sort[0][field]=deadline&sort[0][direction]=asc&maxRecords=100`);
   const allOpps = res.records || [];
