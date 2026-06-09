@@ -1444,7 +1444,7 @@ const STANDALONE_PAGES = [
   { name: 'EBMUD',                    url: 'https://www.ebmud.com/business-center/requests-proposal-rfps',                                           baseUrl: 'https://www.ebmud.com' },
   { name: 'Valley Water (SCVWD)',     url: 'https://www.valleywater.org/doing-business/active-solicitations',                                        baseUrl: 'https://www.valleywater.org' },
   { name: 'Sonoma Water',             url: 'https://www.sonomawater.org/rfp',                                                                        baseUrl: 'https://www.sonomawater.org' },
-  { name: 'Marin Municipal Water',    url: 'https://www.marinwater.org/bids-rfps',                                                                  baseUrl: 'https://www.marinwater.org' },
+  { name: 'Marin Municipal Water',    url: 'https://www.marinwaterplans.com/',                                                                          baseUrl: 'https://www.marinwaterplans.com' },
   { name: 'Zone 7 Water Agency',      url: 'https://zone7water.com/business/construction-business-opportunities',                                    baseUrl: 'https://zone7water.com' },
   // ── Counties ─────────────────────────────────────────────────────────────
   { name: 'Alameda County',           url: 'https://www.acgov.org/gsa/purchasing/bids.htm',                                                          baseUrl: 'https://www.acgov.org' },
@@ -1454,7 +1454,7 @@ const STANDALONE_PAGES = [
   { name: 'Napa County',              url: 'https://www.countyofnapa.org/Bids.aspx',                                                                 baseUrl: 'https://www.countyofnapa.org' },
   // Solano County — on OpenGov (procurement.opengov.com/portal/solanocounty); covered by OpenGov scraper
   { name: 'San Mateo County',         url: 'https://www.smcgov.org/ceo/bid-opportunities-project-documents',                                        baseUrl: 'https://www.smcgov.org' },
-  { name: 'City & County of SF',      url: 'https://sfcitypartner.sfgov.org/',                                                                       baseUrl: 'https://sfcitypartner.sfgov.org' },
+  { name: 'City & County of SF',      url: 'https://sfcitypartner.sfgov.org/pages/Events-BS3/event-search.aspx',                                        baseUrl: 'https://sfcitypartner.sfgov.org' },
   // ── Alameda County Cities ─────────────────────────────────────────────────
   { name: 'Oakland',                  url: 'https://apps.oaklandca.gov/ContractOpportunities/',                                                       baseUrl: 'https://apps.oaklandca.gov' },
   { name: 'Berkeley',                 url: 'https://www.berkeleyca.gov/doing-business/working-city/bid-proposal-opportunities',                       baseUrl: 'https://www.berkeleyca.gov' },
