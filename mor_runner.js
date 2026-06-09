@@ -1120,39 +1120,8 @@ const BONFIRE_SUBDOMAINS = [
 async function scrapeBonfire() {
   const opps = [];
   try {
-    // Try authenticated session first for broader access
-    let authCookie = '';
-    if (BONFIRE_LOGIN && BONFIRE_PASSWORD) {
-      try {
-        // Bonfire uses Ory/Kratos — GET /login redirects to /login?flow=xxx
-        const flowPage = await fetch('https://account.bonfirehub.com/login', {
-          redirect: 'follow',
-          headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'text/html' }
-        });
-        const flowHtml = await flowPage.text();
-        const flowCookies = (flowPage.headers.get('set-cookie') || '').split(',').map(c => c.split(';')[0].trim()).join('; ');
-        // Extract flow ID from final URL or hidden input
-        const flowIdMatch = flowPage.url.match(/[?&]flow=([a-f0-9-]+)/)
-          || flowHtml.match(/name="flow"\s+value="([a-f0-9-]+)"/);
-        const flowId = flowIdMatch ? flowIdMatch[1] : '';
-        const csrfMatch = flowHtml.match(/name="csrf_token"\s+value="([^"]+)"/);
-        const csrfToken = csrfMatch ? csrfMatch[1] : '';
-        console.log(`[Bonfire] Flow: ${flowId ? flowId.slice(0,8) : 'none'}, csrf: ${csrfToken ? 'yes' : 'no'}`);
-
-        if (flowId) {
-          const loginRes = await fetch(`https://account.bonfirehub.com/login?flow=${flowId}`, {
-            method: 'POST', redirect: 'manual',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Cookie': flowCookies,
-              'User-Agent': 'Mozilla/5.0', 'Referer': `https://account.bonfirehub.com/login?flow=${flowId}` },
-            body: new URLSearchParams({ method: 'password', identifier: BONFIRE_LOGIN, password: BONFIRE_PASSWORD, csrf_token: csrfToken })
-          });
-          authCookie = [flowCookies, loginRes.headers.get('set-cookie') || '']
-            .join('; ').split(',').map(c => c.split(';')[0].trim()).join('; ');
-          console.log(`[Bonfire] Login: ${loginRes.status}`);
-        }
-      } catch(e) { console.warn(`[Bonfire] Auth failed: ${e.message}`); }
-    }
     console.log('[Bonfire] Scraping public portals...');
+    const authCookie = '';
     for (const agency of BONFIRE_SUBDOMAINS) {
       try {
         // Try JSON API first (tab=openOpportunities returns JSON on some portals)
@@ -1322,7 +1291,7 @@ async function scrapeBiddingusa() {
     const sessionCookie = [cookies, loginRes.headers.get('set-cookie') || '']
       .join('; ').split(',').map(c => c.split(';')[0].trim()).join('; ');
 
-    if (loginRes.status !== 302 && loginRes.status !== 200) {
+    if (loginRes.status !== 302 && loginRes.status !== 301 && loginRes.status !== 200) {
       console.warn(`[BiddingUSA] Login failed — status ${loginRes.status}`); return [];
     }
     console.log('[BiddingUSA] Logged in — searching agencies...');
