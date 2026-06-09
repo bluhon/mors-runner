@@ -947,8 +947,8 @@ async function createTrack2Canvas(item) {
 }
 
 async function loadProspects() {
-  const container = document.getElementById('track1-opps-container');
-  if (!container) return;
+  // Track 1 now renders from track1_html in renderReport() — this function is disabled
+  return;
   const res = await atFetch(CONFIG.TABLES.OPPORTUNITIES, `?filterByFormula=${encodeURIComponent('AND(OR({interest}="",{interest}=BLANK()),{track}="1 — Active RFP")')}&sort[0][field]=deadline&sort[0][direction]=asc&maxRecords=100`);
   const allOpps = res.records || [];
   const prospects = allOpps.filter(p => !p.fields.interest || p.fields.interest === '');
