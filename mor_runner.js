@@ -1976,6 +1976,8 @@ When in doubt about a web-searched item, leave it out. But always include releva
 
 CRITICAL URL RULE: Use only the exact source_url provided in the pre-scraped data below. NEVER construct, guess, or modify URLs.
 
+CRITICAL TITLE RULE: When outputting Track 1 rows, use only the project title — strip any [via:...] tags from titles. The [via:...] tags are for your reference only and must NOT appear in the HTML output.
+
 ${geo.instructions}
 
 TRACK 1 INSTRUCTIONS:

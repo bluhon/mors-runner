@@ -337,7 +337,6 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
     <section class="page active" id="page-report">
       <div class="page-header">
         <div class="page-header-inner">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
           <div>
             <div class="page-title">Today's <span>Report</span></div>
             <div class="page-subtitle">Auto-generated Mon–Fri at 9:30am PT · Bluhon MORS</div>
@@ -345,7 +344,6 @@ html,body{font-family:'Source Sans 3',system-ui,sans-serif;font-size:16px;line-h
           <button class="btn btn-ghost btn-sm" onclick="triggerManualRun()" id="rerun-btn">
             <i class="ti ti-refresh"></i> Re-run now
           </button>
-        </div>
         </div><!-- /.page-header-inner -->
       </div>
       <div class="page-body" id="report-body">
@@ -1215,7 +1213,7 @@ async function loadProspects() {
     const alreadyNo  = f.interest === 'No';
     // Strip emojis from agency
     const agency = (f.agency || '').replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{1F300}-\u{1F9FF}✅❌\u{1F4CD}]/gu, '').trim();
-    const fullText = (f.title || '').replace(/<[^>]+>/g,'').trim();
+    const fullText = (f.title || '').replace(/<[^>]+>/g,'').replace(/\s*\[via[^\]]*\]/gi,'').trim();
     // Split on em dash or " — " to separate short name from description
     const dashIdx = fullText.search(/ [—–-] /);
     let displayTitle, scope;
