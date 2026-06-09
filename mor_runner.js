@@ -967,13 +967,15 @@ async function scrapeFindrfp() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // OpenGov authenticated scraper
-// Searches procurement.opengov.com for California RFPs
+// Fetches all open CA opportunities from the vendor's own bid feed —
+// covers every OpenGov customer in California in one request.
 // ─────────────────────────────────────────────────────────────────────────────
+const OPENGOV_VENDOR_ID = '51955'; // Bluhon's vendor account ID
+
 async function scrapeOpengov() {
   if (!OPENGOV_LOGIN || !OPENGOV_PASSWORD) { console.log('[OpenGov] No credentials — skipping'); return []; }
   try {
     console.log('[OpenGov] Logging in...');
-    // OpenGov uses OAuth/JWT — POST to their auth endpoint
     const authRes = await fetch('https://procurement.opengov.com/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
@@ -982,62 +984,86 @@ async function scrapeOpengov() {
     const authData = await authRes.json();
     const token = authData.token || authData.access_token || authData.data?.token || '';
     console.log(`[OpenGov] Auth response: ${authRes.status}, token: ${token ? 'yes' : 'no'}, keys: ${Object.keys(authData).join(',')}`);
-    if (!token) {
-      console.warn('[OpenGov] JWT auth failed — trying session login');
-      return await scrapeOpengovSession();
-    }
-    console.log('[OpenGov] Authenticated — searching...');
+
+    const headers = token
+      ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' }
+      : { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' };
+
+    // Try the vendor open-bids API (all CA opportunities in one call)
     const opps = [];
-    const keywords = ['public engagement', 'community outreach', 'facilitation', 'strategic plan'];
-    for (const kw of keywords) {
+    let page = 1;
+    while (page <= 5) { // cap at 5 pages (~250 opps)
       try {
-        const res = await fetch(`https://procurement.opengov.com/api/procurement/opportunities?q=${encodeURIComponent(kw)}&state=CA&status=open&per_page=20`, {
-          headers: { 'Authorization': `Bearer ${token}`, 'User-Agent': 'Mozilla/5.0' }
-        });
+        const res = await fetch(
+          `https://procurement.opengov.com/api/procurement/vendors/${OPENGOV_VENDOR_ID}/bids?states=CA&status=open&per_page=50&page=${page}`,
+          { headers }
+        );
+        console.log(`[OpenGov] Vendor bids page ${page}: status ${res.status}`);
+        if (!res.ok) break;
         const data = await res.json();
-        const items = data.data || data.opportunities || data.results || [];
+        const items = data.data || data.bids || data.opportunities || data.results || [];
+        if (!items.length) break;
         for (const item of items) {
           const title = item.title || item.name || '';
-          const agency = item.department || item.agency || item.organization || '';
+          const agency = item.department_name || item.organization_name || item.agency || item.department || '';
           const deadline = item.close_date || item.due_date || item.deadline || null;
-          const id = item.id || item.slug || '';
-          const source_url = id ? `https://procurement.opengov.com/portal/${id}` : 'https://procurement.opengov.com';
+          const portalSlug = item.portal_slug || item.slug || item.id || '';
+          const source_url = portalSlug
+            ? `https://procurement.opengov.com/portal/${portalSlug}`
+            : 'https://procurement.opengov.com';
           if (title && !opps.find(o => o.title === title)) {
             const deadlineDate = deadline ? new Date(deadline) : null;
             if (!deadlineDate || deadlineDate > new Date()) {
-              opps.push({ title, agency, deadline: deadlineDate ? deadlineDate.toISOString().split('T')[0] : null, scope: kw, source_url, via: 'OpenGov' });
+              opps.push({ title, agency, deadline: deadlineDate ? deadlineDate.toISOString().split('T')[0] : null, scope: '', source_url, via: 'OpenGov' });
             }
           }
         }
+        page++;
         await new Promise(r => setTimeout(r, 600));
-      } catch(e) { console.warn(`[OpenGov] Search "${kw}" failed: ${e.message}`); }
+      } catch(e) { console.warn(`[OpenGov] Page ${page} failed: ${e.message}`); break; }
     }
-    console.log(`[OpenGov] Found ${opps.length} opportunities`);
-    return opps;
+
+    if (opps.length > 0) {
+      console.log(`[OpenGov] Found ${opps.length} opportunities`);
+      return opps;
+    }
+
+    // Fallback: scrape the vendor open-bids HTML page
+    console.log('[OpenGov] API returned 0 — trying HTML vendor page...');
+    return await scrapeOpengovVendorPage(headers);
   } catch(err) { console.warn(`[OpenGov] Error: ${err.message}`); return []; }
 }
 
-async function scrapeOpengovSession() {
-  // Session-based fallback — search the public portal filtered to CA
+async function scrapeOpengovVendorPage(headers = {}) {
   try {
-    const res = await fetch('https://procurement.opengov.com/opportunities?state=CA&keywords=engagement+facilitation&status=open', {
-      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json, text/html' }
-    });
+    const res = await fetch(
+      `https://procurement.opengov.com/vendors/${OPENGOV_VENDOR_ID}/open-bids?states=CA`,
+      { headers: { ...headers, 'Accept': 'text/html', 'User-Agent': 'Mozilla/5.0' } }
+    );
     const text = await res.text();
-    // Parse any JSON embedded in the page
-    const jsonMatch = text.match(/window\.__INITIAL_STATE__\s*=\s*({[\s\S]+?});<\/script>/);
-    if (!jsonMatch) return [];
-    const state = JSON.parse(jsonMatch[1]);
-    const items = state?.opportunities?.list || state?.data?.opportunities || [];
-    return items.slice(0, 15).map(item => ({
-      title: item.title || '',
-      agency: item.department || '',
-      deadline: item.close_date ? new Date(item.close_date).toISOString().split('T')[0] : null,
-      scope: 'public engagement',
-      source_url: `https://procurement.opengov.com/portal/${item.id || ''}`,
-      via: 'OpenGov'
-    })).filter(o => o.title);
-  } catch(e) { return []; }
+    console.log(`[OpenGov] Vendor HTML page: status ${res.status}, length ${text.length}`);
+    // Parse embedded JSON state
+    const jsonMatch = text.match(/window\.__INITIAL_STATE__\s*=\s*({[\s\S]+?});<\/script>/)
+      || text.match(/<script[^>]*>.*?(\{".*?"opportunities".*?\})<\/script>/s);
+    if (jsonMatch) {
+      try {
+        const state = JSON.parse(jsonMatch[1]);
+        const items = state?.opportunities?.list || state?.bids?.list || state?.data?.opportunities || [];
+        const opps = items.map(item => ({
+          title: item.title || item.name || '',
+          agency: item.department_name || item.organization_name || item.department || '',
+          deadline: item.close_date ? new Date(item.close_date).toISOString().split('T')[0] : null,
+          scope: '',
+          source_url: `https://procurement.opengov.com/portal/${item.portal_slug || item.slug || item.id || ''}`,
+          via: 'OpenGov'
+        })).filter(o => o.title);
+        console.log(`[OpenGov] Parsed ${opps.length} opps from HTML state`);
+        return opps;
+      } catch(e) { console.warn('[OpenGov] JSON parse failed:', e.message); }
+    }
+    console.warn('[OpenGov] Could not parse vendor page — no opportunities found');
+    return [];
+  } catch(e) { console.warn(`[OpenGov] Vendor HTML page failed: ${e.message}`); return []; }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1453,12 +1479,12 @@ const STANDALONE_PAGES = [
   { name: 'Marin Municipal Water',    url: 'https://www.marinwaterplans.com/',                                                                          baseUrl: 'https://www.marinwaterplans.com' },
   { name: 'Zone 7 Water Agency',      url: 'https://zone7water.com/business/construction-business-opportunities',                                    baseUrl: 'https://zone7water.com' },
   // ── Counties ─────────────────────────────────────────────────────────────
-  { name: 'Alameda County',           url: 'https://procurement.opengov.com/portal/acgov',                                                           baseUrl: 'https://procurement.opengov.com' },
+  // Alameda County — covered by OpenGov vendor feed
   { name: 'Contra Costa County',      url: 'https://www.contracosta.ca.gov/Bids.aspx',                                                              baseUrl: 'https://www.contracosta.ca.gov' },
   { name: 'Marin County',             url: 'https://www.marincounty.gov/contracting-opportunities',                                                  baseUrl: 'https://www.marincounty.gov' },
   { name: 'Sonoma County',            url: 'https://esupplier.sonomacounty.ca.gov/psc/FN92PRD/SUPPLIER/ERP/c/SCP_PUBLIC_MENU_FL.SCP_PUB_BID_CMP_FL.GBL', baseUrl: 'https://esupplier.sonomacounty.ca.gov' },
   { name: 'Napa County',              url: 'https://www.napacounty.gov/Bids.aspx',                                                                      baseUrl: 'https://www.napacounty.gov' },
-  { name: 'Solano County',            url: 'https://procurement.opengov.com/portal/solanocounty',                                                       baseUrl: 'https://procurement.opengov.com' },
+  // Solano County — covered by OpenGov vendor feed
   { name: 'San Mateo County',         url: 'https://www.smcgov.org/ceo/bid-opportunities-project-documents',                                        baseUrl: 'https://www.smcgov.org' },
   { name: 'City & County of SF',      url: 'https://sfcitypartner.sfgov.org/pages/Events-BS3/event-search.aspx',                                        baseUrl: 'https://sfcitypartner.sfgov.org' },
   // ── Alameda County Cities ─────────────────────────────────────────────────
@@ -1481,7 +1507,7 @@ const STANDALONE_PAGES = [
   { name: 'Corte Madera',             url: 'https://www.cortemadera.gov/625/Town-Bids-and-RFPs',                                                     baseUrl: 'https://www.cortemadera.gov' },
   // ── San Mateo County Cities ───────────────────────────────────────────────
   { name: 'Redwood City',             url: 'https://www.redwoodcity.org/business/bids-proposals',                                                    baseUrl: 'https://www.redwoodcity.org' },
-  { name: 'South San Francisco',      url: 'https://procurement.opengov.com/portal/ssf',                                                             baseUrl: 'https://procurement.opengov.com' },
+  // South San Francisco — covered by OpenGov vendor feed
   { name: 'Foster City',              url: 'https://www.fostercity.org/rfps',                                                                         baseUrl: 'https://www.fostercity.org' },
   { name: 'Belmont',                  url: 'https://www.belmont.gov/i-want-to/find/bidding-contract-opportunities',                                   baseUrl: 'https://www.belmont.gov' },
   { name: 'San Carlos',               url: 'https://cityofsancarlos.org/business/bids_and_proposals/call_for_bids_rfpsrfqs.php',                       baseUrl: 'https://www.cityofsancarlos.org' },
