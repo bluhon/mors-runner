@@ -1471,7 +1471,7 @@ const STANDALONE_PAGES = [
   { name: 'Lafayette',                url: 'https://www.lovelafayette.org/city-hall/components/rfp-postings',                                        baseUrl: 'https://www.lovelafayette.org' },
   // ── Marin County Cities ───────────────────────────────────────────────────
   { name: 'San Rafael',               url: 'https://www.cityofsanrafael.org/bids-and-proposals/',                                                    baseUrl: 'https://www.cityofsanrafael.org' },
-  // Sausalito — URL needs verification
+  // Sausalito — no accessible bids page
   { name: 'Corte Madera',             url: 'https://www.cortemadera.gov/625/Town-Bids-and-RFPs',                                                     baseUrl: 'https://www.cortemadera.gov' },
   // ── San Mateo County Cities ───────────────────────────────────────────────
   { name: 'Redwood City',             url: 'https://www.redwoodcity.org/business/bids-proposals',                                                    baseUrl: 'https://www.redwoodcity.org' },
