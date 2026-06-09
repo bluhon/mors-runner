@@ -955,8 +955,13 @@ async function loadProspects() {
   }
   const res = await atFetch(CONFIG.TABLES.OPPORTUNITIES, `?sort[0][field]=deadline&sort[0][direction]=asc&maxRecords=100`);
   const allOpps = res.records || [];
-  // Only show opportunities not yet decided
-  const prospects = allOpps.filter(p => !p.fields.interest || p.fields.interest === '');
+  // Only show undecided opportunities from the last 2 days
+  const twoDaysAgo = new Date(); twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+  const prospects = allOpps.filter(p => {
+    if (p.fields.interest && p.fields.interest !== '') return false;
+    const created = new Date(p.createdTime || 0);
+    return created >= twoDaysAgo;
+  });
   if (prospects.length === 0) {
     container.innerHTML = '<div class="t1-no-opps">No new opportunities to review today.</div>';
     return;
