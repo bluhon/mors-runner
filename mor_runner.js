@@ -1620,37 +1620,39 @@ async function fetchBidnetSourcesFromAirtable() {
 }
 
 async function scrapeBidnet() {
-  if (!BIDNET_LOGIN || !BIDNET_PASSWORD) {
-    console.log('[BidNet] No credentials — skipping'); return [];
-  }
   try {
-    console.log('[BidNet] Logging in...');
-    const loginPage = await fetch('https://www.bidnetdirect.com/login', {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' }
-    });
-    const loginHtml = await loginPage.text();
-    const cookies = (loginPage.headers.get('set-cookie') || '').split(',').map(c => c.split(';')[0].trim()).join('; ');
-    const csrf = (loginHtml.match(/name="_token"\s+value="([^"]+)"/) ||
-                  loginHtml.match(/name="csrf_token"\s+value="([^"]+)"/) || [])[1] || '';
+    let sessionCookie = '';
+    if (BIDNET_LOGIN && BIDNET_PASSWORD) {
+      console.log('[BidNet] Credentials present — attempting login, public pages remain fallback');
+      const loginPage = await fetch('https://www.bidnetdirect.com/login', {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' }
+      });
+      const loginHtml = await loginPage.text();
+      const cookies = (loginPage.headers.get('set-cookie') || '').split(',').map(c => c.split(';')[0].trim()).join('; ');
+      const csrf = (loginHtml.match(/name="_token"\s+value="([^"]+)"/) ||
+                    loginHtml.match(/name="csrf_token"\s+value="([^"]+)"/) || [])[1] || '';
 
-    const loginRes = await fetch('https://www.bidnetdirect.com/login', {
-      method: 'POST',
-      redirect: 'manual',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Cookie': cookies,
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-        'Referer': 'https://www.bidnetdirect.com/login'
-      },
-      body: new URLSearchParams({ email: BIDNET_LOGIN, password: BIDNET_PASSWORD, _token: csrf })
-    });
-    const sessionCookie = [cookies, loginRes.headers.get('set-cookie') || '']
-      .join('; ').split(',').map(c => c.split(';')[0].trim()).join('; ');
-
-    if (loginRes.status !== 302 && loginRes.status !== 200) {
-      console.warn(`[BidNet] Login failed — status ${loginRes.status}`); return [];
+      const loginRes = await fetch('https://www.bidnetdirect.com/login', {
+        method: 'POST',
+        redirect: 'manual',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Cookie': cookies,
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+          'Referer': 'https://www.bidnetdirect.com/login'
+        },
+        body: new URLSearchParams({ email: BIDNET_LOGIN, password: BIDNET_PASSWORD, _token: csrf })
+      });
+      if (loginRes.status === 302 || loginRes.status === 200) {
+        sessionCookie = [cookies, loginRes.headers.get('set-cookie') || '']
+          .join('; ').split(',').map(c => c.split(';')[0].trim()).join('; ');
+        console.log('[BidNet] Login OK');
+      } else {
+        console.warn(`[BidNet] Login failed — status ${loginRes.status}; continuing with public listing pages`);
+      }
+    } else {
+      console.log('[BidNet] No credentials — scraping public listing pages');
     }
-    console.log('[BidNet] Logged in — searching agencies...');
 
     const opps = [];
     const airtableAgencies = await fetchBidnetSourcesFromAirtable();
@@ -1661,7 +1663,7 @@ async function scrapeBidnet() {
         const url = agency.url || `https://www.bidnetdirect.com/california/${agency.slug}`;
         const res = await fetch(url, {
           headers: {
-            'Cookie': sessionCookie,
+            ...(sessionCookie ? { 'Cookie': sessionCookie } : {}),
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
           }
         });
