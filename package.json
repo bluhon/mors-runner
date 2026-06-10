@@ -5,7 +5,11 @@
   "type": "module",
   "main": "mor_runner.js",
   "scripts": {
-    "start": "node mor_runner.js"
+    "start": "node mor_runner.js",
+    "audit:report": "node scripts/audit-report-contract.mjs",
+    "audit:airtable": "node scripts/audit-airtable-source-fields.mjs",
+    "inspect:report": "node scripts/inspect-latest-report.mjs",
+    "discover:sources": "node scripts/discover-sources.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.52.0",

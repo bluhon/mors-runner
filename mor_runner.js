@@ -15,8 +15,6 @@ const AIRTABLE_SEARCH_QUERIES_TABLE = "tblWft5ytQe3NHByq"; // RFP_SEARCH_QUERIES
 const AIRTABLE_KEYWORDS_TABLE = "tblRKf4ftCpv1q65Z";  // RELEVANCE_KEYWORDS
 
 // Portal credentials — from Render environment variables
-const FINDRFP_LOGIN       = process.env.FINDRFP_LOGIN       || process.env.FINDRFP_EMAIL || '';
-const FINDRFP_PASSWORD    = process.env.FINDRFP_PASSWORD    || '';
 const OPENGOV_LOGIN       = process.env.OPENGOV_LOGIN       || '';
 const OPENGOV_PASSWORD    = process.env.OPENGOV_PASSWORD    || '';
 const BONFIRE_LOGIN       = process.env.BONFIRE_LOGIN       || '';
@@ -32,7 +30,6 @@ const CIVICENGAGE_PASSWORD= process.env.CIVICENGAGE_PASSWORD|| '';
 
 // Log which portal credentials are available at startup
 console.log('[CREDS]',
-  `FindRFP:${FINDRFP_LOGIN?'✓':'✗'}`,
   `OpenGov:${OPENGOV_LOGIN?'✓':'✗'}`,
   `Bonfire:${BONFIRE_LOGIN?'✓':'✗'}`,
   `PlanetBids:${PLANETBIDS_LOGIN?'✓':'✗'}`,
@@ -578,6 +575,172 @@ function scoreRelevance(item, keywordWeights) {
   return score;
 }
 
+const TRACK1_SOLICITATION_TERMS = [
+  'rfp', 'rfq', 'rfqual', 'request for proposal', 'request for proposals',
+  'request for qualification', 'request for qualifications', 'soq',
+  'statement of qualifications', 'ifb', 'itb', 'invitation for bid',
+  'invitation to bid', 'bid no', 'bid number', 'solicitation',
+  'professional services', 'consultant services'
+];
+
+const TRACK1_NON_SOLICITATION_TERMS = [
+  'meeting', 'agenda', 'minutes', 'workshop', 'open house', 'webinar',
+  'newsletter', 'press release', 'news release', 'public hearing',
+  'public comment', 'comment period', 'survey', 'event calendar',
+  'announcement', 'project update'
+];
+
+const PRIOR_CLIENT_TERMS = [
+  'abag', 'bcdc', 'sf regional water quality control board',
+  'south bay water recycling', 'u.s. epa', 'city of berkeley',
+  'city of half moon bay', 'city of livermore', 'city of novato',
+  'city of oakland', 'city of palo alto', 'city of placerville',
+  'city of redwood city', 'city of san jose', 'city of san josé',
+  'city of san mateo', 'town of danville', 'alameda county',
+  'contra costa county', 'marin county', 'santa clara county',
+  'sonoma county'
+];
+
+const TIER2_TERMS = [
+  'sacramento', 'monterey', 'santa cruz', 'san benito', 'san luis obispo',
+  'santa barbara', 'ventura', 'humboldt', 'mendocino', 'del norte'
+];
+
+const TIER3_TERMS = [
+  'los angeles', 'orange county', 'san diego', 'riverside',
+  'san bernardino', 'long beach', 'pasadena', 'burbank', 'glendale',
+  'santa monica', 'anaheim', 'irvine', 'santa ana', 'scag', 'sandag'
+];
+
+function startOfTodayPT() {
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+  return new Date(`${today}T00:00:00-07:00`);
+}
+
+function parseDeadlineDate(value) {
+  if (!value) return null;
+  if (value instanceof Date && !isNaN(value)) return value;
+  const raw = String(value).trim();
+  if (!raw || /^unknown|see portal|null$/i.test(raw)) return null;
+
+  const iso = raw.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+  if (iso) {
+    const parsed = new Date(`${iso[1]}T12:00:00-07:00`);
+    return isNaN(parsed) ? null : parsed;
+  }
+
+  const slash = raw.match(/\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/);
+  if (slash) {
+    const [, month, day, year] = slash;
+    const parsed = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T12:00:00-07:00`);
+    return isNaN(parsed) ? null : parsed;
+  }
+
+  const parsed = new Date(raw);
+  return isNaN(parsed) ? null : parsed;
+}
+
+function formatDateISO(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function inferGeoTier(opp) {
+  const text = `${opp.agency || ''} ${opp.title || ''} ${opp.scope || ''}`.toLowerCase();
+  if (BAY_AREA_TERMS.some(term => text.includes(term))) return 'Tier 1';
+  if (TIER2_TERMS.some(term => text.includes(term))) return 'Tier 2';
+  if (TIER3_TERMS.some(term => text.includes(term))) return 'Tier 3';
+  return 'Tier 4';
+}
+
+function isPriorClient(opp) {
+  const text = `${opp.agency || ''} ${opp.title || ''}`.toLowerCase();
+  return PRIOR_CLIENT_TERMS.some(term => text.includes(term));
+}
+
+function hasSolicitationSignal(opp) {
+  const via = (opp.via || '').toLowerCase();
+  const trustedPortal = ['opengov', 'bonfire', 'planetbids', 'biddingusa', 'bidnet', 'civicengage', 'standalone', 'cal eprocure', 'caleprocure'].includes(via);
+  const text = `${opp.title || ''} ${opp.scope || ''} ${opp.source_url || ''}`.toLowerCase();
+  return trustedPortal || TRACK1_SOLICITATION_TERMS.some(term => text.includes(term));
+}
+
+function hasNonSolicitationSignal(opp) {
+  const text = `${opp.title || ''} ${opp.scope || ''}`.toLowerCase();
+  return TRACK1_NON_SOLICITATION_TERMS.some(term => text.includes(term));
+}
+
+function scoreTrack1Relevance(opp, keywordWeights) {
+  const scoreInput = {
+    title: opp.title || '',
+    summary: `${opp.scope || ''} ${opp.agency || ''}`
+  };
+  let score = scoreRelevance(scoreInput, keywordWeights);
+  if (isPriorClient(opp)) score += 8;
+  if (inferGeoTier(opp) === 'Tier 1') score += 4;
+  if (/engagement|facilitation|consensus|mediation|outreach|stakeholder/i.test(`${opp.title || ''} ${opp.scope || ''}`)) score += 5;
+  return score;
+}
+
+function normalizeTrack1Candidate(opp, keywordWeights) {
+  const deadlineDate = parseDeadlineDate(opp.deadline || opp.due_date || opp.close_date);
+  const rejectReasons = [];
+  if (!opp.title || String(opp.title).trim().length < 6) rejectReasons.push('missing_title');
+  if (!opp.source_url) rejectReasons.push('missing_source_url');
+  if (!hasSolicitationSignal(opp)) rejectReasons.push('no_solicitation_signal');
+  if (hasNonSolicitationSignal(opp)) rejectReasons.push('non_solicitation_language');
+  if (!deadlineDate) rejectReasons.push('missing_parseable_due_date');
+  if (deadlineDate && deadlineDate < startOfTodayPT()) rejectReasons.push('expired_due_date');
+
+  const normalized = {
+    title: String(opp.title || '').replace(/\s+/g, ' ').trim(),
+    agency: String(opp.agency || '').replace(/\s+/g, ' ').trim(),
+    deadline: deadlineDate ? formatDateISO(deadlineDate) : null,
+    scope: String(opp.scope || '').replace(/\s+/g, ' ').trim(),
+    source_url: String(opp.source_url || '').trim(),
+    via: opp.via || opp.parser_strategy || 'portal',
+    prior_client: isPriorClient(opp),
+    geo_tier: inferGeoTier(opp),
+    relevance_score: 0,
+    validation_notes: rejectReasons
+  };
+  normalized.relevance_score = scoreTrack1Relevance(normalized, keywordWeights);
+  return { normalized, rejectReasons };
+}
+
+function validateTrack1Candidates(candidates, keywordWeights, isDuplicate) {
+  const accepted = [];
+  const rejected = [];
+  const seenThisBatch = new Set();
+
+  for (const candidate of candidates) {
+    const { normalized, rejectReasons } = normalizeTrack1Candidate(candidate, keywordWeights);
+    if (rejectReasons.length) {
+      rejected.push({ ...normalized, reject_reason: rejectReasons.join(',') });
+      continue;
+    }
+    const batchKey = normalizeTitle(normalized.title);
+    if (seenThisBatch.has(batchKey)) {
+      rejected.push({ ...normalized, reject_reason: 'duplicate_title_in_batch' });
+      continue;
+    }
+    if (isDuplicate && isDuplicate(normalized.title)) {
+      rejected.push({ ...normalized, reject_reason: 'duplicate_title' });
+      continue;
+    }
+    seenThisBatch.add(batchKey);
+    accepted.push(normalized);
+  }
+
+  accepted.sort((a, b) => {
+    const tierRank = { 'Tier 1': 1, 'Tier 2': 2, 'Tier 3': 3, 'Tier 4': 4 };
+    if (b.relevance_score !== a.relevance_score) return b.relevance_score - a.relevance_score;
+    if ((tierRank[a.geo_tier] || 9) !== (tierRank[b.geo_tier] || 9)) return (tierRank[a.geo_tier] || 9) - (tierRank[b.geo_tier] || 9);
+    return String(a.deadline || '').localeCompare(String(b.deadline || ''));
+  });
+
+  return { accepted, rejected };
+}
+
 function isNewsRelevant(item) {
   return scoreRelevance(item) > 0;
 }
@@ -723,13 +886,25 @@ async function fetchProjectMemory() {
 
 async function fetchSearchSources() {
   try {
-    const formula = encodeURIComponent(`AND({active}=TRUE(), NOT({source_type}="Standalone"), NOT({source_type}="Prime Firm"), NOT({source_type}="Competitor"), NOT({source_type}="Governing Body"))`);
+    const formula = encodeURIComponent(`AND({active}=TRUE(), OR({source_type}="Procurement Portal", {source_type}="Agency Procurement Page", {source_type}="Aggregator Landing Page", {source_type}="Planroom", {source_type}="Standalone"))`);
     const data = await atGet(AIRTABLE_SOURCES_TABLE, `?filterByFormula=${formula}&maxRecords=100`);
     const records = data.records || [];
     return records.map(r => ({
       site_name:   r.fields.source_name  || '',
       url:         r.fields.url         || '',
-      portal_type: r.fields.source_type  || '',
+      source_type: r.fields.source_type  || '',
+      portal_type: r.fields.portal_type  || '',
+      parser_strategy: r.fields.parser_strategy || '',
+      geo_tier: r.fields.geo_tier || '',
+      county: r.fields.county || '',
+      region: r.fields.region || '',
+      discovery_status: r.fields.discovery_status || '',
+      source_confidence: r.fields.source_confidence || null,
+      publicly_readable: !!r.fields.publicly_readable,
+      shows_active_status: !!r.fields.shows_active_status,
+      shows_due_date_in_listing: !!r.fields.shows_due_date_in_listing,
+      must_click_detail_for_scope: !!r.fields.must_click_detail_for_scope,
+      has_export_csv: !!r.fields.has_export_csv,
       username:    r.fields.username    || '',
       notes:       r.fields.notes       || ''
     }));
@@ -894,129 +1069,6 @@ async function fetchMediaSources() {
   } catch (err) {
     console.warn(`[fetchMediaSources] Failed — using hardcoded list: ${err.message}`);
     return HARDCODED_MEDIA;
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// FindRFP.com authenticated scraper
-// Logs in, searches California RFPs matching Bluhon's keywords, returns opps
-// ─────────────────────────────────────────────────────────────────────────────
-const FINDRFP_KEYWORDS = [
-  'public engagement', 'community outreach', 'facilitation', 'consensus building',
-  'stakeholder engagement', 'public participation', 'environmental planning',
-  'strategic plan', 'organizational assessment', 'mediation'
-];
-
-async function scrapeFindrfp() {
-  if (!FINDRFP_LOGIN || !FINDRFP_PASSWORD) {
-    console.log('[FindRFP] No credentials — skipping');
-    return [];
-  }
-  try {
-    console.log('[FindRFP] Logging in...');
-    const LOGIN_URL = 'https://www.findrfp.com/service/login.aspx';
-    // Step 1: GET login page to grab ASP.NET form state
-    const loginPage = await fetch(LOGIN_URL, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' }
-    });
-    const loginHtml = await loginPage.text();
-    const cookieHeader = loginPage.headers.get('set-cookie') || '';
-    const cookies = cookieHeader.split(',').map(c => c.split(';')[0].trim()).join('; ');
-    // Extract ASP.NET hidden fields
-    const viewstate = (loginHtml.match(/id="__VIEWSTATE"\s+value="([^"]*)"/) || [])[1] || '';
-    const viewstateGen = (loginHtml.match(/id="__VIEWSTATEGENERATOR"\s+value="([^"]*)"/) || [])[1] || '';
-    const eventVal = (loginHtml.match(/id="__EVENTVALIDATION"\s+value="([^"]*)"/) || [])[1] || '';
-    // Find the username/password input names from the form
-    const userFieldMatch = loginHtml.match(/id="([^"]*[Uu]ser[^"]*|[^"]*[Ee]mail[^"]*|[^"]*[Ll]ogin[^"]*)"[^>]*type="(?:text|email)"/);
-    const passFieldMatch = loginHtml.match(/id="([^"]*[Pp]ass[^"]*|[^"]*[Pp]wd[^"]*)"[^>]*type="password"/);
-    const userField = userFieldMatch ? userFieldMatch[1] : 'ctl00$MainContent$txtEmail';
-    const passField = passFieldMatch ? passFieldMatch[1] : 'ctl00$MainContent$txtPassword';
-    console.log(`[FindRFP] Form fields: user=${userField} pass=${passField} viewstate=${viewstate.slice(0,20)}...`);
-
-    // Step 2: POST login
-    const loginRes = await fetch(LOGIN_URL, {
-      method: 'POST',
-      redirect: 'manual',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Cookie': cookies,
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-        'Referer': LOGIN_URL
-      },
-      body: new URLSearchParams({
-        __VIEWSTATE: viewstate,
-        __VIEWSTATEGENERATOR: viewstateGen,
-        __EVENTVALIDATION: eventVal,
-        [userField]: FINDRFP_LOGIN,
-        [passField]: FINDRFP_PASSWORD,
-        ctl00$MainContent$btnLogin: 'Log In'
-      })
-    });
-    const sessionCookie = [cookies, loginRes.headers.get('set-cookie') || '']
-      .join('; ').split(',').map(c => c.split(';')[0].trim()).join('; ');
-
-    console.log(`[FindRFP] Login response: ${loginRes.status}, location: ${loginRes.headers.get('location') || 'none'}`);
-    if (loginRes.status !== 302 && loginRes.status !== 200) {
-      console.warn(`[FindRFP] Login failed — status ${loginRes.status}`);
-      return [];
-    }
-    console.log('[FindRFP] Logged in — searching...');
-
-    const opps = [];
-    // Step 3: Search each keyword, filter to California
-    for (const keyword of FINDRFP_KEYWORDS.slice(0, 5)) { // limit to 5 to avoid rate limits
-      try {
-        const cutoffDate = new Date(Date.now() - POSTED_CUTOFF_DAYS * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-        const searchUrl = `https://www.findrfp.com/rfp-search?keyword=${encodeURIComponent(keyword)}&state=CA,NV,OR&status=open&posted_after=${cutoffDate}`;
-        const searchRes = await fetch(searchUrl, {
-          headers: {
-            'Cookie': sessionCookie,
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-            'Referer': 'https://www.findrfp.com'
-          }
-        });
-        const html = await searchRes.text();
-        // Parse result rows — FindRFP uses table rows with bid details
-        const rowMatches = html.match(/<tr[^>]*class="[^"]*bid[^"]*"[^>]*>([\s\S]*?)<\/tr>/gi) || [];
-        for (const row of rowMatches.slice(0, 8)) {
-          const cells = (row.match(/<td[^>]*>([\s\S]*?)<\/td>/gi) || [])
-            .map(td => td.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
-          const titleMatch = row.match(/href="([^"]*rfp[^"]*)"[^>]*>([^<]+)</i);
-          const title = titleMatch ? titleMatch[2].trim() : cells[1] || '';
-          const agency = cells[0] || '';
-          const dueDateRaw = cells[2] || cells[3] || '';
-          const urlPath = titleMatch ? titleMatch[1] : '';
-          const source_url = urlPath.startsWith('http') ? urlPath : `https://www.findrfp.com${urlPath}`;
-          const dateMatch = dueDateRaw.match(/(\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2})/);
-          let deadline = null;
-          if (dateMatch) {
-            const parsed = new Date(dateMatch[1]);
-            if (!isNaN(parsed) && parsed > new Date()) deadline = parsed.toISOString().split('T')[0];
-          }
-          // Skip if no title or deadline already passed
-          if (!title || (deadline === null && dueDateRaw)) continue;
-          if (!opps.find(o => o.title === title)) {
-            opps.push({ title, agency, deadline, scope: keyword, source_url, via: 'FindRFP' });
-          }
-        }
-        await new Promise(r => setTimeout(r, 800)); // polite delay between searches
-      } catch (e) {
-        console.warn(`[FindRFP] Search for "${keyword}" failed: ${e.message}`);
-      }
-    }
-    // Update last_searched on the SEARCH_SOURCES record
-    try {
-      const formula = encodeURIComponent(`{source_name}="FindRFP"`);
-      const src = await atGet(AIRTABLE_SOURCES_TABLE, `?filterByFormula=${formula}&maxRecords=1`);
-      if (src.records && src.records[0]) {
-        await atPatch(AIRTABLE_SOURCES_TABLE, src.records[0].id, { last_searched: new Date().toISOString().split('T')[0] });
-      }
-    } catch(e) {}
-    console.log(`[FindRFP] Found ${opps.length} opportunities`);
-    return opps;
-  } catch (err) {
-    console.warn(`[FindRFP] Scraper error: ${err.message}`);
-    return [];
   }
 }
 
@@ -1854,6 +1906,13 @@ async function runClaudeSearch(userPrompt, attempt = 1, systemPromptOverride = n
   }
 }
 
+function previewModelText(text) {
+  return String(text || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 500);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Main report runner — two sequential calls to stay within rate limits
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1865,7 +1924,7 @@ async function runMORSReport() {
   console.log(`[${new Date().toISOString()}] Starting MORS report for ${today} — ${geo.label}`);
 
   // ── Fetch everything in parallel — memory, sources, news RSS, portal scrapers ──
-  const [memoryPatterns, searchSources, mediaSources, existingOpps, newsItems, airtableSearchQueries, airtableKeywords, airtableStandalonePages, findrfpOpps, opengovOpps, bonfireOpps, planetbidsOpps, biddingusaOpps, bidnetOpps, civicengageOpps] = await Promise.all([
+  const [memoryPatterns, searchSources, mediaSources, existingOpps, newsItems, airtableSearchQueries, airtableKeywords, airtableStandalonePages, opengovOpps, bonfireOpps, planetbidsOpps, biddingusaOpps, bidnetOpps, civicengageOpps, standaloneOpps] = await Promise.all([
     fetchProjectMemory(),
     fetchSearchSources(),
     fetchMediaSources(),
@@ -1874,13 +1933,13 @@ async function runMORSReport() {
     fetchSearchQueriesFromAirtable(),
     fetchRelevanceKeywordsFromAirtable(),
     fetchStandaloneSourcesFromAirtable(),
-    scrapeFindrfp(),
     scrapeOpengov(),
     scrapeBonfire(),
     scrapePlanetbids(),
     scrapeBiddingusa(),
     scrapeBidnet(),
     scrapeCivicengage(),
+    scrapeStandalonePages(),
   ]);
 
   // Use Airtable keywords if available, fall back to hardcoded
@@ -1923,6 +1982,9 @@ async function runMORSReport() {
       let line = `- ${s.site_name}`;
       if (s.url) line += ` (${s.url})`;
       if (s.portal_type) line += ` [${s.portal_type}]`;
+      if (s.parser_strategy) line += ` parser:${s.parser_strategy}`;
+      if (s.geo_tier) line += ` ${s.geo_tier}`;
+      if (s.region) line += ` region:${s.region}`;
       if (s.username) line += ` — username: ${s.username}`;
       if (s.notes) line += ` — ${s.notes}`;
       return line;
@@ -1930,27 +1992,34 @@ async function runMORSReport() {
     sourcesInjection = `\n\nADDITIONAL SEARCH SOURCES (check these in addition to defaults):\n${sourceLines}`;
   }
 
-  // Build portal scraped opps block for Track 1 prompt
-  // Standalone scraper results excluded — Claude now searches agency pages directly via web_search
-  const allPortalOpps = [
-    ...findrfpOpps,
+  // Build deterministic scraped opps block for Track 1 prompt
+  const allScrapedOpps = [
     ...opengovOpps,
     ...bonfireOpps,
     ...planetbidsOpps,
     ...biddingusaOpps,
     ...bidnetOpps,
     ...civicengageOpps,
+    ...standaloneOpps,
   ];
-  const portalBlock = allPortalOpps.length > 0
-    ? `\n\nPRE-SCRAPED PORTAL OPPORTUNITIES (${allPortalOpps.length} items pulled directly from authenticated CA/NV/OR procurement portals — FindRFP, OpenGov, Bonfire, PlanetBids, BiddingUSA, BidNet, CivicEngage, and agency bid pages. These ARE real solicitations. Include all that are relevant to Bluhon's services — do NOT reject them for lacking a visible solicitation number, the number exists on the linked page):\n` +
-      allPortalOpps.slice(0, 150).map((o, i) =>
-        `${i+1}. [via:${o.via||'portal'}] ${o.title} | ${o.agency || ''} | Due: ${o.deadline || 'unknown'} | ${o.source_url || ''}`
+  const isExistingDuplicate = title => existingOpps.some(existing => titlesMatch(title, existing.title));
+  const validation = validateTrack1Candidates(allScrapedOpps, activeKeywords, isExistingDuplicate);
+  const validatedTrack1Opps = validation.accepted;
+  const portalBlock = validatedTrack1Opps.length > 0
+    ? `\n\nVALIDATED SOURCE-DIRECT OPPORTUNITIES (${validatedTrack1Opps.length} items passed deterministic gates: actual solicitation, parseable future due date, source URL present, not duplicate):\n` +
+      validatedTrack1Opps.slice(0, 150).map((o, i) =>
+        `${i+1}. [via:${o.via||'portal'}] [score:${o.relevance_score}] [${o.geo_tier}] ${o.title} | ${o.agency || ''} | Due: ${o.deadline} | ${o.source_url || ''}`
       ).join('\n')
     : '';
 
-  console.log(`[SCRAPERS] FindRFP:${findrfpOpps.length} OpenGov:${opengovOpps.length} Bonfire:${bonfireOpps.length} PlanetBids:${planetbidsOpps.length} BiddingUSA:${biddingusaOpps.length} BidNet:${bidnetOpps.length} CivicEngage:${civicengageOpps.length} TOTAL:${allPortalOpps.length}`);
-  console.log(`[Standalone URLs] Using ${airtableStandalonePages.length > 0 ? airtableStandalonePages.length : STANDALONE_PAGES.length} agency bid page URLs from ${airtableStandalonePages.length > 0 ? 'Airtable' : 'hardcoded list'} — passing to Claude for direct page visits`);
-  console.log(`[${new Date().toISOString()}] Memory patterns: ${memoryPatterns.length}, Search sources: ${searchSources.length}, Portal opps for prompt: ${allPortalOpps.length}`);
+  const rejectSummary = validation.rejected.reduce((acc, opp) => {
+    acc[opp.reject_reason] = (acc[opp.reject_reason] || 0) + 1;
+    return acc;
+  }, {});
+  console.log(`[SCRAPERS] OpenGov:${opengovOpps.length} Bonfire:${bonfireOpps.length} PlanetBids:${planetbidsOpps.length} BiddingUSA:${biddingusaOpps.length} BidNet:${bidnetOpps.length} CivicEngage:${civicengageOpps.length} Standalone:${standaloneOpps.length} SOURCE_DIRECT_RAW:${allScrapedOpps.length} VALID:${validatedTrack1Opps.length}`);
+  console.log(`[Track1 Validation] rejected ${validation.rejected.length}: ${JSON.stringify(rejectSummary)}`);
+  console.log(`[Standalone URLs] Using ${airtableStandalonePages.length > 0 ? airtableStandalonePages.length : STANDALONE_PAGES.length} agency bid page URLs from ${airtableStandalonePages.length > 0 ? 'Airtable' : 'hardcoded list'} — deterministic scraper plus AI fallback`);
+  console.log(`[${new Date().toISOString()}] Memory patterns: ${memoryPatterns.length}, Search sources: ${searchSources.length}, Validated opps for prompt: ${validatedTrack1Opps.length}`);
   console.log(`[${new Date().toISOString()}] Call 1: Tracks 1+2`);
 
   // ── Call 1: Track 1 (RFPs) + Track 2 (Emerging Issues) ───────────────────
@@ -1962,7 +2031,7 @@ CRITICAL DATE FILTER: Only include RFPs issued after ${cutoffStr} (last 45 days)
 
 CRITICAL SOLICITATION FILTER:
 
-FOR PRE-SCRAPED PORTAL ITEMS (marked [via:...]): These come from authenticated CA/NV/OR procurement portals and are real solicitations. Include all relevant ones. Do not reject them for lacking a visible solicitation number — that number exists on the linked page. You may filter out portal items that are clearly irrelevant to Bluhon's services (road paving, IT hardware, food services, etc.). KEY DATE RULE: Only include items posted within the last 45 days — if a posted/release date is visible and older than 45 days, omit it.
+FOR VALIDATED SOURCE-DIRECT ITEMS (marked [via:...]): These have already passed deterministic gates before reaching you: they look like actual solicitations, have a parseable future due date, have a source URL, and are not known duplicates. Rank and summarize the relevant ones. You may still filter out items that are clearly irrelevant to Bluhon's services (road paving, IT hardware, food services, etc.).
 
 FOR ANY ITEM YOU FIND VIA WEB SEARCH (not in the pre-scraped list): Apply strict verification — only include if ALL of the following are true:
 1. Has a solicitation number (RFP 2026-01, RFQ-24-003, Bid No. 12345, IFB #2026-002, etc.)
@@ -1975,7 +2044,7 @@ ALWAYS EXCLUDE regardless of source:
 - News articles or press releases about public engagement work
 - Any item where the agency is asking the public to participate — NOT asking firms to bid
 
-When in doubt about a web-searched item, leave it out. But always include relevant portal items.
+When in doubt about a web-searched item, leave it out. Favor the validated source-direct items because they have already passed the hard gates.
 
 CRITICAL URL RULE: Use only the exact source_url provided in the pre-scraped data below. NEVER construct, guess, or modify URLs.
 
@@ -1984,18 +2053,18 @@ CRITICAL TITLE RULE: When outputting Track 1 rows, use only the project title �
 ${geo.instructions}
 
 TRACK 1 INSTRUCTIONS:
-You have two sources for Track 1 — use BOTH:
+You have two sources for Track 1:
 
-SOURCE A — PRE-SCRAPED PORTAL DATA (authenticated portals: FindRFP, OpenGov, Bonfire, PlanetBids, BiddingUSA, BidNet):
-${portalBlock ? portalBlock : 'No authenticated portal results this run.'}
+SOURCE A — VALIDATED SOURCE-DIRECT DATA (procurement portals and agency procurement pages already checked by code):
+${portalBlock ? portalBlock : 'No validated source-direct results this run.'}
 
-SOURCE B — AGENCY BID PAGES (visit each URL using your web_search tool):
-These are the official bid/RFP pages for Bay Area public agencies. Visit each one and find currently OPEN solicitations.
+SOURCE B — AGENCY BID PAGE FALLBACK (use web_search only when Source A is thin):
+These are official bid/RFP pages for public agencies. Visit a small number only if Source A has fewer than 8 strong items.
 
 YOUR JOB ON EACH PAGE:
 - Look for any RFP, RFQ, IFB, ITB, SOQ, or formal solicitation listed
 - TODAY IS ${today}. Any deadline before today is EXPIRED — do NOT include it under any circumstances
-- If you cannot find a clear deadline, look harder. If still no date found, skip it
+- If you cannot find a clear future deadline, skip it
 - Skip meeting notices, public hearings, surveys, events, newsletters, press releases
 - Skip items where the agency is inviting public comment — only include items where the agency is HIRING A FIRM
 - Record: project title, issuing agency, deadline date, and direct URL to the solicitation
@@ -2007,7 +2076,7 @@ ${(airtableStandalonePages.length > 0 ? airtableStandalonePages : STANDALONE_PAG
 
 Visit as many as you can. Prioritize agencies most likely to need Bluhon's services (public agencies, transit, water districts, counties, cities).
 
-Combine results from Source A and Source B. Select the 8-12 most relevant to Bluhon's services (public engagement, facilitation, mediation, community outreach, consensus building, environmental conflict resolution, strategic planning).
+Combine results from Source A and Source B. Sort first by relevance to Bluhon's services, then by geography where Tier 1 Bay Area items appear before equally relevant lower-tier items. Select the 8-12 most relevant items.
 
 Flag prior Bluhon clients: ABAG ✅, BCDC ✅, SF Regional Water Board ✅, Cities of Berkeley/Oakland/Palo Alto/San Jose/San Mateo/Redwood City/Livermore/Novato/Half Moon Bay/Danville ✅, Contra Costa County ✅, Alameda County ✅, Marin County ✅, Santa Clara County ✅, Sonoma County ✅${sourcesInjection}
 
@@ -2128,6 +2197,23 @@ OUTPUT FORMAT — use exactly these delimiters:
   const track4Match = text2.match(/---TRACK4_START---([\s\S]*?)---TRACK4_END---/);
   const oppsMatch   = text1.match(/---OPPORTUNITIES_JSON_START---([\s\S]*?)---OPPORTUNITIES_JSON_END---/);
 
+  const criticalMissing = [];
+  if (!track1Match) criticalMissing.push('TRACK1');
+  if (!track2Match) criticalMissing.push('TRACK2');
+  if (criticalMissing.length) {
+    console.error(`[${new Date().toISOString()}] Report generation missing critical delimiters: ${criticalMissing.join(', ')}`);
+    console.error(`[${new Date().toISOString()}] Call 1 preview: ${previewModelText(text1) || '(empty response)'}`);
+    throw new Error(`Report generation incomplete; not saving placeholder report. Missing ${criticalMissing.join(', ')} delimiters.`);
+  }
+  if (!oppsMatch) {
+    console.warn(`[${new Date().toISOString()}] Report generation missing OPPORTUNITIES_JSON delimiters; Airtable opportunity save will rely on Track 1 HTML only.`);
+  }
+  if (!track3Match || !track4Match) {
+    const missing = [!track3Match && 'TRACK3', !track4Match && 'TRACK4'].filter(Boolean).join(', ');
+    console.warn(`[${new Date().toISOString()}] Report generation missing non-critical delimiters: ${missing}`);
+    console.warn(`[${new Date().toISOString()}] Call 2 preview: ${previewModelText(text2) || '(empty response)'}`);
+  }
+
   const track1_html = stripExpiredTrack1Rows(track1Match ? track1Match[1].trim() : "<p>No Track 1 data.</p>");
   const track2_html = track2Match ? track2Match[1].trim() : "<p>No Track 2 data.</p>";
   const track3_html = track3Match ? track3Match[1].trim() : "<p>No Track 3 data.</p>";
@@ -2167,53 +2253,24 @@ OUTPUT FORMAT — use exactly these delimiters:
   }
   console.log(`[${new Date().toISOString()}] Saved ${oppCount} Claude opportunities (${oppSkipped} duplicates skipped)`);
 
-  // ── Save FindRFP.com scraped opportunities ────────────────────────────────
-  let findrfpCount = 0, findrfpSkipped = 0;
-  for (const opp of findrfpOpps) {
-    if (isDuplicate(opp.title)) { findrfpSkipped++; continue; }
+  // ── Save validated source-direct opportunities ────────────────────────────
+  let validatedCount = 0, validatedSkipped = 0;
+  for (const opp of validatedTrack1Opps) {
+    if (isDuplicate(opp.title)) { validatedSkipped++; continue; }
     try {
       await atPost(AIRTABLE_OPPS_TABLE, {
-        title:      `${opp.title} [via FindRFP]`,
+        title:      `${opp.title} [via ${opp.via}]`,
         agency:     opp.agency,
-        deadline:   opp.deadline || null,
+        deadline:   opp.deadline,
         track:      "1 — Active RFP",
-        scope:      opp.scope,
+        scope:      opp.scope || `Validated source-direct result; score ${opp.relevance_score}; ${opp.geo_tier}`,
         source_url: opp.source_url,
         report_date: reportDate
       });
-      findrfpCount++;
-    } catch(e) {
-      console.warn(`FindRFP opp save failed (${opp.title}):`, e.message);
-    }
+      validatedCount++;
+    } catch(e) { console.warn(`Validated Track 1 opp save failed (${opp.title}):`, e.message); }
   }
-  if (findrfpCount > 0 || findrfpSkipped > 0) console.log(`[${new Date().toISOString()}] Saved ${findrfpCount} FindRFP opportunities (${findrfpSkipped} duplicates skipped)`);
-
-  // ── Save portal-scraped opportunities ─────────────────────────────────────
-  const portalOpps = [
-    ...opengovOpps.map(o => ({ ...o, tag: '[via OpenGov]' })),
-    ...bonfireOpps.map(o => ({ ...o, tag: '[via Bonfire]' })),
-    ...planetbidsOpps.map(o => ({ ...o, tag: '[via PlanetBids]' })),
-    ...biddingusaOpps.map(o => ({ ...o, tag: '[via BiddingUSA]' })),
-    ...bidnetOpps.map(o => ({ ...o, tag: '[via BidNet]' })),
-    ...civicengageOpps.map(o => ({ ...o, tag: '[via CivicEngage]' })),
-  ];
-  let portalCount = 0, portalSkipped = 0;
-  for (const opp of portalOpps) {
-    if (isDuplicate(opp.title)) { portalSkipped++; continue; }
-    try {
-      await atPost(AIRTABLE_OPPS_TABLE, {
-        title:      `${opp.title} ${opp.tag}`,
-        agency:     opp.agency,
-        deadline:   opp.deadline || null,
-        track:      "1 — Active RFP",
-        scope:      opp.scope,
-        source_url: opp.source_url,
-        report_date: reportDate
-      });
-      portalCount++;
-    } catch(e) { console.warn(`Portal opp save failed (${opp.title}):`, e.message); }
-  }
-  if (portalCount > 0 || portalSkipped > 0) console.log(`[${new Date().toISOString()}] Saved ${portalCount} portal opportunities (${portalSkipped} duplicates skipped — OpenGov/Bonfire/PlanetBids/BiddingUSA/BidNet/CivicEngage/Direct)`);
+  if (validatedCount > 0 || validatedSkipped > 0) console.log(`[${new Date().toISOString()}] Saved ${validatedCount} validated source-direct opportunities (${validatedSkipped} duplicates skipped)`);
 
   // ── Parse and save Track 2 items individually ─────────────────────────────
   if (track2_html && track2_html !== "<p>No Track 2 data.</p>") {

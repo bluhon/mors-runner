@@ -662,14 +662,40 @@ let currentUser = null;
 let currentReportIndex = 0;
 let allReports = [];
 let _reportPollInterval = null;
+const REPORT_SORT_QUERY = '?sort[0][field]=report_date&sort[0][direction]=desc&sort[1][field]=run_timestamp&sort[1][direction]=desc';
+
+function isRunnerPlaceholder(html, trackNumber) {
+  return String(html || '').trim() === `<p>No Track ${trackNumber} data.</p>`;
+}
+
+function isUsableReport(report) {
+  const fields = report?.fields || {};
+  return !isRunnerPlaceholder(fields.track1_html, 1) && !isRunnerPlaceholder(fields.track2_html, 2);
+}
+
+function sortReports(records) {
+  return (records || []).sort((a, b) => {
+    const da = a.fields.report_date || '';
+    const db = b.fields.report_date || '';
+    if (db !== da) return db > da ? 1 : -1;
+    const ta = a.fields.run_timestamp || '';
+    const tb = b.fields.run_timestamp || '';
+    return tb > ta ? 1 : tb < ta ? -1 : 0;
+  });
+}
+
+function pickLatestUsableReport(records) {
+  const sorted = sortReports(records || []);
+  return sorted.find(isUsableReport) || sorted[0] || null;
+}
 
 function startReportPolling() {
   if (_reportPollInterval) return;
   _reportPollInterval = setInterval(async () => {
     if (currentReportIndex !== 0) return; // only poll when viewing latest
     try {
-      const res = await atFetch(CONFIG.TABLES.DAILY_REPORTS, '?sort[0][field]=report_date&sort[0][direction]=desc&maxRecords=1');
-      const latest = (res.records || [])[0];
+      const res = await atFetch(CONFIG.TABLES.DAILY_REPORTS, `${REPORT_SORT_QUERY}&maxRecords=10`);
+      const latest = pickLatestUsableReport(res.records || []);
       if (!latest) return;
       const latestDate = latest.fields.report_date || '';
       const currentDate = allReports[0]?.fields?.report_date || '';
@@ -861,15 +887,10 @@ function closeSidebar() {
 }
 
 async function loadReport() {
-  const res = await atFetch(CONFIG.TABLES.DAILY_REPORTS, '?sort[0][field]=report_date&sort[0][direction]=desc&maxRecords=30');
-  allReports = (res.records || []).sort((a, b) => {
-    const da = a.fields.report_date || '';
-    const db = b.fields.report_date || '';
-    if (db !== da) return db > da ? 1 : -1;
-    const ta = a.fields.run_timestamp || '';
-    const tb = b.fields.run_timestamp || '';
-    return tb > ta ? 1 : tb < ta ? -1 : 0;
-  });
+  const res = await atFetch(CONFIG.TABLES.DAILY_REPORTS, `${REPORT_SORT_QUERY}&maxRecords=30`);
+  const sortedReports = sortReports(res.records || []);
+  const usableReports = sortedReports.filter(isUsableReport);
+  allReports = usableReports.length ? usableReports : sortedReports;
   currentReportIndex = 0;
   renderReport();
   await loadProspects();
@@ -947,16 +968,23 @@ async function createTrack2Canvas(item) {
 }
 
 async function loadProspects() {
-  // Track 1 now renders from track1_html in renderReport() — this function is disabled
-  return;
+  const container = document.getElementById('track1-opps-container');
+  if (!container) return;
+  const existingReportRows = container.querySelectorAll('.t1-list tbody tr').length;
   const res = await atFetch(CONFIG.TABLES.OPPORTUNITIES, `?filterByFormula=${encodeURIComponent('AND(OR({interest}="",{interest}=BLANK()),{track}="1 — Active RFP")')}&sort[0][field]=deadline&sort[0][direction]=asc&maxRecords=100`);
   const allOpps = res.records || [];
-  const prospects = allOpps.filter(p => !p.fields.interest || p.fields.interest === '');
+  const today = new Date(); today.setHours(0,0,0,0);
+  const prospects = allOpps.filter(p => {
+    if (p.fields.interest) return false;
+    const rawDate = p.fields.deadline || p.fields.proposal_due || '';
+    if (!rawDate) return true;
+    const due = new Date(rawDate);
+    return isNaN(due) || due >= today;
+  });
   if (prospects.length === 0) {
-    container.innerHTML = '<div class="t1-no-opps">No new opportunities to review today.</div>';
+    if (!existingReportRows) container.innerHTML = '<div class="t1-no-opps">No new opportunities to review today.</div>';
     return;
   }
-  const today = new Date(); today.setHours(0,0,0,0);
   const rowsHtml = prospects.map(p => {
     const f = p.fields;
     let dl = f.deadline ? new Date(f.deadline) : (f.proposal_due ? new Date(f.proposal_due) : null);
@@ -985,23 +1013,18 @@ async function loadProspects() {
       displayTitle = fullText;
       scope = f.scope ? f.scope.replace(/<[^>]+>/g,'').trim() : '';
     }
-    const scopeShort = scope.length > 160 ? scope.slice(0, 160) + '…' : scope;
-    const value = f.estimated_value ? `<span><i class="ti ti-currency-dollar" style="font-size:11px"></i> ${f.estimated_value}</span>` : '';
-    const type  = f.opportunity_type ? `<span>${f.opportunity_type}</span>` : '';
+    const scopeShort = scope.length > 220 ? scope.slice(0, 220) + '…' : scope;
     const srcCell = f.source_url
-      ? `<div class="t1-link"><a href="${f.source_url}" target="_blank"><i class="ti ti-external-link"></i> Source</a></div>`
+      ? `<div class="t1-link"><a href="${escHtml(f.source_url)}" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Source</a></div>`
       : '<div class="t1-link" style="color:var(--muted);font-size:12px">—</div>';
-    const safeTitle = (f.title||'').replace(/'/g,"\\'").replace(/"/g,'&quot;').slice(0,80);
-    const safeAgency = (f.agency||'').replace(/'/g,"\\'").slice(0,60);
-    const safeUrl = (f.source_url||'').replace(/'/g,"\\'");
     const rejectReasons = ['News / Article (not a solicitation)','Not an RFP','Not in scope','Not in geography','Due date past','Low budget','No interest'];
     return `<tr class="${alreadyYes?'t1-interested':''}" id="t1c-${p.id}">
-      <td></td>
+      <td><input type="checkbox" class="t1-cb" id="cb-${p.id}" onchange="toggleT1Card('${p.id}', this.checked)" aria-label="Select ${escHtml(displayTitle)}"></td>
       <td>
-        <div class="t1-row-agency">${agency}</div>
-        <div class="t1-row-title">${displayTitle}</div>
-        ${scopeShort ? `<div class="t1-row-scope">${scopeShort}</div>` : ''}
-        ${f.estimated_value ? `<div class="t1-row-value">${f.estimated_value}</div>` : ''}
+        <div class="t1-row-agency">${escHtml(agency)}</div>
+        <div class="t1-row-title">${escHtml(displayTitle)}</div>
+        ${scopeShort ? `<div class="t1-row-scope">${escHtml(scopeShort)}</div>` : ''}
+        ${f.estimated_value ? `<div class="t1-row-value">${escHtml(f.estimated_value)}</div>` : ''}
         <div style="display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap">
           <button onclick="sendToPipeline('${p.id}')" style="font-family:'Source Sans 3',Arial,sans-serif;font-size:0.9rem;font-weight:600;background:var(--brand);color:#fff;border:none;border-radius:6px;padding:6px 16px;cursor:pointer">→ Pipeline</button>
           <div style="position:relative;display:inline-block" id="reject-wrap-${p.id}">
@@ -1009,7 +1032,7 @@ async function loadProspects() {
             <div id="reject-menu-${p.id}" style="display:none;position:absolute;top:100%;left:0;z-index:50;background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.12);min-width:220px;padding:10px 14px 12px;margin-top:4px">
               <div style="font-family:'Roboto Condensed',Arial,sans-serif;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#888;margin-bottom:8px">Select all that apply</div>
               ${rejectReasons.map(r => `<label style="display:flex;align-items:center;gap:8px;font-family:'Source Sans 3',Arial,sans-serif;font-size:0.95rem;color:#333;padding:4px 0;cursor:pointer"><input type="checkbox" class="reject-cb-${p.id}" value="${r.replace(/"/g,'&quot;')}" style="accent-color:var(--brand);width:15px;height:15px"> ${r}</label>`).join('')}
-              <button onclick="confirmReject('${p.id}','${safeTitle}','${safeAgency}','${safeUrl}')" style="margin-top:10px;width:100%;font-family:'Source Sans 3',Arial,sans-serif;font-size:0.9rem;font-weight:600;background:#d44;color:#fff;border:none;border-radius:6px;padding:7px 0;cursor:pointer">Confirm Reject</button>
+              <button onclick="confirmRejectFromOpportunity('${p.id}')" style="margin-top:10px;width:100%;font-family:'Source Sans 3',Arial,sans-serif;font-size:0.9rem;font-weight:600;background:#d44;color:#fff;border:none;border-radius:6px;padding:7px 0;cursor:pointer">Confirm Reject</button>
             </div>
           </div>
         </div>
@@ -1215,20 +1238,24 @@ function parseTrack1Html(html) {
       }
     }
     const srcCell = url
-      ? `<div class="t1-link"><a href="${url}" target="_blank"><i class="ti ti-external-link"></i> Source</a></div>`
+      ? `<div class="t1-link"><a href="${escHtml(url)}" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Source</a></div>`
       : '<div class="t1-link" style="color:var(--muted);font-size:12px">Direct procurement page</div>';
-    const safeTitle  = displayTitle.replace(/'/g,"\\'").replace(/"/g,'&quot;').slice(0,80);
-    const safeAgency = agency.replace(/'/g,"\\'").slice(0,60);
-    const safeUrl    = url.replace(/'/g,"\\'");
+    const payload = escHtml(JSON.stringify({
+      title: displayTitle,
+      agency,
+      source_url: url,
+      scope: scopeShort || scopeBody || scope,
+      deadline: dlStr === '—' ? '' : dueRaw
+    }));
     const id = `t1c-html-${i}`;
     return `<tr id="${id}">
       <td></td>
       <td>
-        <div class="t1-row-agency">${agency}</div>
-        <div class="t1-row-title">${displayTitle}</div>
-        ${scopeShort ? `<div class="t1-row-scope">${scopeShort}</div>` : ''}
+        <div class="t1-row-agency">${escHtml(agency)}</div>
+        <div class="t1-row-title">${escHtml(displayTitle)}</div>
+        ${scopeShort ? `<div class="t1-row-scope">${escHtml(scopeShort)}</div>` : ''}
         <div style="display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap">
-          <button onclick="saveArticleToPipeline('${safeTitle}','${safeUrl}','${scopeShort.replace(/'/g,"\\'").slice(0,200)}','Track 1',this)" style="font-family:'Source Sans 3',Arial,sans-serif;font-size:0.9rem;font-weight:600;background:var(--brand);color:#fff;border:none;border-radius:6px;padding:6px 16px;cursor:pointer">→ Pipeline</button>
+          <button data-track1="${payload}" onclick="saveTrack1HtmlToPipeline(this)" style="font-family:'Source Sans 3',Arial,sans-serif;font-size:0.9rem;font-weight:600;background:var(--brand);color:#fff;border:none;border-radius:6px;padding:6px 16px;cursor:pointer">→ Pipeline</button>
           <div style="position:relative;display:inline-block" id="reject-wrap-${id}">
             <button onclick="document.getElementById('reject-menu-${id}').style.display=document.getElementById('reject-menu-${id}').style.display==='none'?'block':'none'" style="font-family:'Source Sans 3',Arial,sans-serif;font-size:0.9rem;font-weight:500;background:#fff;color:#666;border:1px solid #ccc;border-radius:6px;padding:6px 14px;cursor:pointer">Reject ▾</button>
             <div id="reject-menu-${id}" style="display:none;position:absolute;top:100%;left:0;z-index:50;background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.12);min-width:220px;padding:10px 14px 12px;margin-top:4px">
@@ -1312,8 +1339,8 @@ async function triggerManualRun() {
     const poll = setInterval(async () => {
       attempts++;
       try {
-        const r = await atFetch(CONFIG.TABLES.DAILY_REPORTS, '?sort[0][field]=report_date&sort[0][direction]=desc&maxRecords=1');
-        const latest = (r.records || [])[0];
+        const r = await atFetch(CONFIG.TABLES.DAILY_REPORTS, `${REPORT_SORT_QUERY}&maxRecords=10`);
+        const latest = pickLatestUsableReport(r.records || []);
         const latestDate = latest?.fields?.report_date || '';
         const latestTs   = latest?.fields?.run_timestamp || '';
         const isNewer = latestDate > snapshotDate || (latestDate === snapshotDate && latestTs > snapshotTs);
@@ -1482,6 +1509,50 @@ async function saveArticleToPipeline(btn) {
   } catch(e) {
     btn.disabled = false;
     btn.innerHTML = '<i class="ti ti-arrow-right"></i> Save to Pipeline';
+    showToast('Save failed: ' + e.message, 'error');
+  }
+}
+
+async function saveTrack1HtmlToPipeline(btn) {
+  let payload = {};
+  try {
+    payload = JSON.parse(btn.dataset.track1 || '{}');
+  } catch {
+    showToast('Could not read Track 1 row data', 'error');
+    return;
+  }
+
+  const title = payload.title || 'Untitled RFP';
+  const agency = payload.agency || '';
+  const sourceUrl = payload.source_url || '';
+  const scope = payload.scope || '';
+  const deadline = payload.deadline || null;
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Saving…';
+  try {
+    const oppFields = {
+      title,
+      agency,
+      source_url: sourceUrl,
+      scope,
+      track: '1 — Active RFP',
+      interest: 'Yes'
+    };
+    if (deadline && /^\d{4}-\d{2}-\d{2}$/.test(deadline)) oppFields.deadline = deadline;
+
+    const opp = await atCreate(CONFIG.TABLES.OPPORTUNITIES, oppFields);
+    if (opp && opp.id) {
+      allOpportunities.push(opp);
+      await createCanvas(opp.id, title);
+    }
+
+    btn.innerHTML = '<i class="ti ti-check"></i> Saved';
+    btn.style.background = 'var(--lime)';
+    showToast('Added to Pipeline — RFP Canvas created', 'success');
+  } catch(e) {
+    btn.disabled = false;
+    btn.innerHTML = '→ Pipeline';
     showToast('Save failed: ' + e.message, 'error');
   }
 }
@@ -2001,6 +2072,14 @@ async function sendToPipeline(oppId) {
   await createCanvas(oppId, p.fields.title);
   showToast('Added to Pipeline — RFP Canvas created', 'success');
   if (row) { row.style.transition = 'opacity 0.4s'; row.style.opacity = '0'; setTimeout(() => row.remove(), 420); }
+}
+
+async function confirmRejectFromOpportunity(oppId) {
+  const container = document.getElementById('track1-opps-container');
+  const prospects = container._prospects || [];
+  const p = prospects.find(x => x.id === oppId);
+  if (!p) return;
+  await confirmReject(oppId, p.fields.title || '', p.fields.agency || '', p.fields.source_url || '');
 }
 
 async function confirmReject(oppId, title, agency, sourceUrl) {

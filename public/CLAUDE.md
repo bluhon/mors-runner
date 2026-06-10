@@ -1,5 +1,9 @@
 # MORS — Marketing Opportunity Research System
-## Bluhon · Claude Code Context File
+## Legacy Context File
+
+This file is historical and may be stale. Current implementation notes live in `/docs`.
+
+Important current policy: FindRFP is not a production search source. MORS should search original procurement sources and official agency/portal pages.
 
 This file gives Claude Code full context to continue building MORS without losing history.
 
@@ -58,7 +62,6 @@ RFP_CANVAS fields: `canvas_title`, `active`, `pursuit_status`, `issuer_agency`, 
 Claude searches procurement portals for open RFPs matching Bluhon's services. Displayed as an HTML table (Agency | Project/Scope | Due Date | Est. Value | Type | Source URL). Each row has Yes/No interest buttons. "Yes" creates an RFP Canvas and saves to OPPORTUNITIES.
 
 **Portal scrapers (all run in parallel at startup):**
-- `scrapeFindrfp()` — FindRFP.com (authenticated)
 - `scrapeOpengov()` — procurement.opengov.com (authenticated)
 - `scrapeBonfire()` — gobonfire.com (authenticated, multiple Bay Area subdomains)
 - `scrapePlanetbids()` — **vendorline.planetbids.com** (authenticated — user has account)
@@ -178,7 +181,6 @@ Single HTML file, ~1400 lines. Login-gated (checks USERS table in Airtable).
 ```
 ANTHROPIC_API_KEY
 AIRTABLE_TOKEN
-FINDRFP_LOGIN / FINDRFP_PASSWORD
 OPENGOV_LOGIN / OPENGOV_PASSWORD
 BONFIRE_LOGIN / BONFIRE_PASSWORD
 PLANETBIDS_LOGIN / PLANETBIDS_PASSWORD       ← needs to be added
@@ -207,7 +209,7 @@ Cron: `"30 9 * * 1-5"` → 9:30am PT Mon–Fri
 
 - ✅ Full four-track daily report generation
 - ✅ RSS aggregator (24 Google News queries + 21 direct feeds) with relevance scoring
-- ✅ 8 portal scrapers running in parallel (FindRFP, OpenGov, Bonfire, PlanetBids, BiddingUSA, BidNet, CivicEngage, Standalone)
+- ✅ Source-direct scrapers running in parallel (OpenGov, Bonfire, PlanetBids, BiddingUSA, BidNet, CivicEngage, Standalone)
 - ✅ 55 standalone agency pages scraped (ports, transit, water, counties, cities)
 - ✅ Duplicate detection across all scrapers
 - ✅ PROJECT_MEMORY learning loop
