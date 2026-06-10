@@ -945,7 +945,7 @@ async function fetchProjectMemory() {
 async function fetchSearchSources() {
   try {
     const formula = encodeURIComponent(`AND({active}=TRUE(), OR({source_type}="Procurement Portal", {source_type}="Agency Procurement Page", {source_type}="Aggregator Landing Page", {source_type}="Planroom", {source_type}="Standalone"))`);
-    const data = await atGet(AIRTABLE_SOURCES_TABLE, `?filterByFormula=${formula}&maxRecords=100`);
+    const data = await atGet(AIRTABLE_SOURCES_TABLE, `?filterByFormula=${formula}&maxRecords=500`);
     const records = data.records || [];
     return records.map(r => ({
       site_name:   r.fields.source_name  || '',
@@ -972,15 +972,49 @@ async function fetchSearchSources() {
   }
 }
 
+function airtableSourceRecordToPage(record) {
+  const url = String(record.fields.url || '').trim();
+  return {
+    name: record.fields.source_name || '',
+    url,
+    baseUrl: (() => { try { const u = new URL(url); return `${u.protocol}//${u.hostname}`; } catch { return ''; } })(),
+    source_type: record.fields.source_type || '',
+    portal_type: record.fields.portal_type || '',
+    county: record.fields.county || '',
+    geo_tier: record.fields.geo_tier || '',
+    notes: record.fields.notes || ''
+  };
+}
+
+async function fetchActiveSourcePagesFromAirtable() {
+  try {
+    const formula = encodeURIComponent(`{active}=TRUE()`);
+    const data = await atGet(AIRTABLE_SOURCES_TABLE, `?filterByFormula=${formula}&maxRecords=500&sort[0][field]=source_name&sort[0][direction]=asc`);
+    return (data.records || [])
+      .map(airtableSourceRecordToPage)
+      .filter(page => page.name && page.url);
+  } catch (err) {
+    console.warn(`[fetchActiveSourcePages] Failed: ${err.message}`);
+    return [];
+  }
+}
+
+function isPlatformPortalUrl(url) {
+  const value = String(url || '').toLowerCase();
+  return [
+    'procurement.opengov.com',
+    'vendors.planetbids.com',
+    'bidnetdirect.com',
+    'bonfirehub.com',
+    'biddingousa.com',
+    'biddingo'
+  ].some(host => value.includes(host));
+}
+
 async function fetchStandaloneSourcesFromAirtable() {
   try {
-    const formula = encodeURIComponent(`AND({active}=TRUE(), OR({source_type}="Agency Procurement Page", {source_type}="Planroom", {source_type}="Standalone"))`);
-    const data = await atGet(AIRTABLE_SOURCES_TABLE, `?filterByFormula=${formula}&maxRecords=200&sort[0][field]=source_name&sort[0][direction]=asc`);
-    return (data.records || []).map(r => ({
-      name:    r.fields.source_name || '',
-      url:     r.fields.url || '',
-      baseUrl: (() => { try { const u = new URL(r.fields.url||''); return `${u.protocol}//${u.hostname}`; } catch { return ''; } })()
-    })).filter(r => r.name && r.url);
+    const pages = await fetchActiveSourcePagesFromAirtable();
+    return pages.filter(page => !isPlatformPortalUrl(page.url));
   } catch (err) {
     console.warn(`[fetchStandaloneSources] Failed: ${err.message}`);
     return [];
@@ -989,30 +1023,36 @@ async function fetchStandaloneSourcesFromAirtable() {
 
 async function fetchOpenGovSourcesFromAirtable() {
   try {
-    const formula = encodeURIComponent(`AND({active}=TRUE(), FIND("procurement.opengov.com/portal/", {url}))`);
-    const data = await atGet(AIRTABLE_SOURCES_TABLE, `?filterByFormula=${formula}&maxRecords=200&sort[0][field]=source_name&sort[0][direction]=asc`);
-    return (data.records || []).map(r => {
-      const url = String(r.fields.url || '').trim();
+    const pages = await fetchActiveSourcePagesFromAirtable();
+    return pages.filter(page => page.url.includes('procurement.opengov.com')).map(page => {
+      const url = page.url;
       let portalUrl = url;
       let slug = '';
       try {
         const parsed = new URL(url);
         const parts = parsed.pathname.split('/').filter(Boolean);
         const portalIndex = parts.indexOf('portal');
-        if (portalIndex >= 0 && parts[portalIndex + 1]) {
+        const embedIndex = parts.indexOf('embed');
+        if (embedIndex >= 0 && parts[embedIndex + 1]) {
+          slug = parts[embedIndex + 1];
+          portalUrl = url;
+        } else if (portalIndex >= 0 && parts[portalIndex + 1]) {
           slug = parts[portalIndex + 1];
           portalUrl = `${parsed.protocol}//${parsed.hostname}/portal/${slug}`;
+        } else if (parts.includes('open-bids')) {
+          slug = 'vendor-open-bids';
+          portalUrl = url;
         }
       } catch {
         // Keep the raw URL below; it will be skipped if invalid.
       }
       return {
-        name: r.fields.source_name || '',
+        name: page.name || '',
         url: portalUrl,
         slug,
-        county: r.fields.county || '',
-        geo_tier: r.fields.geo_tier || '',
-        notes: r.fields.notes || ''
+        county: page.county || '',
+        geo_tier: page.geo_tier || '',
+        notes: page.notes || ''
       };
     }).filter(r => r.name && r.url && r.slug);
   } catch (err) {
@@ -1345,15 +1385,33 @@ const BONFIRE_SUBDOMAINS = [
   { name: 'Golden Gate Transit', slug: 'ggbhtd' },
 ];
 
+async function fetchBonfireSourcesFromAirtable() {
+  const pages = await fetchActiveSourcePagesFromAirtable();
+  return pages
+    .filter(page => page.url.includes('bonfirehub.com'))
+    .map(page => {
+      try {
+        const parsed = new URL(page.url);
+        return { name: page.name, slug: parsed.hostname.split('.')[0], url: page.url };
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean);
+}
+
 async function scrapeBonfire() {
   const opps = [];
   try {
     console.log('[Bonfire] Scraping public portals...');
     const authCookie = '';
-    for (const agency of BONFIRE_SUBDOMAINS) {
+    const airtablePortals = await fetchBonfireSourcesFromAirtable();
+    const portals = airtablePortals.length > 0 ? airtablePortals : BONFIRE_SUBDOMAINS;
+    console.log(`[Bonfire] Using ${portals.length} ${airtablePortals.length > 0 ? 'Airtable' : 'hardcoded'} portals`);
+    for (const agency of portals) {
       try {
         // Try JSON API first (tab=openOpportunities returns JSON on some portals)
-        const portalUrl = `https://${agency.slug}.bonfirehub.com/portal/?tab=openOpportunities`;
+        const portalUrl = agency.url || `https://${agency.slug}.bonfirehub.com/portal/?tab=openOpportunities`;
         const res = await fetch(portalUrl, {
           headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json, text/html',
             ...(authCookie ? { 'Cookie': authCookie } : {}) }
@@ -1437,11 +1495,8 @@ async function scrapePlanetbids() {
     cookies = [cookies, newCookies].filter(Boolean).join('; ');
     console.log(`[PlanetBids] Login status: ${loginRes.status}`);
 
-    // PlanetBids portals are JavaScript SPAs — API endpoint discovery needed.
-    // For now, portal URLs are passed to Claude via web_search for direct page visits.
-    // Login above establishes session; future enhancement: reverse-engineer portal API.
-    const pbPages = STANDALONE_PAGES.filter(p => p.url.includes('vendors.planetbids.com/portal/'));
-    console.log(`[PlanetBids] Login OK — ${pbPages.length} portal URLs passed to Claude for direct visits`);
+    const pbPages = (await fetchActiveSourcePagesFromAirtable()).filter(p => p.url.includes('vendors.planetbids.com/portal/'));
+    console.log(`[PlanetBids] Login OK — ${pbPages.length} Airtable portal URLs available for parser work`);
     return [];
   } catch(err) { console.warn(`[PlanetBids] Error: ${err.message}`); return []; }
 }
@@ -1548,6 +1603,22 @@ const BIDNET_AGENCIES = [
   { name: 'Mountain View',  slug: 'cityofmountainview' },
 ];
 
+async function fetchBidnetSourcesFromAirtable() {
+  const pages = await fetchActiveSourcePagesFromAirtable();
+  return pages
+    .filter(page => page.url.includes('bidnetdirect.com/california/'))
+    .map(page => {
+      try {
+        const parsed = new URL(page.url);
+        const slug = parsed.pathname.split('/').filter(Boolean).pop();
+        return { name: page.name, slug, url: page.url };
+      } catch {
+        return null;
+      }
+    })
+    .filter(item => item && item.slug);
+}
+
 async function scrapeBidnet() {
   if (!BIDNET_LOGIN || !BIDNET_PASSWORD) {
     console.log('[BidNet] No credentials — skipping'); return [];
@@ -1582,9 +1653,12 @@ async function scrapeBidnet() {
     console.log('[BidNet] Logged in — searching agencies...');
 
     const opps = [];
-    for (const agency of BIDNET_AGENCIES) {
+    const airtableAgencies = await fetchBidnetSourcesFromAirtable();
+    const agencies = airtableAgencies.length > 0 ? airtableAgencies : BIDNET_AGENCIES;
+    console.log(`[BidNet] Using ${agencies.length} ${airtableAgencies.length > 0 ? 'Airtable' : 'hardcoded'} agency URLs`);
+    for (const agency of agencies) {
       try {
-        const url = `https://www.bidnetdirect.com/california/${agency.slug}`;
+        const url = agency.url || `https://www.bidnetdirect.com/california/${agency.slug}`;
         const res = await fetch(url, {
           headers: {
             'Cookie': sessionCookie,
