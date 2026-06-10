@@ -44,7 +44,7 @@ async function main() {
   assertIncludes(frontend, "formatTrackItems(clean(report.fields.track4_html), 'Track 4')", 'missing Track 4 frontend render', failures);
   assertIncludes(frontend, 'isUsableReport', 'missing frontend guard against placeholder reports', failures);
   assertIncludes(frontend, 'REPORT_SORT_QUERY', 'missing timestamp-aware report sort query', failures);
-  assertIncludes(runner, 'not saving placeholder report', 'missing runner guard against saving placeholder reports', failures);
+  assertIncludes(runner, 'saving deterministic Track 1 and continuing', 'missing runner fallback that preserves deterministic Track 1 when model summaries fail', failures);
 
   if (runner.includes('scrapeFindrfp') || runner.includes('FINDRFP_')) {
     failures.push('FindRFP still present in live runner');

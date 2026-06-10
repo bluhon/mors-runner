@@ -1,8 +1,8 @@
-import Anthropic from "@anthropic-ai/sdk";
 import express from "express";
 import cron from "node-cron";
 
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
+const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-5';
 const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
 const AIRTABLE_BASE_ID = "appallyGF2B2bkpIU";
 const AIRTABLE_REPORTS_TABLE  = "tblnaSbxkGaoscwZj";
@@ -36,8 +36,6 @@ console.log('[CREDS]',
   `BiddingUSA:${BIDDINGUSA_LOGIN?'✓':'✗'}`,
   `BidNet:${BIDNET_LOGIN?'✓':'✗'}`
 );
-
-const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 
 const POSTED_CUTOFF_DAYS = 45;
 function withinCutoff(dateStr) {
@@ -397,9 +395,9 @@ async function atPatch(tableId, recordId, fields) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // News RSS Aggregator
-// Replaces "tell Claude to search newspapers" with systematic daily coverage.
+// Replaces "tell the model to search newspapers" with systematic daily coverage.
 // Google News RSS covers every outlet simultaneously; direct feeds add depth.
-// Items are pre-filtered for relevance before touching Claude.
+// Items are pre-filtered for relevance before touching the model.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const BLUHON_KEYWORDS = [
@@ -2125,36 +2123,67 @@ function getDateContext() {
   return { today, cutoffStr };
 }
 
-async function runClaudeSearch(userPrompt, attempt = 1, systemPromptOverride = null) {
-  try {
-    const stream = client.messages.stream({
-      model: "claude-sonnet-4-6",
-      max_tokens: 8000,
-      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 40 }],
-      system: systemPromptOverride || SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userPrompt }]
-    });
-    const response = await stream.finalMessage();
-    let text = "";
-    for (const block of response.content) {
-      if (block.type === "text") text += block.text;
+function extractOpenAIText(data) {
+  if (typeof data?.output_text === 'string') return data.output_text;
+
+  let text = '';
+  for (const item of data?.output || []) {
+    for (const part of item?.content || []) {
+      if ((part.type === 'output_text' || part.type === 'text') && part.text) {
+        text += part.text;
+      }
     }
-    return text;
+  }
+  return text;
+}
+
+async function runOpenAISearch(userPrompt, attempt = 1, systemPromptOverride = null) {
+  if (!OPENAI_API_KEY) {
+    throw new Error('OPENAI_API_KEY is missing. Add it in Render Environment to enable AI-written Tracks 2-4.');
+  }
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: OPENAI_MODEL,
+        input: [
+          { role: 'system', content: systemPromptOverride || SYSTEM_PROMPT },
+          { role: 'user', content: userPrompt }
+        ],
+        tools: [{ type: 'web_search_preview' }],
+        max_output_tokens: 8000
+      })
+    });
+
+    const bodyText = await response.text();
+    if (!response.ok) {
+      const error = new Error(`OpenAI API ${response.status}: ${bodyText}`);
+      error.status = response.status;
+      error.headers = response.headers;
+      throw error;
+    }
+
+    return extractOpenAIText(JSON.parse(bodyText));
   } catch (err) {
     if (err.status === 429 && attempt <= 3) {
       const retryAfter = parseInt(err.headers?.get?.("retry-after") || "120", 10);
       const waitMs = (retryAfter + 10) * 1000;
       console.log(`[${new Date().toISOString()}] Rate limited — waiting ${retryAfter + 10}s before retry ${attempt}/3`);
       await new Promise(resolve => setTimeout(resolve, waitMs));
-      return runClaudeSearch(userPrompt, attempt + 1, systemPromptOverride);
+      return runOpenAISearch(userPrompt, attempt + 1, systemPromptOverride);
     }
-    // Retry on socket/connection errors from Anthropic API (HTTP/2 drops)
+    // Retry on socket/connection errors from the model API.
     const isSocketError = err.code === 'UND_ERR_SOCKET' || err.message?.includes('other side closed') || err.message?.includes('socket');
     if (isSocketError && attempt <= 3) {
       const waitMs = attempt * 15000;
-      console.log(`[${new Date().toISOString()}] Socket error on Claude API — retrying in ${waitMs/1000}s (attempt ${attempt}/3)`);
+      console.log(`[${new Date().toISOString()}] Socket error on OpenAI API — retrying in ${waitMs/1000}s (attempt ${attempt}/3)`);
       await new Promise(resolve => setTimeout(resolve, waitMs));
-      return runClaudeSearch(userPrompt, attempt + 1, systemPromptOverride);
+      return runOpenAISearch(userPrompt, attempt + 1, systemPromptOverride);
     }
     throw err;
   }
@@ -2363,7 +2392,13 @@ OUTPUT FORMAT — you MUST output ALL THREE sections below in this exact order. 
 [JSON array — one object per Track 1 row, REQUIRED, do not omit this section]
 [{"title":"...","agency":"...","deadline":"YYYY-MM-DD or null","track":"Track 1","scope":"...","source_url":"https://...","pursuit_type":"Prime or Sub/Team","prior_client":false,"geo_tier":"Tier 1"}]
 ---OPPORTUNITIES_JSON_END---`;
-  const text1 = await runClaudeSearch(prompt1, 1, dynamicSystemPrompt);
+
+  let text1 = '';
+  try {
+    text1 = await runOpenAISearch(prompt1, 1, dynamicSystemPrompt);
+  } catch (err) {
+    console.warn(`[${new Date().toISOString()}] OpenAI Track 1+2 summary failed; saving deterministic Track 1 and continuing: ${err.message}`);
+  }
 
   console.log(`[${new Date().toISOString()}] Call 1 complete — Call 2: Tracks 3+4`);
 
@@ -2429,7 +2464,12 @@ OUTPUT FORMAT — use exactly these delimiters:
 ---TRACK4_START---
 [HTML unordered list]
 ---TRACK4_END---`;
-  const text2 = await runClaudeSearch(prompt2, 1, dynamicSystemPrompt);
+  let text2 = '';
+  try {
+    text2 = await runOpenAISearch(prompt2, 1, dynamicSystemPrompt);
+  } catch (err) {
+    console.warn(`[${new Date().toISOString()}] OpenAI Track 3+4 summary failed; saving available report sections: ${err.message}`);
+  }
 
   console.log(`[${new Date().toISOString()}] Call 2 complete — parsing and saving`);
 
@@ -2444,9 +2484,8 @@ OUTPUT FORMAT — use exactly these delimiters:
   if (!track1Match) criticalMissing.push('TRACK1');
   if (!track2Match) criticalMissing.push('TRACK2');
   if (criticalMissing.length) {
-    console.error(`[${new Date().toISOString()}] Report generation missing critical delimiters: ${criticalMissing.join(', ')}`);
-    console.error(`[${new Date().toISOString()}] Call 1 preview: ${previewModelText(text1) || '(empty response)'}`);
-    throw new Error(`Report generation incomplete; not saving placeholder report. Missing ${criticalMissing.join(', ')} delimiters.`);
+    console.warn(`[${new Date().toISOString()}] Report generation missing model delimiters: ${criticalMissing.join(', ')}; deterministic Track 1 will still be saved.`);
+    console.warn(`[${new Date().toISOString()}] Call 1 preview: ${previewModelText(text1) || '(empty response)'}`);
   }
   if (!oppsMatch) {
     console.warn(`[${new Date().toISOString()}] Report generation missing OPPORTUNITIES_JSON delimiters; Airtable opportunity save will rely on Track 1 HTML only.`);
@@ -2494,7 +2533,7 @@ OUTPUT FORMAT — use exactly these delimiters:
       console.warn(`Opp save failed (${opp.title}):`, e.message);
     }
   }
-  console.log(`[${new Date().toISOString()}] Saved ${oppCount} Claude opportunities (${oppSkipped} duplicates skipped)`);
+  console.log(`[${new Date().toISOString()}] Saved ${oppCount} parsed Track 1 opportunities (${oppSkipped} duplicates skipped)`);
 
   // ── Save validated source-direct opportunities ────────────────────────────
   let validatedCount = 0, validatedSkipped = 0;
@@ -2859,7 +2898,7 @@ app.post("/test-run", async (req, res) => {
   const reportDate = new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
   console.log(`[${new Date().toISOString()}] TEST RUN starting — SF + Marin + Oakland only`);
   try {
-    const text = await runClaudeSearch(`Today is ${today}.
+    const text = await runOpenAISearch(`Today is ${today}.
 
 This is a TEST run — search only these 3 jurisdictions for Track 1:
 - City & County of San Francisco (Planning, DPW, SFPUC)
