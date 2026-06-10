@@ -760,6 +760,45 @@ function validateTrack1Candidates(candidates, keywordWeights, isDuplicate) {
   return { accepted, rejected };
 }
 
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function renderDeterministicTrack1Html(opps) {
+  const rows = (opps || []).map(opp => {
+    const typeLabel = opp.prior_client ? 'Prior Client' : (opp.geo_tier || 'Track 1');
+    return `<tr>
+      <td><strong>${escapeHtml(opp.agency || '')}</strong></td>
+      <td>${escapeHtml(opp.solicitation_number || 'see portal')}</td>
+      <td><strong>${escapeHtml(opp.title || '')}</strong>${opp.scope ? ` — ${escapeHtml(opp.scope)}` : ''}</td>
+      <td>${escapeHtml(opp.deadline || '')}</td>
+      <td>${escapeHtml(typeLabel)}</td>
+      <td>${opp.source_url ? `<a href="${escapeHtml(opp.source_url)}" target="_blank">${escapeHtml(opp.source_url)}</a>` : ''}</td>
+    </tr>`;
+  }).join('\n');
+
+  return `<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse; width:100%; font-family:Arial, sans-serif; font-size:13px;">
+  <thead style="background-color:#1a3a5c; color:#ffffff;">
+    <tr>
+      <th>Agency</th>
+      <th>Solicitation #</th>
+      <th>Project / Scope</th>
+      <th>Due Date</th>
+      <th>Type</th>
+      <th>Source URL</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${rows}
+  </tbody>
+</table>`;
+}
+
 function isNewsRelevant(item) {
   return scoreRelevance(item) > 0;
 }
@@ -948,6 +987,40 @@ async function fetchStandaloneSourcesFromAirtable() {
   }
 }
 
+async function fetchOpenGovSourcesFromAirtable() {
+  try {
+    const formula = encodeURIComponent(`AND({active}=TRUE(), FIND("procurement.opengov.com/portal/", {url}))`);
+    const data = await atGet(AIRTABLE_SOURCES_TABLE, `?filterByFormula=${formula}&maxRecords=200&sort[0][field]=source_name&sort[0][direction]=asc`);
+    return (data.records || []).map(r => {
+      const url = String(r.fields.url || '').trim();
+      let portalUrl = url;
+      let slug = '';
+      try {
+        const parsed = new URL(url);
+        const parts = parsed.pathname.split('/').filter(Boolean);
+        const portalIndex = parts.indexOf('portal');
+        if (portalIndex >= 0 && parts[portalIndex + 1]) {
+          slug = parts[portalIndex + 1];
+          portalUrl = `${parsed.protocol}//${parsed.hostname}/portal/${slug}`;
+        }
+      } catch {
+        // Keep the raw URL below; it will be skipped if invalid.
+      }
+      return {
+        name: r.fields.source_name || '',
+        url: portalUrl,
+        slug,
+        county: r.fields.county || '',
+        geo_tier: r.fields.geo_tier || '',
+        notes: r.fields.notes || ''
+      };
+    }).filter(r => r.name && r.url && r.slug);
+  } catch (err) {
+    console.warn(`[OpenGov] Could not load Airtable portal URLs: ${err.message}`);
+    return [];
+  }
+}
+
 async function fetchSearchQueriesFromAirtable() {
   try {
     const formula = encodeURIComponent(`AND({active}=TRUE(), {track}="Track 1")`);
@@ -1092,121 +1165,174 @@ async function fetchMediaSources() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// OpenGov authenticated scraper
-// Fetches all open CA opportunities from the vendor's own bid feed —
-// covers every OpenGov customer in California in one request.
+// OpenGov source-table scraper
+// Uses Peter's verified Airtable portal URLs as the source of truth. We do not
+// crawl agency websites or guess vendor auth endpoints here.
 // ─────────────────────────────────────────────────────────────────────────────
-const OPENGOV_VENDOR_ID = '51955'; // Bluhon's vendor account ID
-
-async function scrapeOpengov() {
-  if (!OPENGOV_LOGIN || !OPENGOV_PASSWORD) { console.log('[OpenGov] No credentials — skipping'); return []; }
-  try {
-    console.log('[OpenGov] Logging in...');
-    // Try multiple known OpenGov auth endpoint patterns
-    let token = '';
-    for (const authUrl of [
-      'https://procurement.opengov.com/api/sessions',
-      'https://procurement.opengov.com/api/v1/auth/login',
-      'https://procurement.opengov.com/api/auth/login',
-      'https://procurement.opengov.com/api/users/sign_in',
-    ]) {
-      try {
-        const authRes = await fetch(authUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' },
-          body: JSON.stringify({ email: OPENGOV_LOGIN, password: OPENGOV_PASSWORD })
-        });
-        const text = await authRes.text();
-        console.log(`[OpenGov] Auth ${authUrl}: status ${authRes.status}, starts: ${text.slice(0,60)}`);
-        if (authRes.ok && text.startsWith('{')) {
-          const authData = JSON.parse(text);
-          token = authData.token || authData.access_token || authData.data?.token || authData.jwt || '';
-          if (token) { console.log('[OpenGov] Got token'); break; }
-        }
-      } catch(e) { /* try next */ }
-    }
-
-    const headers = token
-      ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' }
-      : { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' };
-
-    // Try the vendor open-bids API (all CA opportunities in one call)
-    const opps = [];
-    let page = 1;
-    while (page <= 5) { // cap at 5 pages (~250 opps)
-      try {
-        const res = await fetch(
-          `https://procurement.opengov.com/api/procurement/vendors/${OPENGOV_VENDOR_ID}/bids?states=CA,NV,OR&status=open&per_page=50&page=${page}`,
-          { headers }
-        );
-        console.log(`[OpenGov] Vendor bids page ${page}: status ${res.status}`);
-        if (!res.ok) break;
-        const data = await res.json();
-        const items = data.data || data.bids || data.opportunities || data.results || [];
-        if (!items.length) break;
-        for (const item of items) {
-          const title = item.title || item.name || '';
-          const agency = item.department_name || item.organization_name || item.agency || item.department || '';
-          const deadline = item.close_date || item.due_date || item.deadline || null;
-          const posted = item.release_date || item.posted_date || item.open_date || item.created_at || null;
-          if (!withinCutoff(posted)) continue;
-          const portalSlug = item.portal_slug || item.slug || item.id || '';
-          const source_url = portalSlug
-            ? `https://procurement.opengov.com/portal/${portalSlug}`
-            : 'https://procurement.opengov.com';
-          if (title && !opps.find(o => o.title === title)) {
-            const deadlineDate = deadline ? new Date(deadline) : null;
-            if (!deadlineDate || deadlineDate > new Date()) {
-              opps.push({ title, agency, deadline: deadlineDate ? deadlineDate.toISOString().split('T')[0] : null, posted: posted || null, scope: '', source_url, via: 'OpenGov' });
-            }
-          }
-        }
-        page++;
-        await new Promise(r => setTimeout(r, 600));
-      } catch(e) { console.warn(`[OpenGov] Page ${page} failed: ${e.message}`); break; }
-    }
-
-    if (opps.length > 0) {
-      console.log(`[OpenGov] Found ${opps.length} opportunities`);
-      return opps;
-    }
-
-    // Fallback: scrape the vendor open-bids HTML page
-    console.log('[OpenGov] API returned 0 — trying HTML vendor page...');
-    return await scrapeOpengovVendorPage(headers);
-  } catch(err) { console.warn(`[OpenGov] Error: ${err.message}`); return []; }
+function isCloudflareChallenge(text) {
+  return /Just a moment|cf_chl|challenge-platform|Enable JavaScript and cookies/i.test(String(text || ''));
 }
 
-async function scrapeOpengovVendorPage(headers = {}) {
-  try {
-    const res = await fetch(
-      `https://procurement.opengov.com/vendors/${OPENGOV_VENDOR_ID}/open-bids?states=CA,NV,OR`,
-      { headers: { ...headers, 'Accept': 'text/html', 'User-Agent': 'Mozilla/5.0' } }
-    );
-    const text = await res.text();
-    console.log(`[OpenGov] Vendor HTML page: status ${res.status}, length ${text.length}`);
-    // Parse embedded JSON state
-    const jsonMatch = text.match(/window\.__INITIAL_STATE__\s*=\s*({[\s\S]+?});<\/script>/)
-      || text.match(/<script[^>]*>.*?(\{".*?"opportunities".*?\})<\/script>/s);
-    if (jsonMatch) {
-      try {
-        const state = JSON.parse(jsonMatch[1]);
-        const items = state?.opportunities?.list || state?.bids?.list || state?.data?.opportunities || [];
-        const opps = items.map(item => ({
-          title: item.title || item.name || '',
-          agency: item.department_name || item.organization_name || item.department || '',
-          deadline: item.close_date ? new Date(item.close_date).toISOString().split('T')[0] : null,
-          scope: '',
-          source_url: `https://procurement.opengov.com/portal/${item.portal_slug || item.slug || item.id || ''}`,
-          via: 'OpenGov'
-        })).filter(o => o.title);
-        console.log(`[OpenGov] Parsed ${opps.length} opps from HTML state`);
-        return opps;
-      } catch(e) { console.warn('[OpenGov] JSON parse failed:', e.message); }
+function normalizeOpenGovDeadline(value) {
+  const date = parseDeadlineDate(value);
+  return date ? formatDateISO(date) : null;
+}
+
+function extractOpenGovItemsFromJson(value, portal) {
+  const items = [];
+  const seenObjects = new Set();
+
+  function maybeAdd(obj) {
+    if (!obj || typeof obj !== 'object') return;
+    const title = obj.title || obj.name || obj.project_title || obj.projectTitle || obj.bid_title || obj.bidTitle;
+    const status = String(obj.status || obj.state || obj.project_status || obj.projectStatus || '').toLowerCase();
+    const deadline = obj.due_date || obj.dueDate || obj.close_date || obj.closeDate || obj.deadline || obj.proposal_due_date || obj.proposalDueDate;
+    const posted = obj.release_date || obj.releaseDate || obj.publish_date || obj.publishDate || obj.open_date || obj.openDate || obj.created_at || obj.createdAt;
+    const scope = obj.description || obj.summary || obj.scope || obj.short_description || obj.shortDescription || '';
+    const id = obj.id || obj.project_id || obj.projectId || obj.bid_id || obj.bidId || obj.slug;
+    if (!title || !deadline) return;
+    if (status && !/(open|active|published|released|soliciting)/.test(status)) return;
+
+    const due = normalizeOpenGovDeadline(deadline);
+    if (!due) return;
+    const detailUrl = id
+      ? `${portal.url}/projects/${encodeURIComponent(String(id))}`
+      : portal.url;
+    items.push({
+      title: String(title).replace(/\s+/g, ' ').trim(),
+      agency: portal.name,
+      deadline: due,
+      posted: posted || null,
+      scope: String(scope || '').replace(/\s+/g, ' ').trim(),
+      source_url: detailUrl,
+      via: 'OpenGov'
+    });
+  }
+
+  function walk(node) {
+    if (!node || typeof node !== 'object' || seenObjects.has(node)) return;
+    seenObjects.add(node);
+    if (Array.isArray(node)) {
+      for (const item of node) walk(item);
+      return;
     }
-    console.warn('[OpenGov] Could not parse vendor page — no opportunities found');
+    maybeAdd(node);
+    for (const child of Object.values(node)) walk(child);
+  }
+
+  walk(value);
+  return items;
+}
+
+function parseOpenGovHtmlRows(html, portal) {
+  const opps = [];
+  const rowMatches = String(html || '').match(/<tr[\s\S]*?<\/tr>/gi) || [];
+  for (const row of rowMatches) {
+    const cells = [...row.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)]
+      .map(m => m[1]
+        .replace(/<script[\s\S]*?<\/script>/gi, '')
+        .replace(/<style[\s\S]*?<\/style>/gi, '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/\s+/g, ' ')
+        .trim())
+      .filter(Boolean);
+    if (cells.length < 3) continue;
+    const rowText = cells.join(' ');
+    if (!/\b(open|active)\b/i.test(rowText)) continue;
+    const dates = rowText.match(/\b\d{1,2}\/\d{1,2}\/\d{4}\b/g) || [];
+    const deadline = dates.length ? normalizeOpenGovDeadline(dates[dates.length - 1]) : null;
+    if (!deadline) continue;
+    const title = cells.find(c => c.length > 12 && !/\b(open|active)\b/i.test(c) && !/^\d+$/.test(c) && !/\d{1,2}\/\d{1,2}\/\d{4}/.test(c));
+    if (!title) continue;
+    opps.push({
+      title,
+      agency: portal.name,
+      deadline,
+      posted: dates[0] || null,
+      scope: '',
+      source_url: portal.url,
+      via: 'OpenGov'
+    });
+  }
+  return opps;
+}
+
+function extractOpenGovEmbeddedJson(html, portal) {
+  const opps = [];
+  const scripts = [...String(html || '').matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)].map(m => m[1].trim()).filter(Boolean);
+  for (const script of scripts) {
+    const candidates = [];
+    const nextData = script.match(/^\s*({[\s\S]*})\s*$/);
+    if (nextData && /project|bid|opportunit|solicitation|due|deadline/i.test(nextData[1])) candidates.push(nextData[1]);
+    const assignments = [...script.matchAll(/=\s*({[\s\S]*?})\s*;?\s*$/g)].map(m => m[1]);
+    candidates.push(...assignments.filter(s => /project|bid|opportunit|solicitation|due|deadline/i.test(s)));
+    for (const candidate of candidates) {
+      try {
+        opps.push(...extractOpenGovItemsFromJson(JSON.parse(candidate), portal));
+      } catch {
+        // Ignore non-JSON app scripts.
+      }
+    }
+  }
+  return opps;
+}
+
+async function scrapeOpenGovPortal(portal) {
+  try {
+    console.log(`[OpenGov] Fetching ${portal.name}: ${portal.url}`);
+    const res = await fetch(portal.url, {
+      headers: {
+        'Accept': 'text/html,application/xhtml+xml,application/json',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/125 Safari/537.36'
+      }
+    });
+    const text = await res.text();
+    console.log(`[OpenGov] ${portal.name}: status ${res.status}, length ${text.length}`);
+    if (!res.ok) return [];
+    if (isCloudflareChallenge(text)) {
+      console.warn(`[OpenGov] ${portal.name}: Cloudflare challenge; no scrapeable public data returned`);
+      return [];
+    }
+
+    let opps = [];
+    if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
+      try { opps = extractOpenGovItemsFromJson(JSON.parse(text), portal); } catch {}
+    }
+    if (!opps.length) opps = extractOpenGovEmbeddedJson(text, portal);
+    if (!opps.length) opps = parseOpenGovHtmlRows(text, portal);
+
+    const filtered = opps.filter(opp => {
+      const due = parseDeadlineDate(opp.deadline);
+      return due && due >= startOfTodayPT() && !hasNonSolicitationSignal(opp);
+    });
+    console.log(`[OpenGov] ${portal.name}: found ${filtered.length} open solicitations`);
+    return filtered;
+  } catch (err) {
+    console.warn(`[OpenGov] ${portal.name}: failed: ${err.message}`);
     return [];
-  } catch(e) { console.warn(`[OpenGov] Vendor HTML page failed: ${e.message}`); return []; }
+  }
+}
+
+async function scrapeOpengov() {
+  try {
+    const portals = await fetchOpenGovSourcesFromAirtable();
+    console.log(`[OpenGov] Using ${portals.length} verified Airtable portal URLs`);
+    const all = [];
+    for (const portal of portals) {
+      const found = await scrapeOpenGovPortal(portal);
+      for (const opp of found) {
+        const key = `${normalizeTitle(opp.title)}|${opp.deadline}|${portal.slug}`;
+        if (!all.some(existing => `${normalizeTitle(existing.title)}|${existing.deadline}|${portal.slug}` === key)) {
+          all.push(opp);
+        }
+      }
+      await new Promise(r => setTimeout(r, 350));
+    }
+    console.log(`[OpenGov] Total: ${all.length} opportunities across ${portals.length} verified portals`);
+    return all;
+  } catch(err) { console.warn(`[OpenGov] Error: ${err.message}`); return []; }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2220,7 +2346,7 @@ OUTPUT FORMAT — use exactly these delimiters:
     console.warn(`[${new Date().toISOString()}] Call 2 preview: ${previewModelText(text2) || '(empty response)'}`);
   }
 
-  const track1_html = stripExpiredTrack1Rows(track1Match ? track1Match[1].trim() : "<p>No Track 1 data.</p>");
+  const track1_html = renderDeterministicTrack1Html(validatedTrack1Opps);
   const track2_html = track2Match ? track2Match[1].trim() : "<p>No Track 2 data.</p>";
   const track3_html = track3Match ? track3Match[1].trim() : "<p>No Track 3 data.</p>";
   const track4_html = track4Match ? track4Match[1].trim() : "<p>No Track 4 data.</p>";
