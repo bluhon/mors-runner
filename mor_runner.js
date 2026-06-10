@@ -575,6 +575,17 @@ function scoreRelevance(item, keywordWeights) {
   return score;
 }
 
+function buildKeywordMatcher(keywordWeights) {
+  const weightedKeywords = Object.entries(keywordWeights || {})
+    .map(([keyword, weight]) => ({ keyword: String(keyword || '').trim().toLowerCase(), weight: Number(weight || 0) }))
+    .filter(item => item.keyword.length >= 3)
+    .sort((a, b) => b.weight - a.weight);
+  return function keywordMatches(text) {
+    const lower = String(text || '').toLowerCase();
+    return weightedKeywords.some(item => lower.includes(item.keyword));
+  };
+}
+
 const TRACK1_SOLICITATION_TERMS = [
   'rfp', 'rfq', 'rfqual', 'request for proposal', 'request for proposals',
   'request for qualification', 'request for qualifications', 'soq',
@@ -1619,7 +1630,7 @@ async function fetchBidnetSourcesFromAirtable() {
     .filter(item => item && item.slug);
 }
 
-async function scrapeBidnet() {
+async function scrapeBidnet(keywordWeights = KEYWORD_WEIGHTS) {
   try {
     let sessionCookie = '';
     if (BIDNET_LOGIN && BIDNET_PASSWORD) {
@@ -1657,6 +1668,7 @@ async function scrapeBidnet() {
     const opps = [];
     const airtableAgencies = await fetchBidnetSourcesFromAirtable();
     const agencies = airtableAgencies.length > 0 ? airtableAgencies : BIDNET_AGENCIES;
+    const keywordMatches = buildKeywordMatcher(keywordWeights);
     console.log(`[BidNet] Using ${agencies.length} ${airtableAgencies.length > 0 ? 'Airtable' : 'hardcoded'} agency URLs`);
     for (const agency of agencies) {
       try {
@@ -1668,22 +1680,41 @@ async function scrapeBidnet() {
           }
         });
         const html = await res.text();
-        const rows = html.match(/<tr[^>]*>([\s\S]*?)<\/tr>/gi) || [];
-        for (const row of rows) {
+        let agencyFound = 0;
+        const blocks = html.match(/<tr[^>]*>([\s\S]*?)<\/tr>/gi) || [];
+        const linkRe = /href="([^"]+)"[^>]*>([\s\S]{5,260}?)<\/a>/gi;
+        let linkMatch;
+        while ((linkMatch = linkRe.exec(html)) !== null) {
+          const href = linkMatch[1];
+          const text = linkMatch[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+          if (text.length >= 8 && text.length <= 300) {
+            const pos = linkMatch.index || 0;
+            const surrounding = html.slice(Math.max(0, pos - 500), pos + 700);
+            blocks.push(`${surrounding} <a href="${href}">${text}</a>`);
+          }
+        }
+
+        for (const row of blocks) {
           const text = row.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-          if (!BIDDINGUSA_KEYWORDS.some(kw => text.toLowerCase().includes(kw))) continue;
+          if (!keywordMatches(text) && !BIDDINGUSA_KEYWORDS.some(kw => text.toLowerCase().includes(kw))) continue;
           const titleMatch = row.match(/href="([^"]+)"[^>]*>([^<]{10,})</i);
           if (!titleMatch) continue;
           const title = titleMatch[2].trim();
           const link  = titleMatch[1].startsWith('http') ? titleMatch[1] : `https://www.bidnetdirect.com${titleMatch[1]}`;
-          const deadlineMatch = text.match(/\b(\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2})\b/);
+          const deadlineMatch = text.match(/\b(\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2}|\w+ \d{1,2},?\s*\d{4})\b/);
+          const deadlineDate = deadlineMatch ? parseDeadlineDate(deadlineMatch[1]) : null;
+          if (!deadlineDate || deadlineDate < startOfTodayPT()) continue;
+          if (opps.some(opp => normalizeTitle(opp.title) === normalizeTitle(title) && opp.agency === agency.name)) continue;
           opps.push({
             title, agency: agency.name,
-            deadline: deadlineMatch ? deadlineMatch[1] : null,
+            deadline: formatDateISO(deadlineDate),
             scope: text.slice(0, 200),
-            source_url: link
+            source_url: link,
+            via: 'BidNet'
           });
+          agencyFound++;
         }
+        console.log(`[BidNet] ${agency.name}: found ${agencyFound} public listing candidates`);
         await new Promise(r => setTimeout(r, 800));
       } catch(e) { console.warn(`[BidNet] ${agency.name} failed: ${e.message}`); }
     }
@@ -1884,10 +1915,11 @@ const BLUHON_SCOPE_TERMS = [
   'community', 'public participation', 'conflict'
 ];
 
-async function scrapeStandalonePages() {
+async function scrapeStandalonePages(keywordWeights = KEYWORD_WEIGHTS) {
   const airtablePages = await fetchStandaloneSourcesFromAirtable();
   const pages = airtablePages.length > 0 ? airtablePages : STANDALONE_PAGES;
   if (airtablePages.length > 0) console.log(`[Standalone] Using ${airtablePages.length} Airtable-managed pages`);
+  const keywordMatches = buildKeywordMatcher(keywordWeights);
   const opps = [];
   await Promise.allSettled(pages.map(async page => {
     try {
@@ -1910,8 +1942,9 @@ async function scrapeStandalonePages() {
         if (text.length < 8 || text.length > 300) continue;
         const lower = text.toLowerCase();
 
-        // Must contain a procurement keyword
-        if (!STANDALONE_KEYWORDS.some(kw => lower.includes(kw))) continue;
+        const hasProcurementKeyword = STANDALONE_KEYWORDS.some(kw => lower.includes(kw));
+        const hasAirtableKeyword = keywordMatches(text);
+        if (!hasProcurementKeyword && !hasAirtableKeyword) continue;
 
         // Must contain a solicitation number pattern OR explicit RFP/RFQ/IFB label
         // e.g. "RFP 2026-01", "RFQ-2025-003", "Bid No. 12345", "#2026-01", "IFB 24-001"
@@ -1925,8 +1958,7 @@ async function scrapeStandalonePages() {
         // Hard-exclude community notices, meetings, announcements regardless
         const isMeetingNotice = /\b(meeting|workshop|hearing|open house|survey|newsletter|announcement|notice of|calendar|agenda|minutes|event|webinar|comment period|public comment|town hall|community meeting|information session)\b/i.test(text);
 
-        // Every item MUST have a solicitation number — no exceptions
-        if (!hasSolicitationNumber) continue;
+        if (!hasSolicitationNumber && !hasAirtableKeyword) continue;
         if (isMeetingNotice) continue;
 
         const fullUrl = href.startsWith('http') ? href : (href.startsWith('/') ? page.baseUrl + href : page.url);
@@ -2145,28 +2177,31 @@ async function runMORSReport() {
 
   console.log(`[${new Date().toISOString()}] Starting MORS report for ${today} — ${geo.label}`);
 
+  // ── Fetch Airtable keyword/query configuration before scrapers so exact
+  // title phrases can influence extraction, not just post-extraction scoring.
+  const [airtableSearchQueries, airtableKeywords] = await Promise.all([
+    fetchSearchQueriesFromAirtable(),
+    fetchRelevanceKeywordsFromAirtable(),
+  ]);
+  const activeKeywords = Object.keys(airtableKeywords).length > 0 ? airtableKeywords : KEYWORD_WEIGHTS;
+  console.log(`[Keywords] Using ${Object.keys(activeKeywords).length} keywords from ${Object.keys(airtableKeywords).length > 0 ? 'Airtable' : 'hardcoded fallback'}`);
+
   // ── Fetch everything in parallel — memory, sources, news RSS, portal scrapers ──
-  const [memoryPatterns, searchSources, mediaSources, existingOpps, newsItems, airtableSearchQueries, airtableKeywords, airtableStandalonePages, opengovOpps, bonfireOpps, planetbidsOpps, biddingusaOpps, bidnetOpps, civicengageOpps, standaloneOpps] = await Promise.all([
+  const [memoryPatterns, searchSources, mediaSources, existingOpps, newsItems, airtableStandalonePages, opengovOpps, bonfireOpps, planetbidsOpps, biddingusaOpps, bidnetOpps, civicengageOpps, standaloneOpps] = await Promise.all([
     fetchProjectMemory(),
     fetchSearchSources(),
     fetchMediaSources(),
     fetchExistingOppTitles(cutoffStr),
     fetchAllNewsItems(),
-    fetchSearchQueriesFromAirtable(),
-    fetchRelevanceKeywordsFromAirtable(),
     fetchStandaloneSourcesFromAirtable(),
     scrapeOpengov(),
     scrapeBonfire(),
     scrapePlanetbids(),
     scrapeBiddingusa(),
-    scrapeBidnet(),
+    scrapeBidnet(activeKeywords),
     scrapeCivicengage(),
-    scrapeStandalonePages(),
+    scrapeStandalonePages(activeKeywords),
   ]);
-
-  // Use Airtable keywords if available, fall back to hardcoded
-  const activeKeywords = Object.keys(airtableKeywords).length > 0 ? airtableKeywords : KEYWORD_WEIGHTS;
-  console.log(`[Keywords] Using ${Object.keys(activeKeywords).length} keywords from ${Object.keys(airtableKeywords).length > 0 ? 'Airtable' : 'hardcoded fallback'}`);
 
   // Use Airtable search queries if available
   const activeSearchQueries = airtableSearchQueries.length > 0 ? airtableSearchQueries : [
