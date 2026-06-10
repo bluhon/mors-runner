@@ -2520,13 +2520,55 @@ function parseTrack2Items(html) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Routes
 // ─────────────────────────────────────────────────────────────────────────────
+const runState = {
+  status: 'idle',
+  run_id: null,
+  started_at: null,
+  finished_at: null,
+  report_id: null,
+  error: null
+};
+
+function makeRunId() {
+  return `run_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+app.get("/run-status", (req, res) => {
+  res.json({ success: true, ...runState });
+});
+
 app.post("/run", async (req, res) => {
+  if (runState.status === 'running') {
+    return res.json({ success: true, status: 'already_running', run_id: runState.run_id, started_at: runState.started_at });
+  }
+  const runId = makeRunId();
+  Object.assign(runState, {
+    status: 'running',
+    run_id: runId,
+    started_at: new Date().toISOString(),
+    finished_at: null,
+    report_id: null,
+    error: null
+  });
+  console.log(`[${runState.started_at}] Manual run started — ${runId}`);
+
   // Respond immediately so the frontend can poll for completion
-  res.json({ success: true, status: 'started' });
+  res.json({ success: true, status: 'started', run_id: runId, started_at: runState.started_at });
   try {
-    await runMORSReport();
-    console.log(`[${new Date().toISOString()}] Manual run complete`);
+    const saved = await runMORSReport();
+    Object.assign(runState, {
+      status: 'complete',
+      finished_at: new Date().toISOString(),
+      report_id: saved?.id || null,
+      error: null
+    });
+    console.log(`[${runState.finished_at}] Manual run complete — ${runId} — report ${runState.report_id || 'unknown'}`);
   } catch (err) {
+    Object.assign(runState, {
+      status: 'failed',
+      finished_at: new Date().toISOString(),
+      error: err.message || String(err)
+    });
     console.error("Report run failed:", err);
   }
 });
