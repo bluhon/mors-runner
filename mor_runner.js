@@ -2525,8 +2525,7 @@ OUTPUT FORMAT — use exactly these delimiters:
         deadline:   opp.deadline || null,
         track:      "1 — Active RFP",
         scope:      opp.scope,
-        source_url: opp.source_url,
-        report_date: reportDate
+        source_url: opp.source_url
       });
       oppCount++;
     } catch(e) {
@@ -2546,8 +2545,7 @@ OUTPUT FORMAT — use exactly these delimiters:
         deadline:   opp.deadline,
         track:      "1 — Active RFP",
         scope:      opp.scope || `Validated source-direct result; score ${opp.relevance_score}; ${opp.geo_tier}`,
-        source_url: opp.source_url,
-        report_date: reportDate
+        source_url: opp.source_url
       });
       validatedCount++;
     } catch(e) { console.warn(`Validated Track 1 opp save failed (${opp.title}):`, e.message); }
@@ -2606,13 +2604,17 @@ function parseTrack1Opps(html, reportDate) {
       .map(td => td.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
     if (cells.length < 2) continue; // skip header rows
     const agency = cells[0] || '';
-    const title  = cells[1] || '';
-    const due    = cells[2] || '';
-    const scope  = cells[3] || '';
-    const type   = cells[4] || '';
+    const solicitation = cells[1] || '';
+    const projectScope = cells[2] || '';
+    const due = cells[3] || '';
+    const type = cells[4] || '';
+    const title = projectScope || solicitation || 'Untitled';
+    const scope = [solicitation && !/^see portal$/i.test(solicitation) ? `Solicitation: ${solicitation}` : '', type]
+      .filter(Boolean)
+      .join('; ');
     // Extract URL from the row
     const urlMatch = row.match(/href="([^"]+)"/i);
-    const source_url = urlMatch ? urlMatch[1] : '';
+    const source_url = urlMatch ? urlMatch[1].replace(/&amp;/g, '&') : '';
     // Parse deadline — look for date patterns
     const dateMatch = due.match(/(\d{4}-\d{2}-\d{2})|(\w+ \d{1,2},? \d{4})/);
     let deadline = null;
