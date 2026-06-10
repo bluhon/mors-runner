@@ -587,7 +587,14 @@ const TRACK1_NON_SOLICITATION_TERMS = [
   'meeting', 'agenda', 'minutes', 'workshop', 'open house', 'webinar',
   'newsletter', 'press release', 'news release', 'public hearing',
   'public comment', 'comment period', 'survey', 'event calendar',
-  'announcement', 'project update'
+  'announcement', 'project update', 'application', 'rebate', 'resident',
+  'events', 'community services', 'community centers', 'public information portal',
+  'community involvement', 'planning & development', 'planning and development'
+];
+
+const TRACK1_PORTAL_HOST_TERMS = [
+  'opengov', 'planetbids', 'bidnetdirect', 'bonfirehub',
+  'caleprocure', 'bidsandtenders', 'procurement', 'vendorportal'
 ];
 
 const PRIOR_CLIENT_TERMS = [
@@ -659,7 +666,7 @@ function isPriorClient(opp) {
 
 function hasSolicitationSignal(opp) {
   const via = (opp.via || '').toLowerCase();
-  const trustedPortal = ['opengov', 'bonfire', 'planetbids', 'biddingusa', 'bidnet', 'civicengage', 'standalone', 'cal eprocure', 'caleprocure'].includes(via);
+  const trustedPortal = ['opengov', 'bonfire', 'planetbids', 'biddingusa', 'bidnet', 'civicengage', 'cal eprocure', 'caleprocure'].includes(via);
   const text = `${opp.title || ''} ${opp.scope || ''} ${opp.source_url || ''}`.toLowerCase();
   return trustedPortal || TRACK1_SOLICITATION_TERMS.some(term => text.includes(term));
 }
@@ -667,6 +674,18 @@ function hasSolicitationSignal(opp) {
 function hasNonSolicitationSignal(opp) {
   const text = `${opp.title || ''} ${opp.scope || ''}`.toLowerCase();
   return TRACK1_NON_SOLICITATION_TERMS.some(term => text.includes(term));
+}
+
+function hasTrustedProcurementUrl(url) {
+  const value = String(url || '').toLowerCase();
+  return TRACK1_PORTAL_HOST_TERMS.some(term => value.includes(term));
+}
+
+function isStrictTrack1Opportunity(opp) {
+  const deadlineDate = parseDeadlineDate(opp.deadline || opp.due_date || opp.close_date);
+  if (!opp.source_url || !deadlineDate || deadlineDate < startOfTodayPT()) return false;
+  if (hasNonSolicitationSignal(opp) && !hasSolicitationSignal(opp)) return false;
+  return hasTrustedProcurementUrl(opp.source_url) || hasSolicitationSignal(opp);
 }
 
 function scoreTrack1Relevance(opp, keywordWeights) {
@@ -916,7 +935,7 @@ async function fetchSearchSources() {
 
 async function fetchStandaloneSourcesFromAirtable() {
   try {
-    const formula = encodeURIComponent(`AND({source_type}="Standalone", {active}=TRUE())`);
+    const formula = encodeURIComponent(`AND({active}=TRUE(), OR({source_type}="Agency Procurement Page", {source_type}="Planroom", {source_type}="Standalone"))`);
     const data = await atGet(AIRTABLE_SOURCES_TABLE, `?filterByFormula=${formula}&maxRecords=200&sort[0][field]=source_name&sort[0][direction]=asc`);
     return (data.records || []).map(r => ({
       name:    r.fields.source_name || '',
@@ -1723,6 +1742,7 @@ async function scrapeStandalonePages() {
           }
         }
         if (nearbyDeadline === 'expired') continue; // skip expired RFPs
+        if (!nearbyDeadline) continue; // no future due date, no Track 1 item
         linkBlocks.push({ title: text, source_url: fullUrl, deadline: nearbyDeadline });
       }
 
@@ -1736,7 +1756,7 @@ async function scrapeStandalonePages() {
           title:      item.title,
           agency:     page.name,
           deadline:   item.deadline,
-          scope:      'Direct procurement page',
+          scope:      'Direct agency bid page extraction',
           source_url: item.source_url,
           via:        'Standalone'
         });
@@ -2053,30 +2073,16 @@ CRITICAL TITLE RULE: When outputting Track 1 rows, use only the project title �
 ${geo.instructions}
 
 TRACK 1 INSTRUCTIONS:
-You have two sources for Track 1:
+Use only Source A for Track 1.
 
 SOURCE A — VALIDATED SOURCE-DIRECT DATA (procurement portals and agency procurement pages already checked by code):
 ${portalBlock ? portalBlock : 'No validated source-direct results this run.'}
 
-SOURCE B — AGENCY BID PAGE FALLBACK (use web_search only when Source A is thin):
-These are official bid/RFP pages for public agencies. Visit a small number only if Source A has fewer than 8 strong items.
-
-YOUR JOB ON EACH PAGE:
-- Look for any RFP, RFQ, IFB, ITB, SOQ, or formal solicitation listed
-- TODAY IS ${today}. Any deadline before today is EXPIRED — do NOT include it under any circumstances
-- If you cannot find a clear future deadline, skip it
-- Skip meeting notices, public hearings, surveys, events, newsletters, press releases
-- Skip items where the agency is inviting public comment — only include items where the agency is HIRING A FIRM
-- Record: project title, issuing agency, deadline date, and direct URL to the solicitation
-
 ABSOLUTE RULE: If the deadline year is 2024 or earlier, or the deadline month/year is before ${today} — DO NOT INCLUDE IT. Old RFPs are worthless.
 
-AGENCY BID PAGES TO VISIT:
-${(airtableStandalonePages.length > 0 ? airtableStandalonePages : STANDALONE_PAGES).map((p, i) => `${i + 1}. ${p.name}: ${p.url}`).join('\n')}
+Do not browse general city/county pages to invent Track 1 items. Do not include website sections, application forms, public programs, resident services, meeting/event pages, public information portals, PDFs, agendas, or announcement pages. If Source A has no validated opportunities, output an empty Track 1 table and an empty opportunities JSON array.
 
-Visit as many as you can. Prioritize agencies most likely to need Bluhon's services (public agencies, transit, water districts, counties, cities).
-
-Combine results from Source A and Source B. Sort first by relevance to Bluhon's services, then by geography where Tier 1 Bay Area items appear before equally relevant lower-tier items. Select the 8-12 most relevant items.
+Sort Source A results first by relevance to Bluhon's services, then by geography where Tier 1 Bay Area items appear before equally relevant lower-tier items. Select the 8-12 most relevant items.
 
 Flag prior Bluhon clients: ABAG ✅, BCDC ✅, SF Regional Water Board ✅, Cities of Berkeley/Oakland/Palo Alto/San Jose/San Mateo/Redwood City/Livermore/Novato/Half Moon Bay/Danville ✅, Contra Costa County ✅, Alameda County ✅, Marin County ✅, Santa Clara County ✅, Sonoma County ✅${sourcesInjection}
 
@@ -2339,6 +2345,11 @@ function parseTrack1Opps(html, reportDate) {
       if (!isNaN(parsed)) deadline = parsed.toISOString().split('T')[0];
     }
     if (!agency && !title) continue;
+    const candidate = { title: title || 'Untitled', agency, deadline, scope: scope || type, source_url };
+    if (!isStrictTrack1Opportunity(candidate)) {
+      console.log(`[Track1 Filter] Dropped non-solicitation row: "${candidate.title}" — ${candidate.source_url || 'no url'}`);
+      continue;
+    }
     // Hard date filter — drop anything with a deadline before today, no exceptions
     if (deadline) {
       const deadlineDate = new Date(deadline);
@@ -2348,7 +2359,7 @@ function parseTrack1Opps(html, reportDate) {
         continue;
       }
     }
-    opps.push({ title: title || 'Untitled', agency, deadline, scope: scope || type, source_url });
+    opps.push(candidate);
   }
   return opps;
 }

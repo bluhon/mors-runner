@@ -967,6 +967,32 @@ async function createTrack2Canvas(item) {
   });
 }
 
+const TRACK1_SOLICITATION_RE = /\b(rfp|rfq|rfqual|soq|ifb|itb|bid\s*(no\.?|number|#)|solicitation|request for proposals?|request for qualifications?|statement of qualifications|invitation to bid|professional services|consultant services)\b/i;
+const TRACK1_PORTAL_RE = /\b(opengov|planetbids|bidnetdirect|bonfirehub|caleprocure|cal\s*eprocure|bidsandtenders|procurement|solicitation|vendorportal|bids\.aspx)\b/i;
+const TRACK1_NON_SOLICITATION_RE = /\b(meetings?|events?|public information portal|community centers?|community involvement|planning\s*&?\s*development|city council|agenda|minutes|open house|public hearing|press release|newsletter|calendar)\b/i;
+
+function parseFutureTrack1Date(raw, today = new Date()) {
+  if (!raw) return null;
+  const match = String(raw).match(/(\w+ \d{1,2},?\s*\d{4}|\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2})/);
+  if (!match) return null;
+  const parsed = new Date(match[1]);
+  if (isNaN(parsed)) return null;
+  parsed.setHours(0,0,0,0);
+  const floor = new Date(today); floor.setHours(0,0,0,0);
+  return parsed >= floor ? parsed : null;
+}
+
+function isRenderableTrack1Candidate({ title = '', agency = '', scope = '', source_url = '', deadline = '' }, today = new Date()) {
+  if (!source_url) return false;
+  const due = parseFutureTrack1Date(deadline, today);
+  if (!due) return false;
+  const text = `${title} ${agency} ${scope} ${source_url}`;
+  const hasPositiveSignal = TRACK1_SOLICITATION_RE.test(text) || TRACK1_PORTAL_RE.test(source_url);
+  if (!hasPositiveSignal) return false;
+  if (TRACK1_NON_SOLICITATION_RE.test(`${title} ${scope}`) && !TRACK1_SOLICITATION_RE.test(`${title} ${scope}`)) return false;
+  return true;
+}
+
 async function loadProspects() {
   const container = document.getElementById('track1-opps-container');
   if (!container) return;
@@ -976,10 +1002,13 @@ async function loadProspects() {
   const today = new Date(); today.setHours(0,0,0,0);
   const prospects = allOpps.filter(p => {
     if (p.fields.interest) return false;
-    const rawDate = p.fields.deadline || p.fields.proposal_due || '';
-    if (!rawDate) return true;
-    const due = new Date(rawDate);
-    return isNaN(due) || due >= today;
+    return isRenderableTrack1Candidate({
+      title: p.fields.title || '',
+      agency: p.fields.agency || '',
+      scope: p.fields.scope || '',
+      source_url: p.fields.source_url || '',
+      deadline: p.fields.deadline || p.fields.proposal_due || ''
+    }, today);
   });
   if (prospects.length === 0) {
     if (!existingReportRows) container.innerHTML = '<div class="t1-no-opps">No new opportunities to review today.</div>';
@@ -1237,6 +1266,13 @@ function parseTrack1Html(html) {
         else if (diff <= 21) urgentClass = 'warning';
       }
     }
+    if (!isRenderableTrack1Candidate({
+      title: displayTitle,
+      agency,
+      scope: scopeShort || scopeBody || scope,
+      source_url: url,
+      deadline: dueRaw
+    }, today)) return '';
     const srcCell = url
       ? `<div class="t1-link"><a href="${escHtml(url)}" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Source</a></div>`
       : '<div class="t1-link" style="color:var(--muted);font-size:12px">Direct procurement page</div>';
