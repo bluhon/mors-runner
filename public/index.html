@@ -985,10 +985,10 @@ function parseFutureTrack1Date(raw, today = new Date()) {
 function isRenderableTrack1Candidate({ title = '', agency = '', scope = '', source_url = '', deadline = '' }, today = new Date()) {
   if (!source_url) return false;
   const due = parseFutureTrack1Date(deadline, today);
-  if (!due) return false;
   const text = `${title} ${agency} ${scope} ${source_url}`;
   const hasPositiveSignal = TRACK1_SOLICITATION_RE.test(text) || TRACK1_PORTAL_RE.test(source_url);
   if (!hasPositiveSignal) return false;
+  if (!due && !/keyword match:/i.test(scope)) return false;
   if (TRACK1_NON_SOLICITATION_RE.test(`${title} ${scope}`) && !TRACK1_SOLICITATION_RE.test(`${title} ${scope}`)) return false;
   return true;
 }

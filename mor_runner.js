@@ -700,7 +700,7 @@ function isPriorClient(opp) {
 
 function hasSolicitationSignal(opp) {
   const via = (opp.via || '').toLowerCase();
-  const trustedPortal = ['opengov', 'bonfire', 'planetbids', 'biddingusa', 'bidnet', 'civicengage', 'cal eprocure', 'caleprocure'].includes(via);
+  const trustedPortal = ['opengov', 'bonfire', 'planetbids', 'biddingusa', 'bidnet', 'civicengage', 'cal eprocure', 'caleprocure', 'keywordsource'].includes(via);
   const text = `${opp.title || ''} ${opp.scope || ''} ${opp.source_url || ''}`.toLowerCase();
   return trustedPortal || TRACK1_SOLICITATION_TERMS.some(term => text.includes(term));
 }
@@ -717,7 +717,9 @@ function hasTrustedProcurementUrl(url) {
 
 function isStrictTrack1Opportunity(opp) {
   const deadlineDate = parseDeadlineDate(opp.deadline || opp.due_date || opp.close_date);
-  if (!opp.source_url || !deadlineDate || deadlineDate < startOfTodayPT()) return false;
+  if (!opp.source_url) return false;
+  if ((opp.via || '').toLowerCase() !== 'keywordsource' && (!deadlineDate || deadlineDate < startOfTodayPT())) return false;
+  if (deadlineDate && deadlineDate < startOfTodayPT()) return false;
   if (hasNonSolicitationSignal(opp) && !hasSolicitationSignal(opp)) return false;
   return hasTrustedProcurementUrl(opp.source_url) || hasSolicitationSignal(opp);
 }
@@ -744,7 +746,7 @@ function normalizeTrack1Candidate(opp, keywordWeights) {
   if (!opp.source_url) rejectReasons.push('missing_source_url');
   if (!hasSolicitationSignal(opp)) rejectReasons.push('no_solicitation_signal');
   if (hasNonSolicitationSignal(opp)) rejectReasons.push('non_solicitation_language');
-  if (!deadlineDate) rejectReasons.push('missing_parseable_due_date');
+  if (!deadlineDate && (opp.via || '').toLowerCase() !== 'keywordsource') rejectReasons.push('missing_parseable_due_date');
   if (deadlineDate && deadlineDate < startOfTodayPT()) rejectReasons.push('expired_due_date');
   if (!highConfidenceKeyword && keywordScore < MIN_TRACK1_KEYWORD_SCORE) rejectReasons.push('low_bluhon_relevance');
 
@@ -867,24 +869,55 @@ function findNearbyFutureDate(text, startIndex = 0, window = 900) {
   return null;
 }
 
-function findLinkNearPhrase(html, phrase, pageUrl) {
-  const lowerPhrase = phrase.toLowerCase();
-  const linkRe = /<a\b[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
-  let best = null;
-  let match;
-  while ((match = linkRe.exec(html)) !== null) {
-    const linkText = stripHtmlToText(match[2]);
-    const pos = match.index || 0;
-    const surrounding = stripHtmlToText(html.slice(Math.max(0, pos - 600), pos + 800));
-    if (!linkText.toLowerCase().includes(lowerPhrase) && !surrounding.toLowerCase().includes(lowerPhrase)) continue;
-    const href = decodeHtml(match[1]);
-    best = resolveUrl(href, pageUrl);
-    if (linkText.toLowerCase().includes(lowerPhrase)) return best;
-  }
-  return best || pageUrl;
+function snippetAround(text, index, size = 260) {
+  const start = Math.max(0, index - Math.floor(size / 2));
+  const snippet = text.slice(start, start + size).replace(/\s+/g, ' ').trim();
+  return snippet.length > 240 ? `${snippet.slice(0, 240)}...` : snippet;
 }
 
-async function scrapeExactKeywordSources(keywordWeights = KEYWORD_WEIGHTS) {
+function titleFromKeyword(keyword) {
+  return keyword.replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function extractSourceLinks(html, pageUrl, phrases) {
+  const links = [];
+  const seen = new Set();
+  const linkRe = /<a\b[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+  let match;
+  while ((match = linkRe.exec(html)) !== null) {
+    const href = decodeHtml(match[1]);
+    if (!href || href.startsWith('#') || /^mailto:|^tel:/i.test(href)) continue;
+    const url = resolveUrl(href, pageUrl);
+    if (seen.has(url)) continue;
+    seen.add(url);
+    const linkText = stripHtmlToText(match[2]);
+    const pos = match.index || 0;
+    const context = stripHtmlToText(html.slice(Math.max(0, pos - 700), pos + 900));
+    const haystack = `${linkText} ${context} ${url}`.toLowerCase();
+    const keywordHit = phrases.some(p => haystack.includes(p.keyword));
+    const procurementish = /\b(rfp|rfq|soq|bid|solicitation|proposal|proposals|qualifications|procurement|project|planroom|open-bids)\b/i.test(haystack)
+      || /\.pdf(?:$|[?#])/i.test(url);
+    if (keywordHit || procurementish) links.push({ url, linkText, context, pos });
+  }
+  return links.slice(0, 35);
+}
+
+function buildKeywordCandidate({ page, phrase, sourceUrl, title, text, index }) {
+  const deadline = findNearbyFutureDate(text, index) || findNearbyFutureDate(text, 0, text.length) || null;
+  const cleanTitle = String(title || '').replace(/\s+/g, ' ').trim();
+  return {
+    title: cleanTitle && cleanTitle.length >= 8 && !/^read more|view|details?|download|pdf$/i.test(cleanTitle)
+      ? cleanTitle.slice(0, 180)
+      : titleFromKeyword(phrase.keyword),
+    agency: page.name,
+    deadline,
+    scope: `Keyword match: "${phrase.keyword}". ${snippetAround(text, index)}`,
+    source_url: sourceUrl,
+    via: 'KeywordSource'
+  };
+}
+
+async function scrapeKeywordSourcePages(keywordWeights = KEYWORD_WEIGHTS) {
   const phrases = highWeightSearchPhrases(keywordWeights);
   if (!phrases.length) return [];
   const pages = await fetchActiveSourcePagesFromAirtable();
@@ -900,29 +933,47 @@ async function scrapeExactKeywordSources(keywordWeights = KEYWORD_WEIGHTS) {
       const text = stripHtmlToText(html);
       const lower = text.toLowerCase();
       let found = 0;
+
+      // Match directly on the source page listing text.
       for (const phrase of phrases) {
         const idx = lower.indexOf(phrase.keyword);
         if (idx < 0) continue;
-        const deadline = findNearbyFutureDate(text, idx) || findNearbyFutureDate(text, 0, text.length);
-        if (!deadline) continue;
-        const sourceUrl = findLinkNearPhrase(html, phrase.keyword, page.url);
-        if (opps.some(opp => normalizeTitle(opp.title) === normalizeTitle(phrase.keyword) && opp.source_url === sourceUrl)) continue;
-        opps.push({
-          title: phrase.keyword.replace(/\b\w/g, c => c.toUpperCase()),
-          agency: page.name,
-          deadline,
-          scope: `Exact Airtable search term match; weight ${phrase.weight}`,
-          source_url: sourceUrl,
-          via: 'ExactKeyword'
-        });
+        const candidate = buildKeywordCandidate({ page, phrase, sourceUrl: page.url, title: titleFromKeyword(phrase.keyword), text, index: idx });
+        if (opps.some(opp => normalizeTitle(opp.title) === normalizeTitle(candidate.title) && opp.source_url === candidate.source_url)) continue;
+        opps.push(candidate);
         found++;
       }
-      if (found) console.log(`[ExactKeyword] ${page.name}: found ${found} exact title matches`);
+
+      // Follow likely procurement/detail links one level and match title/description text there.
+      const links = extractSourceLinks(html, page.url, phrases);
+      for (const link of links) {
+        try {
+          const detailRes = await fetch(link.url, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
+            signal: AbortSignal.timeout(12000)
+          });
+          if (!detailRes.ok) continue;
+          const detailText = stripHtmlToText(await detailRes.text());
+          const detailLower = detailText.toLowerCase();
+          for (const phrase of phrases) {
+            const idx = detailLower.indexOf(phrase.keyword);
+            if (idx < 0) continue;
+            const candidate = buildKeywordCandidate({ page, phrase, sourceUrl: link.url, title: link.linkText || titleFromKeyword(phrase.keyword), text: detailText, index: idx });
+            if (opps.some(opp => normalizeTitle(opp.title) === normalizeTitle(candidate.title) && opp.source_url === candidate.source_url)) continue;
+            opps.push(candidate);
+            found++;
+          }
+        } catch {
+          // Ignore one detail link failure; continue scanning the source.
+        }
+      }
+
+      if (found) console.log(`[KeywordSource] ${page.name}: found ${found} keyword matches`);
     } catch (err) {
-      console.warn(`[ExactKeyword] ${page.name} failed: ${err.message}`);
+      console.warn(`[KeywordSource] ${page.name} failed: ${err.message}`);
     }
   }));
-  console.log(`[ExactKeyword] Total: ${opps.length} opportunities`);
+  console.log(`[KeywordSource] Total: ${opps.length} opportunities`);
   return opps;
 }
 
@@ -2355,7 +2406,7 @@ async function runMORSReport() {
   console.log(`[Keywords] Using ${Object.keys(activeKeywords).length} keywords from ${Object.keys(airtableKeywords).length > 0 ? 'Airtable' : 'hardcoded fallback'}`);
 
   // ── Fetch everything in parallel — memory, sources, news RSS, portal scrapers ──
-  const [memoryPatterns, searchSources, mediaSources, existingOpps, newsItems, airtableStandalonePages, opengovOpps, bonfireOpps, planetbidsOpps, biddingusaOpps, bidnetOpps, civicengageOpps, standaloneOpps, exactKeywordOpps] = await Promise.all([
+  const [memoryPatterns, searchSources, mediaSources, existingOpps, newsItems, airtableStandalonePages, opengovOpps, bonfireOpps, planetbidsOpps, biddingusaOpps, bidnetOpps, civicengageOpps, standaloneOpps, keywordSourceOpps] = await Promise.all([
     fetchProjectMemory(),
     fetchSearchSources(),
     fetchMediaSources(),
@@ -2369,7 +2420,7 @@ async function runMORSReport() {
     scrapeBidnet(activeKeywords),
     scrapeCivicengage(),
     scrapeStandalonePages(activeKeywords),
-    scrapeExactKeywordSources(activeKeywords),
+    scrapeKeywordSourcePages(activeKeywords),
   ]);
 
   // Use Airtable search queries if available
@@ -2427,7 +2478,7 @@ async function runMORSReport() {
     ...bidnetOpps,
     ...civicengageOpps,
     ...standaloneOpps,
-    ...exactKeywordOpps,
+    ...keywordSourceOpps,
   ];
   const isExistingDuplicate = title => existingOpps.some(existing => titlesMatch(title, existing.title));
   const validation = validateTrack1Candidates(allScrapedOpps, activeKeywords, isExistingDuplicate);
@@ -2443,7 +2494,7 @@ async function runMORSReport() {
     acc[opp.reject_reason] = (acc[opp.reject_reason] || 0) + 1;
     return acc;
   }, {});
-  console.log(`[SCRAPERS] OpenGov:${opengovOpps.length} Bonfire:${bonfireOpps.length} PlanetBids:${planetbidsOpps.length} BiddingUSA:${biddingusaOpps.length} BidNet:${bidnetOpps.length} CivicEngage:${civicengageOpps.length} Standalone:${standaloneOpps.length} ExactKeyword:${exactKeywordOpps.length} SOURCE_DIRECT_RAW:${allScrapedOpps.length} VALID:${validatedTrack1Opps.length}`);
+  console.log(`[SCRAPERS] OpenGov:${opengovOpps.length} Bonfire:${bonfireOpps.length} PlanetBids:${planetbidsOpps.length} BiddingUSA:${biddingusaOpps.length} BidNet:${bidnetOpps.length} CivicEngage:${civicengageOpps.length} Standalone:${standaloneOpps.length} KeywordSource:${keywordSourceOpps.length} SOURCE_DIRECT_RAW:${allScrapedOpps.length} VALID:${validatedTrack1Opps.length}`);
   console.log(`[Track1 Validation] rejected ${validation.rejected.length}: ${JSON.stringify(rejectSummary)}`);
   console.log(`[Standalone URLs] Using ${airtableStandalonePages.length > 0 ? airtableStandalonePages.length : STANDALONE_PAGES.length} agency bid page URLs from ${airtableStandalonePages.length > 0 ? 'Airtable' : 'hardcoded list'} — deterministic scraper plus AI fallback`);
   console.log(`[${new Date().toISOString()}] Memory patterns: ${memoryPatterns.length}, Search sources: ${searchSources.length}, Validated opps for prompt: ${validatedTrack1Opps.length}`);
