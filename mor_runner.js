@@ -3,6 +3,7 @@ import cron from "node-cron";
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-5';
+const MORS_USE_OPENAI = /^(1|true|yes)$/i.test(process.env.MORS_USE_OPENAI || '');
 const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
 const AIRTABLE_BASE_ID = "appallyGF2B2bkpIU";
 const AIRTABLE_REPORTS_TABLE  = "tblnaSbxkGaoscwZj";
@@ -629,7 +630,7 @@ const TRACK1_PORTAL_HOST_TERMS = [
   'caleprocure', 'bidsandtenders', 'procurement', 'vendorportal'
 ];
 
-const MIN_TRACK1_KEYWORD_SCORE = 8;
+const MIN_TRACK1_KEYWORD_SCORE = 4;
 
 const PRIOR_CLIENT_TERMS = [
   'abag', 'bcdc', 'sf regional water quality control board',
@@ -1191,6 +1192,67 @@ function formatNewsItemsForPrompt(items, trackFilter) {
   }).join('\n\n');
 }
 
+function fallbackDateLabel(item) {
+  if (!item?.pubDate) return '';
+  const d = new Date(item.pubDate);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function fallbackSummary(item, max = 300) {
+  const text = stripHtmlToText(item?.summary || '');
+  if (!text) return 'Source-fed item matched Bluhon relevance terms.';
+  return text.length > max ? `${text.slice(0, max).trim()}...` : text;
+}
+
+function renderFallbackTrack2Html(newsItems) {
+  const items = (newsItems || [])
+    .filter(item => !item.track || item.track === 'Track 2')
+    .slice(0, 25);
+  if (!items.length) return '<p>No Track 2 data.</p>';
+  const rows = items.map(item => {
+    const meta = [fallbackDateLabel(item), item.source].filter(Boolean).join(' | ');
+    const link = item.url ? ` <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">Source</a>` : '';
+    return `<li><strong>${escapeHtml(item.title || 'Untitled')}</strong>${meta ? ` — ${escapeHtml(meta)}` : ''}<br>${escapeHtml(fallbackSummary(item))}<br><em>Bluhon angle:</em> Source-fed match for planning, public engagement, environmental review, land use, infrastructure, community conflict, or agency decision-making.${link}</li>`;
+  }).join('\n');
+  return `<h2>Source-Fed Emerging Issues</h2>\n<ul>\n${rows}\n</ul>`;
+}
+
+function renderFallbackTrack3Html(newsItems, firmNames = []) {
+  const firmTerms = firmNames.map(name => String(name || '').trim()).filter(Boolean);
+  const items = (newsItems || [])
+    .filter(item => {
+      const text = `${item.title || ''} ${item.summary || ''} ${item.source || ''}`.toLowerCase();
+      return item.track === 'Track 3' || firmTerms.some(firm => text.includes(firm.toLowerCase()));
+    })
+    .slice(0, 20);
+  if (!items.length) return '<p>No Track 3 data.</p>';
+  const rows = items.map(item => {
+    const matchedFirm = firmTerms.find(name => `${item.title || ''} ${item.summary || ''}`.toLowerCase().includes(name.toLowerCase()));
+    const meta = [fallbackDateLabel(item), item.source].filter(Boolean).join(' | ');
+    const link = item.url ? ` <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">Source</a>` : '';
+    return `<li><strong>${escapeHtml(matchedFirm || item.source || 'Firm / market source')}</strong> — ${escapeHtml(item.title || 'Untitled')}${meta ? ` | ${escapeHtml(meta)}` : ''}<br>${escapeHtml(fallbackSummary(item))}<br><em>Bluhon angle:</em> Review for teaming, competitor positioning, contract awards, or public engagement sub-scope.${link}</li>`;
+  }).join('\n');
+  return `<ul>\n${rows}\n</ul>`;
+}
+
+function renderFallbackTrack4Html(mediaSources) {
+  const items = (mediaSources || []).filter(source => source.track === 'Track 4').slice(0, 30);
+  if (!items.length) return '<p>No Track 4 data.</p>';
+  const groups = [
+    ['Agency Board', items.filter(i => /board|commission|mtc|abag|baaqmd|bcdc|bart|caltrans|water|puc|transit|district|agency/i.test(`${i.name} ${i.geo}`))],
+    ['County Board', items.filter(i => /county|bos|supervisors/i.test(`${i.name} ${i.geo}`))],
+    ['City Board', items.filter(i => /city|council|town/i.test(`${i.name} ${i.geo}`))]
+  ];
+  return groups
+    .filter(([, rows]) => rows.length)
+    .map(([heading, rows]) => `<h2>${heading}</h2>\n<ul>\n${rows.map(source => {
+      const link = source.url ? ` <a href="${escapeHtml(source.url)}" target="_blank" rel="noopener">Source</a>` : '';
+      return `<li><strong>${escapeHtml(source.name)}</strong> — agenda source queued for pre-RFP monitoring${source.geo ? ` (${escapeHtml(source.geo)})` : ''}.<br><em>Bluhon angle:</em> Watch for authorization to issue RFPs, consultant studies, public engagement direction, CEQA/environmental review, planning, and advisory processes.${link}</li>`;
+    }).join('\n')}\n</ul>`)
+    .join('\n') || '<p>No Track 4 data.</p>';
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Feedback/Learning Loop helpers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1322,6 +1384,20 @@ async function fetchOpenGovSourcesFromAirtable() {
     console.warn(`[OpenGov] Could not load Airtable portal URLs: ${err.message}`);
     return [];
   }
+}
+
+function openGovFetchUrls(portal) {
+  const urls = [];
+  const add = url => {
+    if (url && !urls.includes(url)) urls.push(url);
+  };
+  add(portal.url);
+  if (portal.slug && portal.slug !== 'vendor-open-bids') {
+    add(`https://procurement.opengov.com/portal/embed/${portal.slug}/project-list?departmentId=all&status=all`);
+    add(`https://procurement.opengov.com/portal/embed/${portal.slug}/project-list`);
+    add(`https://procurement.opengov.com/portal/${portal.slug}`);
+  }
+  return urls;
 }
 
 async function fetchSearchQueriesFromAirtable() {
@@ -1584,40 +1660,43 @@ function extractOpenGovEmbeddedJson(html, portal) {
 
 async function scrapeOpenGovPortal(portal) {
   try {
-    console.log(`[OpenGov] Fetching ${portal.name}: ${portal.url}`);
-    const res = await fetch(portal.url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'none',
-        'Sec-Fetch-User': '?1',
-        'Upgrade-Insecure-Requests': '1'
+    for (const url of openGovFetchUrls(portal)) {
+      console.log(`[OpenGov] Fetching ${portal.name}: ${url}`);
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Sec-Fetch-Dest': 'document',
+          'Sec-Fetch-Mode': 'navigate',
+          'Sec-Fetch-Site': 'none',
+          'Sec-Fetch-User': '?1',
+          'Upgrade-Insecure-Requests': '1'
+        }
+      });
+      const text = await res.text();
+      console.log(`[OpenGov] ${portal.name}: status ${res.status}, length ${text.length}`);
+      if (!res.ok || isCloudflareChallenge(text)) {
+        console.warn(`[OpenGov] ${portal.name}: blocked or unscriptable at ${url}; trying next public URL`);
+        continue;
       }
-    });
-    const text = await res.text();
-    console.log(`[OpenGov] ${portal.name}: status ${res.status}, length ${text.length}`);
-    if (!res.ok) return [];
-    if (isCloudflareChallenge(text)) {
-      console.warn(`[OpenGov] ${portal.name}: Cloudflare challenge; no scrapeable public data returned`);
-      return [];
-    }
 
-    let opps = [];
-    if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
-      try { opps = extractOpenGovItemsFromJson(JSON.parse(text), portal); } catch {}
-    }
-    if (!opps.length) opps = extractOpenGovEmbeddedJson(text, portal);
-    if (!opps.length) opps = parseOpenGovHtmlRows(text, portal);
+      let opps = [];
+      if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
+        try { opps = extractOpenGovItemsFromJson(JSON.parse(text), portal); } catch {}
+      }
+      if (!opps.length) opps = extractOpenGovEmbeddedJson(text, portal);
+      if (!opps.length) opps = parseOpenGovHtmlRows(text, portal);
 
-    const filtered = opps.filter(opp => {
-      const due = parseDeadlineDate(opp.deadline);
-      return due && due >= startOfTodayPT() && !hasNonSolicitationSignal(opp);
-    });
-    console.log(`[OpenGov] ${portal.name}: found ${filtered.length} open solicitations`);
-    return filtered;
+      const filtered = opps.filter(opp => {
+        const due = parseDeadlineDate(opp.deadline);
+        return due && due >= startOfTodayPT() && !hasNonSolicitationSignal(opp);
+      });
+      console.log(`[OpenGov] ${portal.name}: found ${filtered.length} open solicitations`);
+      return filtered;
+    }
+    console.warn(`[OpenGov] ${portal.name}: all public URLs blocked or empty`);
+    return [];
   } catch (err) {
     console.warn(`[OpenGov] ${portal.name}: failed: ${err.message}`);
     return [];
@@ -2657,10 +2736,14 @@ OUTPUT FORMAT — you MUST output ALL THREE sections below in this exact order. 
 ---OPPORTUNITIES_JSON_END---`;
 
   let text1 = '';
-  try {
-    text1 = await runOpenAISearch(prompt1, 1, dynamicSystemPrompt);
-  } catch (err) {
-    console.warn(`[${new Date().toISOString()}] OpenAI Track 1+2 summary failed; saving deterministic Track 1 and continuing: ${err.message}`);
+  if (MORS_USE_OPENAI) {
+    try {
+      text1 = await runOpenAISearch(prompt1, 1, dynamicSystemPrompt);
+    } catch (err) {
+      console.warn(`[${new Date().toISOString()}] OpenAI Track 1+2 summary failed; saving deterministic Track 1 and continuing: ${err.message}`);
+    }
+  } else {
+    console.log(`[${new Date().toISOString()}] OpenAI Track 1+2 summary skipped — set MORS_USE_OPENAI=true to enable paid AI report writing.`);
   }
 
   console.log(`[${new Date().toISOString()}] Call 1 complete — Call 2: Tracks 3+4`);
@@ -2672,6 +2755,11 @@ OUTPUT FORMAT — you MUST output ALL THREE sections below in this exact order. 
     'AECOM, WSP, HDR, Jacobs, ICF, HNTB, Parsons, Stantec, Arup, Fehr & Peers, Kimley-Horn, GHD, EPS Group, Atkins, Burns & McDonnell, ARCADIS, Dudek';
   const competitorsStr = airtableFirms.filter(f => f.type === 'Competitor').map(f => f.name).join(', ') ||
     'MIG, PlaceWorks, Circlepoint, Raimi+Associates, Rincon Consultants, Mintier Harnish, CONCUR, DC&E, Civic Edge, Stakeholder Communications Group';
+  const firmNamesForFallback = [...new Set([
+    ...airtableFirms.map(f => f.name),
+    ...primeFirmsStr.split(',').map(s => s.trim()),
+    ...competitorsStr.split(',').map(s => s.trim())
+  ])].filter(Boolean);
 
   // ── Call 2: Track 3 (Contract Awards + Firm News) + Track 4 (Governing Body Pipeline) ───
   const prompt2 = `Today is ${today}.
@@ -2728,10 +2816,14 @@ OUTPUT FORMAT — use exactly these delimiters:
 [HTML unordered list]
 ---TRACK4_END---`;
   let text2 = '';
-  try {
-    text2 = await runOpenAISearch(prompt2, 1, dynamicSystemPrompt);
-  } catch (err) {
-    console.warn(`[${new Date().toISOString()}] OpenAI Track 3+4 summary failed; saving available report sections: ${err.message}`);
+  if (MORS_USE_OPENAI) {
+    try {
+      text2 = await runOpenAISearch(prompt2, 1, dynamicSystemPrompt);
+    } catch (err) {
+      console.warn(`[${new Date().toISOString()}] OpenAI Track 3+4 summary failed; saving available report sections: ${err.message}`);
+    }
+  } else {
+    console.log(`[${new Date().toISOString()}] OpenAI Track 3+4 summary skipped — set MORS_USE_OPENAI=true to enable paid AI report writing.`);
   }
 
   console.log(`[${new Date().toISOString()}] Call 2 complete — parsing and saving`);
@@ -2760,9 +2852,9 @@ OUTPUT FORMAT — use exactly these delimiters:
   }
 
   const track1_html = renderDeterministicTrack1Html(validatedTrack1Opps);
-  const track2_html = track2Match ? track2Match[1].trim() : "<p>No Track 2 data.</p>";
-  const track3_html = track3Match ? track3Match[1].trim() : "<p>No Track 3 data.</p>";
-  const track4_html = track4Match ? track4Match[1].trim() : "<p>No Track 4 data.</p>";
+  const track2_html = track2Match ? track2Match[1].trim() : renderFallbackTrack2Html(newsItems);
+  const track3_html = track3Match ? track3Match[1].trim() : renderFallbackTrack3Html(newsItems, firmNamesForFallback);
+  const track4_html = track4Match ? track4Match[1].trim() : renderFallbackTrack4Html(mediaSources);
 
   // ── Save report ───────────────────────────────────────────────────────────
   const saved = await atPost(AIRTABLE_REPORTS_TABLE, {
