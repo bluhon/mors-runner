@@ -818,6 +818,29 @@ function decodeHtml(value) {
     .replace(/&gt;/g, '>');
 }
 
+function stripHtmlToText(html) {
+  return decodeHtml(html)
+    .replace(/<script\b[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style\b[\s\S]*?<\/style>/gi, ' ')
+    .replace(/\b(?:aria|data)-[a-z0-9_-]+="[^"]*"/gi, ' ')
+    .replace(/\b(?:class|id|role|style|title)="[^"]*"/gi, ' ')
+    .replace(/<\/?[^>]+>/g, ' ')
+    .replace(/\b(?:visibility|ability|ibility|bility|lity)-hidden\b/gi, ' ')
+    .replace(/\bg_\d+_tooltip_title\b/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function cleanBidnetScope(text, title, deadline) {
+  return stripHtmlToText(text)
+    .replace(new RegExp(title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), ' ')
+    .replace(deadline || '', ' ')
+    .replace(/\bClock\s+Closing\b/gi, 'Closing')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 220);
+}
+
 function renderDeterministicTrack1Html(opps) {
   const cards = (opps || []).map(opp => {
     const typeLabel = opp.prior_client ? 'Prior Client' : (opp.geo_tier || 'Track 1');
@@ -1715,7 +1738,7 @@ async function scrapeBidnet(keywordWeights = KEYWORD_WEIGHTS) {
         let linkMatch;
         while ((linkMatch = linkRe.exec(html)) !== null) {
           const href = linkMatch[1];
-          const text = linkMatch[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+          const text = stripHtmlToText(linkMatch[2]);
           if (text.length >= 8 && text.length <= 300) {
             const pos = linkMatch.index || 0;
             const surrounding = html.slice(Math.max(0, pos - 500), pos + 700);
@@ -1724,11 +1747,11 @@ async function scrapeBidnet(keywordWeights = KEYWORD_WEIGHTS) {
         }
 
         for (const row of blocks) {
-          const text = row.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+          const text = stripHtmlToText(row);
           if (!keywordMatches(text)) continue;
           const titleMatch = row.match(/href="([^"]+)"[^>]*>([^<]{10,})</i);
           if (!titleMatch) continue;
-          const title = titleMatch[2].trim();
+          const title = stripHtmlToText(titleMatch[2]);
           const link  = titleMatch[1].startsWith('http') ? titleMatch[1] : `https://www.bidnetdirect.com${titleMatch[1]}`;
           const deadlineMatch = text.match(/\b(\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2}|\w+ \d{1,2},?\s*\d{4})\b/);
           const deadlineDate = deadlineMatch ? parseDeadlineDate(deadlineMatch[1]) : null;
@@ -1737,7 +1760,7 @@ async function scrapeBidnet(keywordWeights = KEYWORD_WEIGHTS) {
           opps.push({
             title, agency: agency.name,
             deadline: formatDateISO(deadlineDate),
-            scope: text.slice(0, 200),
+            scope: cleanBidnetScope(text, title, deadlineMatch?.[1] || ''),
             source_url: link,
             via: 'BidNet'
           });
