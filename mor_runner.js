@@ -1587,8 +1587,14 @@ async function scrapeOpenGovPortal(portal) {
     console.log(`[OpenGov] Fetching ${portal.name}: ${portal.url}`);
     const res = await fetch(portal.url, {
       headers: {
-        'Accept': 'text/html,application/xhtml+xml,application/json',
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/125 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1'
       }
     });
     const text = await res.text();
@@ -2775,11 +2781,23 @@ OUTPUT FORMAT — use exactly these delimiters:
   let oppCount = 0, oppSkipped = 0;
   for (const opp of opps) {
     if (isDuplicate(opp.title)) { oppSkipped++; continue; }
+
+    // Strict Date Validation to prevent 422 crash
+    let safeDeadline = null;
+    if (opp.deadline) {
+      const parsed = parseDeadlineDate(opp.deadline);
+      if (parsed) {
+        safeDeadline = formatDateISO(parsed);
+      } else {
+        console.warn(`[Airtable Guard] Dropping invalid date string: "${opp.deadline}"`);
+      }
+    }
+
     try {
       await atPost(AIRTABLE_OPPS_TABLE, {
         title:      opp.title,
         agency:     opp.agency,
-        deadline:   opp.deadline || null,
+        deadline:   safeDeadline, // Using the validated ISO string or null
         track:      "1 — Active RFP",
         scope:      opp.scope,
         source_url: opp.source_url
