@@ -809,34 +809,34 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+function decodeHtml(value) {
+  return String(value || '')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
+}
+
 function renderDeterministicTrack1Html(opps) {
-  const rows = (opps || []).map(opp => {
+  const cards = (opps || []).map(opp => {
     const typeLabel = opp.prior_client ? 'Prior Client' : (opp.geo_tier || 'Track 1');
-    return `<tr>
-      <td><strong>${escapeHtml(opp.agency || '')}</strong></td>
-      <td>${escapeHtml(opp.solicitation_number || 'see portal')}</td>
-      <td><strong>${escapeHtml(opp.title || '')}</strong>${opp.scope ? ` — ${escapeHtml(opp.scope)}` : ''}</td>
-      <td>${escapeHtml(opp.deadline || '')}</td>
-      <td>${escapeHtml(typeLabel)}</td>
-      <td>${opp.source_url ? `<a href="${escapeHtml(opp.source_url)}" target="_blank">${escapeHtml(opp.source_url)}</a>` : ''}</td>
-    </tr>`;
+    return `<article class="mors-track1-opportunity"
+  data-agency="${escapeHtml(opp.agency || '')}"
+  data-title="${escapeHtml(opp.title || '')}"
+  data-deadline="${escapeHtml(opp.deadline || '')}"
+  data-source-url="${escapeHtml(opp.source_url || '')}"
+  data-scope="${escapeHtml(opp.scope || '')}"
+  data-solicitation="${escapeHtml(opp.solicitation_number || '')}"
+  data-type="${escapeHtml(typeLabel)}">
+  <h3>${escapeHtml(opp.title || '')}</h3>
+  <p>${escapeHtml(opp.scope || '')}</p>
+</article>`;
   }).join('\n');
 
-  return `<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse; width:100%; font-family:Arial, sans-serif; font-size:13px;">
-  <thead style="background-color:#1a3a5c; color:#ffffff;">
-    <tr>
-      <th>Agency</th>
-      <th>Solicitation #</th>
-      <th>Project / Scope</th>
-      <th>Due Date</th>
-      <th>Type</th>
-      <th>Source URL</th>
-    </tr>
-  </thead>
-  <tbody>
-    ${rows}
-  </tbody>
-</table>`;
+  return `<div class="mors-track1-data">
+${cards}
+</div>`;
 }
 
 function isNewsRelevant(item) {
@@ -2629,6 +2629,30 @@ function stripExpiredTrack1Rows(html) {
 
 function parseTrack1Opps(html, reportDate) {
   const opps = [];
+  const articleMatches = html.match(/<article\b[^>]*class="[^"]*\bmors-track1-opportunity\b[^"]*"[^>]*>[\s\S]*?<\/article>/gi) || [];
+  for (const article of articleMatches) {
+    const attr = name => {
+      const match = article.match(new RegExp(`\\b${name}="([^"]*)"`, 'i'));
+      return match ? decodeHtml(match[1]).replace(/\s+/g, ' ').trim() : '';
+    };
+    const candidate = {
+      title: attr('data-title') || article.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
+      agency: attr('data-agency'),
+      deadline: attr('data-deadline') || null,
+      scope: [attr('data-solicitation') ? `Solicitation: ${attr('data-solicitation')}` : '', attr('data-type'), attr('data-scope')]
+        .filter(Boolean)
+        .join('; '),
+      source_url: attr('data-source-url')
+    };
+    if (!candidate.title || !candidate.agency) continue;
+    if (!isStrictTrack1Opportunity(candidate)) {
+      console.log(`[Track1 Filter] Dropped non-solicitation item: "${candidate.title}" — ${candidate.source_url || 'no url'}`);
+      continue;
+    }
+    opps.push(candidate);
+  }
+  if (articleMatches.length) return opps;
+
   const rowMatches = html.match(/<tr[^>]*>([\s\S]*?)<\/tr>/gi) || [];
   for (const row of rowMatches) {
     const cells = (row.match(/<td[^>]*>([\s\S]*?)<\/td>/gi) || [])
