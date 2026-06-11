@@ -255,6 +255,9 @@
             <option value="3">3 — No Go</option>
             <option value="4">4 — Submitting</option>
           </select>
+          <button class="btn btn-ghost btn-sm" style="color:var(--danger);border-color:#d7d7d7;padding:8px 18px" onclick="deleteCurrentCanvas()">
+            <i class="ti ti-trash"></i> Delete Canvas
+          </button>
           <span id="canvas-inactive-badge" style="display:none" class="badge badge-gray">Inactive</span>
         </div>
         <div class="canvas-grid" id="canvas-grid"></div>
@@ -1885,6 +1888,21 @@ async function updateCanvasStatus(val) {
   if (canvas) { canvas.fields.pursuit_status = status; canvas.fields.active = isActive; }
   document.getElementById('canvas-inactive-badge').style.display = isActive ? 'none' : 'inline-block';
   showToast(`Status updated to ${status}`, 'success');
+}
+
+async function deleteCurrentCanvas() {
+  if (!currentCanvasId) return;
+  if (!confirm('Are you sure you want to delete this Canvas?')) return;
+  try {
+    await atDelete(CONFIG.TABLES.RFP_CANVAS, currentCanvasId);
+    allCanvases = allCanvases.filter(c => c.id !== currentCanvasId);
+    currentCanvasId = null;
+    showToast('Canvas deleted', 'success');
+    showPage('canvas-list');
+    filterCanvas('active');
+  } catch (e) {
+    showToast('Delete failed: ' + e.message, 'error');
+  }
 }
 async function handleFileUpload(fileList) {
   const canvas = allCanvases.find(c => c.id === currentCanvasId);
