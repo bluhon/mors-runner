@@ -988,7 +988,7 @@ function isRenderableTrack1Candidate({ title = '', agency = '', scope = '', sour
   const text = `${title} ${agency} ${scope} ${source_url}`;
   const hasPositiveSignal = TRACK1_SOLICITATION_RE.test(text) || TRACK1_PORTAL_RE.test(source_url);
   if (!hasPositiveSignal) return false;
-  if (!due && !/keyword match:/i.test(scope)) return false;
+  if (!due) return false;
   if (TRACK1_NON_SOLICITATION_RE.test(`${title} ${scope}`) && !TRACK1_SOLICITATION_RE.test(`${title} ${scope}`)) return false;
   return true;
 }

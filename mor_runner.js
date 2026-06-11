@@ -871,7 +871,11 @@ function findNearbyFutureDate(text, startIndex = 0, window = 900) {
 
 function snippetAround(text, index, size = 260) {
   const start = Math.max(0, index - Math.floor(size / 2));
-  const snippet = text.slice(start, start + size).replace(/\s+/g, ' ').trim();
+  const snippet = text.slice(start, start + size)
+    .replace(/Skip To Content.*?(?=\b(?:RFP|RFQ|SOQ|Bid|Request|On-Call|Proposal)\b)/i, '')
+    .replace(/##LOC\[OK\]##|&nbsp;|self close fix|Search Site|Home Our City/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
   return snippet.length > 240 ? `${snippet.slice(0, 240)}...` : snippet;
 }
 
@@ -893,17 +897,18 @@ function extractSourceLinks(html, pageUrl, phrases) {
     const linkText = stripHtmlToText(match[2]);
     const pos = match.index || 0;
     const context = stripHtmlToText(html.slice(Math.max(0, pos - 700), pos + 900));
-    const haystack = `${linkText} ${context} ${url}`.toLowerCase();
-    const keywordHit = phrases.some(p => haystack.includes(p.keyword));
-    const procurementish = /\b(rfp|rfq|soq|bid|solicitation|proposal|proposals|qualifications|procurement|project|planroom|open-bids)\b/i.test(haystack)
+    const localText = `${linkText} ${context}`.toLowerCase();
+    const keywordHit = phrases.some(p => localText.includes(p.keyword));
+    const procurementish = /\b(rfp|rfq|soq|bid|solicitation|proposal|proposals|qualifications|procurement|project|planroom|open-bids)\b/i.test(`${localText} ${url}`)
       || /\.pdf(?:$|[?#])/i.test(url);
-    if (keywordHit || procurementish) links.push({ url, linkText, context, pos });
+    if (keywordHit && procurementish) links.push({ url, linkText, context, pos });
   }
   return links.slice(0, 35);
 }
 
 function buildKeywordCandidate({ page, phrase, sourceUrl, title, text, index }) {
   const deadline = findNearbyFutureDate(text, index) || findNearbyFutureDate(text, 0, text.length) || null;
+  if (!deadline) return null;
   const cleanTitle = String(title || '').replace(/\s+/g, ' ').trim();
   return {
     title: cleanTitle && cleanTitle.length >= 8 && !/^read more|view|details?|download|pdf$/i.test(cleanTitle)
@@ -939,6 +944,7 @@ async function scrapeKeywordSourcePages(keywordWeights = KEYWORD_WEIGHTS) {
         const idx = lower.indexOf(phrase.keyword);
         if (idx < 0) continue;
         const candidate = buildKeywordCandidate({ page, phrase, sourceUrl: page.url, title: titleFromKeyword(phrase.keyword), text, index: idx });
+        if (!candidate) continue;
         if (opps.some(opp => normalizeTitle(opp.title) === normalizeTitle(candidate.title) && opp.source_url === candidate.source_url)) continue;
         opps.push(candidate);
         found++;
@@ -959,6 +965,7 @@ async function scrapeKeywordSourcePages(keywordWeights = KEYWORD_WEIGHTS) {
             const idx = detailLower.indexOf(phrase.keyword);
             if (idx < 0) continue;
             const candidate = buildKeywordCandidate({ page, phrase, sourceUrl: link.url, title: link.linkText || titleFromKeyword(phrase.keyword), text: detailText, index: idx });
+            if (!candidate) continue;
             if (opps.some(opp => normalizeTitle(opp.title) === normalizeTitle(candidate.title) && opp.source_url === candidate.source_url)) continue;
             opps.push(candidate);
             found++;
