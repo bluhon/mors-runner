@@ -658,6 +658,8 @@ function startOfTodayPT() {
   return new Date(`${today}T00:00:00-07:00`);
 }
 
+const DATE_WORD_PATTERN = '(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
+
 function parseDeadlineDate(value) {
   if (!value) return null;
   if (value instanceof Date && !isNaN(value)) return value;
@@ -677,8 +679,14 @@ function parseDeadlineDate(value) {
     return isNaN(parsed) ? null : parsed;
   }
 
-  const parsed = new Date(raw);
-  return isNaN(parsed) ? null : parsed;
+  const wordRe = new RegExp(`\\b(${DATE_WORD_PATTERN})\\.?\\s+(\\d{1,2}),?\\s+(\\d{4})\\b`, 'i');
+  const word = raw.match(wordRe);
+  if (word) {
+    const parsed = new Date(`${word[1]} ${word[2]}, ${word[3]} 12:00:00 GMT-0700`);
+    return isNaN(parsed) ? null : parsed;
+  }
+
+  return null;
 }
 
 function formatDateISO(date) {
@@ -870,7 +878,8 @@ function findNearbyFutureDate(text, startIndex = 0, window = 900) {
   const begin = Math.max(0, startIndex - window);
   const end = Math.min(text.length, startIndex + window);
   const surrounding = text.slice(begin, end);
-  const dateMatches = [...surrounding.matchAll(/\b(\d{1,2}\/\d{1,2}\/\d{4}|\w+ \d{1,2},?\s*\d{4}|\d{4}-\d{2}-\d{2})\b/g)];
+  const dateRe = new RegExp(`\\b(\\d{1,2}/\\d{1,2}/\\d{4}|${DATE_WORD_PATTERN}\\.?\\s+\\d{1,2},?\\s*\\d{4}|\\d{4}-\\d{2}-\\d{2})\\b`, 'gi');
+  const dateMatches = [...surrounding.matchAll(dateRe)];
   for (const match of dateMatches) {
     const parsed = parseDeadlineDate(match[1]);
     if (parsed && parsed >= startOfTodayPT()) return formatDateISO(parsed);
@@ -882,7 +891,7 @@ function findNearbyPastDeadline(text, index = 0, window = 2200) {
   const begin = Math.max(0, index - window);
   const end = Math.min(text.length, index + window);
   const surrounding = text.slice(begin, end);
-  const deadlineRe = /\b(?:proposals?\s+due|proposal\s+deadline|responses?\s+due|submittals?\s+due|due\s+date|deadline|closing)\s*:?\s*(?:on\s+)?(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday,?\s+)?(\w+ \d{1,2},?\s*\d{4}|\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2})\b/gi;
+  const deadlineRe = new RegExp(`\\b(?:proposals?\\s+due|proposal\\s+deadline|responses?\\s+due|submittals?\\s+due|due\\s+date|deadline|closing)\\s*:?\\s*(?:on\\s+)?(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday,?\\s+)?(${DATE_WORD_PATTERN}\\.?\\s+\\d{1,2},?\\s*\\d{4}|\\d{1,2}/\\d{1,2}/\\d{4}|\\d{4}-\\d{2}-\\d{2})\\b`, 'gi');
   let match;
   while ((match = deadlineRe.exec(surrounding)) !== null) {
     const parsed = parseDeadlineDate(match[1]);
@@ -895,7 +904,7 @@ function findExplicitFutureDeadline(text, index = 0, window = 1800) {
   const begin = Math.max(0, index - window);
   const end = Math.min(text.length, index + window);
   const surrounding = text.slice(begin, end);
-  const deadlineRe = /\b(?:proposals?\s+due|proposal\s+deadline|responses?\s+due|submittals?\s+due|due\s+date|deadline|closing)\s*:?\s*(?:on\s+)?(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday,?\s+)?(\w+ \d{1,2},?\s*\d{4}|\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2})\b/gi;
+  const deadlineRe = new RegExp(`\\b(?:proposals?\\s+due|proposal\\s+deadline|responses?\\s+due|submittals?\\s+due|due\\s+date|deadline|closing)\\s*:?\\s*(?:on\\s+)?(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday,?\\s+)?(${DATE_WORD_PATTERN}\\.?\\s+\\d{1,2},?\\s*\\d{4}|\\d{1,2}/\\d{1,2}/\\d{4}|\\d{4}-\\d{2}-\\d{2})\\b`, 'gi');
   let match;
   while ((match = deadlineRe.exec(surrounding)) !== null) {
     const parsed = parseDeadlineDate(match[1]);
@@ -2209,13 +2218,14 @@ async function scrapeStandalonePages(keywordWeights = KEYWORD_WEIGHTS) {
         const linkPos = m.index || 0;
         const surrounding = html.slice(Math.max(0, linkPos - 400), linkPos + 400)
           .replace(/<[^>]+>/g, ' ');
-        const dateMatches = [...surrounding.matchAll(/\b(\d{1,2}\/\d{1,2}\/\d{4}|\w+ \d{1,2},?\s*\d{4}|\d{4}-\d{2}-\d{2})\b/g)];
+        const dateRe = new RegExp(`\\b(\\d{1,2}/\\d{1,2}/\\d{4}|${DATE_WORD_PATTERN}\\.?\\s+\\d{1,2},?\\s*\\d{4}|\\d{4}-\\d{2}-\\d{2})\\b`, 'gi');
+        const dateMatches = [...surrounding.matchAll(dateRe)];
         let nearbyDeadline = null;
         for (const dm of dateMatches) {
-          const parsed = new Date(dm[1]);
+          const parsed = parseDeadlineDate(dm[1]);
           if (!isNaN(parsed)) {
-            if (parsed < new Date()) { nearbyDeadline = 'expired'; break; }
-            else nearbyDeadline = parsed.toISOString().split('T')[0];
+            if (parsed < startOfTodayPT()) { nearbyDeadline = 'expired'; break; }
+            else nearbyDeadline = formatDateISO(parsed);
           }
         }
         if (nearbyDeadline === 'expired') continue; // skip expired RFPs
