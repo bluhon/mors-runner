@@ -1184,7 +1184,7 @@ function formatNewsItemsForPrompt(items, trackFilter) {
     ? items.filter(i => !i.track || i.track === trackFilter)
     : items;
   if (!filtered.length) return 'No pre-fetched news items available.';
-  return filtered.slice(0, 60).map((item, i) => {
+  return filtered.slice(0, 25).map((item, i) => {
     const date = item.pubDate ? new Date(item.pubDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
     const src  = item.source || 'Unknown';
     const sum  = item.summary ? ` — ${item.summary.slice(0, 200)}` : '';
