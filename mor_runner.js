@@ -573,10 +573,33 @@ function scoreRelevance(item, keywordWeights) {
   return score;
 }
 
+function keywordEntries(keywordWeights) {
+  return Object.entries(keywordWeights || {})
+    .map(([keyword, weight]) => ({
+      keyword: String(keyword || '').trim().toLowerCase(),
+      weight: Number(weight || 0)
+    }))
+    .filter(item => item.keyword.length >= 3 && item.weight > 0);
+}
+
+function scoreKeywordOnly(text, keywordWeights) {
+  const lower = String(text || '').toLowerCase();
+  let score = 0;
+  for (const item of keywordEntries(keywordWeights)) {
+    if (lower.includes(item.keyword)) score += item.weight;
+  }
+  return score;
+}
+
+function hasHighConfidenceKeywordMatch(opp, keywordWeights) {
+  const text = `${opp.title || ''} ${opp.scope || ''}`.toLowerCase();
+  return keywordEntries(keywordWeights)
+    .filter(item => item.weight >= 20 && item.keyword.length >= 6)
+    .some(item => text.includes(item.keyword));
+}
+
 function buildKeywordMatcher(keywordWeights) {
-  const weightedKeywords = Object.entries(keywordWeights || {})
-    .map(([keyword, weight]) => ({ keyword: String(keyword || '').trim().toLowerCase(), weight: Number(weight || 0) }))
-    .filter(item => item.keyword.length >= 3)
+  const weightedKeywords = keywordEntries(keywordWeights)
     .sort((a, b) => b.weight - a.weight);
   return function keywordMatches(text) {
     const lower = String(text || '').toLowerCase();
@@ -605,6 +628,8 @@ const TRACK1_PORTAL_HOST_TERMS = [
   'opengov', 'planetbids', 'bidnetdirect', 'bonfirehub',
   'caleprocure', 'bidsandtenders', 'procurement', 'vendorportal'
 ];
+
+const MIN_TRACK1_KEYWORD_SCORE = 8;
 
 const PRIOR_CLIENT_TERMS = [
   'abag', 'bcdc', 'sf regional water quality control board',
@@ -712,12 +737,16 @@ function scoreTrack1Relevance(opp, keywordWeights) {
 function normalizeTrack1Candidate(opp, keywordWeights) {
   const deadlineDate = parseDeadlineDate(opp.deadline || opp.due_date || opp.close_date);
   const rejectReasons = [];
+  const relevanceText = `${opp.title || ''} ${opp.scope || ''}`;
+  const keywordScore = scoreKeywordOnly(relevanceText, keywordWeights);
+  const highConfidenceKeyword = hasHighConfidenceKeywordMatch(opp, keywordWeights);
   if (!opp.title || String(opp.title).trim().length < 6) rejectReasons.push('missing_title');
   if (!opp.source_url) rejectReasons.push('missing_source_url');
   if (!hasSolicitationSignal(opp)) rejectReasons.push('no_solicitation_signal');
   if (hasNonSolicitationSignal(opp)) rejectReasons.push('non_solicitation_language');
   if (!deadlineDate) rejectReasons.push('missing_parseable_due_date');
   if (deadlineDate && deadlineDate < startOfTodayPT()) rejectReasons.push('expired_due_date');
+  if (!highConfidenceKeyword && keywordScore < MIN_TRACK1_KEYWORD_SCORE) rejectReasons.push('low_bluhon_relevance');
 
   const normalized = {
     title: String(opp.title || '').replace(/\s+/g, ' ').trim(),
@@ -728,6 +757,8 @@ function normalizeTrack1Candidate(opp, keywordWeights) {
     via: opp.via || opp.parser_strategy || 'portal',
     prior_client: isPriorClient(opp),
     geo_tier: inferGeoTier(opp),
+    keyword_score: keywordScore,
+    high_confidence_keyword: highConfidenceKeyword,
     relevance_score: 0,
     validation_notes: rejectReasons
   };
@@ -1694,7 +1725,7 @@ async function scrapeBidnet(keywordWeights = KEYWORD_WEIGHTS) {
 
         for (const row of blocks) {
           const text = row.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-          if (!keywordMatches(text) && !BIDDINGUSA_KEYWORDS.some(kw => text.toLowerCase().includes(kw))) continue;
+          if (!keywordMatches(text)) continue;
           const titleMatch = row.match(/href="([^"]+)"[^>]*>([^<]{10,})</i);
           if (!titleMatch) continue;
           const title = titleMatch[2].trim();

@@ -330,8 +330,8 @@
           <div style="display:flex;align-items:flex-start;gap:12px">
             <i class="ti ti-brain" style="color:var(--lime);font-size:22px;flex-shrink:0;margin-top:2px"></i>
             <div>
-              <div style="font-size:13px;font-weight:500;color:var(--lime);margin-bottom:4px">How Claude learns from MORS</div>
-              <div style="font-size:13px;color:#bbb;line-height:1.6">Every time you mark Interest = Yes on a lead, the project type, sector, keywords, and agency type are logged here. The daily runner reads the last 30 entries and feeds them back to Claude as calibration context — so the search gets smarter about what Bluhon recognizes as relevant over time.</div>
+              <div style="font-size:13px;font-weight:500;color:var(--lime);margin-bottom:4px">How MORS learns from feedback</div>
+              <div style="font-size:13px;color:#bbb;line-height:1.6">Every time you mark Interest = Yes on a lead, the project type, sector, keywords, and agency type are logged here. The daily runner reads the last 30 entries as calibration context — so the search gets smarter about what Bluhon recognizes as relevant over time.</div>
             </div>
           </div>
         </div>
@@ -670,7 +670,7 @@ function isRunnerPlaceholder(html, trackNumber) {
 
 function isUsableReport(report) {
   const fields = report?.fields || {};
-  return !isRunnerPlaceholder(fields.track1_html, 1) && !isRunnerPlaceholder(fields.track2_html, 2);
+  return !isRunnerPlaceholder(fields.track1_html, 1);
 }
 
 function sortReports(records) {
