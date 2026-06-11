@@ -841,6 +841,91 @@ function cleanBidnetScope(text, title, deadline) {
     .slice(0, 220);
 }
 
+function highWeightSearchPhrases(keywordWeights) {
+  return keywordEntries(keywordWeights)
+    .filter(item => item.weight >= 20 && item.keyword.length >= 6)
+    .sort((a, b) => b.weight - a.weight);
+}
+
+function resolveUrl(href, pageUrl) {
+  try {
+    return new URL(href, pageUrl).toString();
+  } catch {
+    return pageUrl;
+  }
+}
+
+function findNearbyFutureDate(text, startIndex = 0, window = 900) {
+  const begin = Math.max(0, startIndex - window);
+  const end = Math.min(text.length, startIndex + window);
+  const surrounding = text.slice(begin, end);
+  const dateMatches = [...surrounding.matchAll(/\b(\d{1,2}\/\d{1,2}\/\d{4}|\w+ \d{1,2},?\s*\d{4}|\d{4}-\d{2}-\d{2})\b/g)];
+  for (const match of dateMatches) {
+    const parsed = parseDeadlineDate(match[1]);
+    if (parsed && parsed >= startOfTodayPT()) return formatDateISO(parsed);
+  }
+  return null;
+}
+
+function findLinkNearPhrase(html, phrase, pageUrl) {
+  const lowerPhrase = phrase.toLowerCase();
+  const linkRe = /<a\b[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+  let best = null;
+  let match;
+  while ((match = linkRe.exec(html)) !== null) {
+    const linkText = stripHtmlToText(match[2]);
+    const pos = match.index || 0;
+    const surrounding = stripHtmlToText(html.slice(Math.max(0, pos - 600), pos + 800));
+    if (!linkText.toLowerCase().includes(lowerPhrase) && !surrounding.toLowerCase().includes(lowerPhrase)) continue;
+    const href = decodeHtml(match[1]);
+    best = resolveUrl(href, pageUrl);
+    if (linkText.toLowerCase().includes(lowerPhrase)) return best;
+  }
+  return best || pageUrl;
+}
+
+async function scrapeExactKeywordSources(keywordWeights = KEYWORD_WEIGHTS) {
+  const phrases = highWeightSearchPhrases(keywordWeights);
+  if (!phrases.length) return [];
+  const pages = await fetchActiveSourcePagesFromAirtable();
+  const opps = [];
+  await Promise.allSettled(pages.map(async page => {
+    try {
+      const res = await fetch(page.url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
+        signal: AbortSignal.timeout(15000)
+      });
+      if (!res.ok) return;
+      const html = await res.text();
+      const text = stripHtmlToText(html);
+      const lower = text.toLowerCase();
+      let found = 0;
+      for (const phrase of phrases) {
+        const idx = lower.indexOf(phrase.keyword);
+        if (idx < 0) continue;
+        const deadline = findNearbyFutureDate(text, idx) || findNearbyFutureDate(text, 0, text.length);
+        if (!deadline) continue;
+        const sourceUrl = findLinkNearPhrase(html, phrase.keyword, page.url);
+        if (opps.some(opp => normalizeTitle(opp.title) === normalizeTitle(phrase.keyword) && opp.source_url === sourceUrl)) continue;
+        opps.push({
+          title: phrase.keyword.replace(/\b\w/g, c => c.toUpperCase()),
+          agency: page.name,
+          deadline,
+          scope: `Exact Airtable search term match; weight ${phrase.weight}`,
+          source_url: sourceUrl,
+          via: 'ExactKeyword'
+        });
+        found++;
+      }
+      if (found) console.log(`[ExactKeyword] ${page.name}: found ${found} exact title matches`);
+    } catch (err) {
+      console.warn(`[ExactKeyword] ${page.name} failed: ${err.message}`);
+    }
+  }));
+  console.log(`[ExactKeyword] Total: ${opps.length} opportunities`);
+  return opps;
+}
+
 function renderDeterministicTrack1Html(opps) {
   const cards = (opps || []).map(opp => {
     const typeLabel = opp.prior_client ? 'Prior Client' : (opp.geo_tier || 'Track 1');
@@ -2270,7 +2355,7 @@ async function runMORSReport() {
   console.log(`[Keywords] Using ${Object.keys(activeKeywords).length} keywords from ${Object.keys(airtableKeywords).length > 0 ? 'Airtable' : 'hardcoded fallback'}`);
 
   // ── Fetch everything in parallel — memory, sources, news RSS, portal scrapers ──
-  const [memoryPatterns, searchSources, mediaSources, existingOpps, newsItems, airtableStandalonePages, opengovOpps, bonfireOpps, planetbidsOpps, biddingusaOpps, bidnetOpps, civicengageOpps, standaloneOpps] = await Promise.all([
+  const [memoryPatterns, searchSources, mediaSources, existingOpps, newsItems, airtableStandalonePages, opengovOpps, bonfireOpps, planetbidsOpps, biddingusaOpps, bidnetOpps, civicengageOpps, standaloneOpps, exactKeywordOpps] = await Promise.all([
     fetchProjectMemory(),
     fetchSearchSources(),
     fetchMediaSources(),
@@ -2284,6 +2369,7 @@ async function runMORSReport() {
     scrapeBidnet(activeKeywords),
     scrapeCivicengage(),
     scrapeStandalonePages(activeKeywords),
+    scrapeExactKeywordSources(activeKeywords),
   ]);
 
   // Use Airtable search queries if available
@@ -2341,6 +2427,7 @@ async function runMORSReport() {
     ...bidnetOpps,
     ...civicengageOpps,
     ...standaloneOpps,
+    ...exactKeywordOpps,
   ];
   const isExistingDuplicate = title => existingOpps.some(existing => titlesMatch(title, existing.title));
   const validation = validateTrack1Candidates(allScrapedOpps, activeKeywords, isExistingDuplicate);
@@ -2356,7 +2443,7 @@ async function runMORSReport() {
     acc[opp.reject_reason] = (acc[opp.reject_reason] || 0) + 1;
     return acc;
   }, {});
-  console.log(`[SCRAPERS] OpenGov:${opengovOpps.length} Bonfire:${bonfireOpps.length} PlanetBids:${planetbidsOpps.length} BiddingUSA:${biddingusaOpps.length} BidNet:${bidnetOpps.length} CivicEngage:${civicengageOpps.length} Standalone:${standaloneOpps.length} SOURCE_DIRECT_RAW:${allScrapedOpps.length} VALID:${validatedTrack1Opps.length}`);
+  console.log(`[SCRAPERS] OpenGov:${opengovOpps.length} Bonfire:${bonfireOpps.length} PlanetBids:${planetbidsOpps.length} BiddingUSA:${biddingusaOpps.length} BidNet:${bidnetOpps.length} CivicEngage:${civicengageOpps.length} Standalone:${standaloneOpps.length} ExactKeyword:${exactKeywordOpps.length} SOURCE_DIRECT_RAW:${allScrapedOpps.length} VALID:${validatedTrack1Opps.length}`);
   console.log(`[Track1 Validation] rejected ${validation.rejected.length}: ${JSON.stringify(rejectSummary)}`);
   console.log(`[Standalone URLs] Using ${airtableStandalonePages.length > 0 ? airtableStandalonePages.length : STANDALONE_PAGES.length} agency bid page URLs from ${airtableStandalonePages.length > 0 ? 'Airtable' : 'hardcoded list'} — deterministic scraper plus AI fallback`);
   console.log(`[${new Date().toISOString()}] Memory patterns: ${memoryPatterns.length}, Search sources: ${searchSources.length}, Validated opps for prompt: ${validatedTrack1Opps.length}`);
