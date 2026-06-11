@@ -812,12 +812,21 @@ function escapeHtml(value) {
 }
 
 function decodeHtml(value) {
-  return String(value || '')
-    .replace(/&amp;/g, '&')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>');
+  let out = String(value || '');
+  for (let i = 0; i < 2; i++) {
+    out = out
+      .replace(/&amp;/g, '&')
+      .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+      .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
+      .replace(/&ndash;/g, '–')
+      .replace(/&mdash;/g, '—')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>');
+  }
+  return out;
 }
 
 function stripHtmlToText(html) {
@@ -869,7 +878,44 @@ function findNearbyFutureDate(text, startIndex = 0, window = 900) {
   return null;
 }
 
-function snippetAround(text, index, size = 260) {
+function findNearbyPastDeadline(text, index = 0, window = 2200) {
+  const begin = Math.max(0, index - window);
+  const end = Math.min(text.length, index + window);
+  const surrounding = text.slice(begin, end);
+  const deadlineRe = /\b(?:proposals?\s+due|proposal\s+deadline|responses?\s+due|submittals?\s+due|due\s+date|deadline|closing)\s*:?\s*(?:on\s+)?(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday,?\s+)?(\w+ \d{1,2},?\s*\d{4}|\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2})\b/gi;
+  let match;
+  while ((match = deadlineRe.exec(surrounding)) !== null) {
+    const parsed = parseDeadlineDate(match[1]);
+    if (parsed && parsed < startOfTodayPT()) return formatDateISO(parsed);
+  }
+  return null;
+}
+
+function findExplicitFutureDeadline(text, index = 0, window = 1800) {
+  const begin = Math.max(0, index - window);
+  const end = Math.min(text.length, index + window);
+  const surrounding = text.slice(begin, end);
+  const deadlineRe = /\b(?:proposals?\s+due|proposal\s+deadline|responses?\s+due|submittals?\s+due|due\s+date|deadline|closing)\s*:?\s*(?:on\s+)?(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday,?\s+)?(\w+ \d{1,2},?\s*\d{4}|\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2})\b/gi;
+  let match;
+  while ((match = deadlineRe.exec(surrounding)) !== null) {
+    const parsed = parseDeadlineDate(match[1]);
+    if (parsed && parsed >= startOfTodayPT()) return formatDateISO(parsed);
+  }
+  return null;
+}
+
+function extractPageDescription(text) {
+  const cleaned = String(text || '')
+    .replace(/Skip To Content.*?(?=\b(?:This Request|The City|Proposals Due|REQUEST FOR PROPOSALS|RFP)\b)/i, '')
+    .replace(/##LOC\[OK\]##|&nbsp;|self close fix|Search Site|Home Our City/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const match = cleaned.match(/\b(This Request for Proposals?[\s\S]{80,650}?)(?=\b(?:The City intends|Please see|Proposals Due|Submit proposal|Contact Information|REQUEST FOR PROPOSALS)\b|$)/i);
+  if (match) return match[1].replace(/\s+/g, ' ').trim();
+  return '';
+}
+
+function snippetAround(text, index, size = 360) {
   const start = Math.max(0, index - Math.floor(size / 2));
   const snippet = text.slice(start, start + size)
     .replace(/Skip To Content.*?(?=\b(?:RFP|RFQ|SOQ|Bid|Request|On-Call|Proposal)\b)/i, '')
@@ -907,16 +953,18 @@ function extractSourceLinks(html, pageUrl, phrases) {
 }
 
 function buildKeywordCandidate({ page, phrase, sourceUrl, title, text, index }) {
-  const deadline = findNearbyFutureDate(text, index) || findNearbyFutureDate(text, 0, text.length) || null;
+  if (findNearbyPastDeadline(text, index)) return null;
+  const deadline = findExplicitFutureDeadline(text, index) || findNearbyFutureDate(text, index) || null;
   if (!deadline) return null;
   const cleanTitle = String(title || '').replace(/\s+/g, ' ').trim();
+  const description = extractPageDescription(text) || snippetAround(text, index);
   return {
-    title: cleanTitle && cleanTitle.length >= 8 && !/^read more|view|details?|download|pdf$/i.test(cleanTitle)
+    title: decodeHtml(cleanTitle && cleanTitle.length >= 8 && !/^read more|view|details?|download|pdf$/i.test(cleanTitle)
       ? cleanTitle.slice(0, 180)
-      : titleFromKeyword(phrase.keyword),
+      : titleFromKeyword(phrase.keyword)),
     agency: page.name,
     deadline,
-    scope: `Keyword match: "${phrase.keyword}". ${snippetAround(text, index)}`,
+    scope: description,
     source_url: sourceUrl,
     via: 'KeywordSource'
   };
