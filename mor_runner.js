@@ -488,7 +488,7 @@ function parseRSSXml(xml, sourceName) {
     const title   = get('title');
     const link    = get('link') || (raw.match(/<link[^>]*href="([^"]+)"/i) || [])[1] || '';
     const pubDate = get('pubDate') || get('published') || get('dc:date') || '';
-    const summary = get('description').slice(0, 400);
+    const summary = cleanFeedSummary(get('description')).slice(0, 400);
     const source  = get('source') || sourceName;
     if (title && link) items.push({ title, url: link.trim(), pubDate, summary, source });
   }
@@ -842,13 +842,27 @@ function stripHtmlToText(html) {
   return decodeHtml(html)
     .replace(/<script\b[\s\S]*?<\/script>/gi, ' ')
     .replace(/<style\b[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<a\b[\s\S]*?<\/a>/gi, ' ')
+    .replace(/<a\b[^>]*>/gi, ' ')
     .replace(/\b(?:aria|data)-[a-z0-9_-]+="[^"]*"/gi, ' ')
     .replace(/\b(?:class|id|role|style|title)="[^"]*"/gi, ' ')
     .replace(/<\/?[^>]+>/g, ' ')
+    .replace(/href\s*=\s*["']?https?:\/\/\S+/gi, ' ')
+    .replace(/https?:\/\/news\.google\.com\/\S+/gi, ' ')
     .replace(/\b(?:visibility|ability|ibility|bility|lity)-hidden\b/gi, ' ')
     .replace(/\bg_\d+_tooltip_title\b/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function cleanFeedSummary(value) {
+  let text = decodeHtml(value || '');
+  text = text.replace(/<a\b[\s\S]*?<\/a>/gi, ' ');
+  text = text.replace(/<a\b[\s\S]*$/gi, ' ');
+  text = text.replace(/href\s*=\s*["']?https?:\/\/\S+/gi, ' ');
+  text = stripHtmlToText(text);
+  text = text.replace(/\b(?:read more|continue reading|full story)\b.*$/i, '').trim();
+  return text;
 }
 
 function cleanBidnetScope(text, title, deadline) {
@@ -1218,17 +1232,26 @@ function renderFallbackTrack2Html(newsItems) {
   return `<h2>Source-Fed Emerging Issues</h2>\n<ul>\n${rows}\n</ul>`;
 }
 
+function matchesFirmTerm(text, firm) {
+  const value = String(text || '');
+  const name = String(firm || '').trim();
+  if (!name) return false;
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  if (name.length <= 3) return new RegExp(`\\b${escaped}\\b`, 'i').test(value);
+  return value.toLowerCase().includes(name.toLowerCase());
+}
+
 function renderFallbackTrack3Html(newsItems, firmNames = []) {
   const firmTerms = firmNames.map(name => String(name || '').trim()).filter(Boolean);
   const items = (newsItems || [])
     .filter(item => {
-      const text = `${item.title || ''} ${item.summary || ''} ${item.source || ''}`.toLowerCase();
-      return item.track === 'Track 3' || firmTerms.some(firm => text.includes(firm.toLowerCase()));
+      const text = `${item.title || ''} ${item.summary || ''} ${item.source || ''}`;
+      return item.track === 'Track 3' || firmTerms.some(firm => matchesFirmTerm(text, firm));
     })
     .slice(0, 20);
   if (!items.length) return '<p>No Track 3 data.</p>';
   const rows = items.map(item => {
-    const matchedFirm = firmTerms.find(name => `${item.title || ''} ${item.summary || ''}`.toLowerCase().includes(name.toLowerCase()));
+    const matchedFirm = firmTerms.find(name => matchesFirmTerm(`${item.title || ''} ${item.summary || ''}`, name));
     const meta = [fallbackDateLabel(item), item.source].filter(Boolean).join(' | ');
     const link = item.url ? ` <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">Source</a>` : '';
     return `<li><strong>${escapeHtml(matchedFirm || item.source || 'Firm / market source')}</strong> — ${escapeHtml(item.title || 'Untitled')}${meta ? ` | ${escapeHtml(meta)}` : ''}<br>${escapeHtml(fallbackSummary(item))}<br><em>Bluhon angle:</em> Review for teaming, competitor positioning, contract awards, or public engagement sub-scope.${link}</li>`;
@@ -2652,6 +2675,9 @@ async function runMORSReport() {
   }, {});
   console.log(`[SCRAPERS] OpenGov:${opengovOpps.length} Bonfire:${bonfireOpps.length} PlanetBids:${planetbidsOpps.length} BiddingUSA:${biddingusaOpps.length} BidNet:${bidnetOpps.length} CivicEngage:${civicengageOpps.length} Standalone:${standaloneOpps.length} KeywordSource:${keywordSourceOpps.length} SOURCE_DIRECT_RAW:${allScrapedOpps.length} VALID:${validatedTrack1Opps.length}`);
   console.log(`[Track1 Validation] rejected ${validation.rejected.length}: ${JSON.stringify(rejectSummary)}`);
+  validation.rejected.slice(0, 12).forEach(opp => {
+    console.log(`[Track1 Reject] ${opp.reject_reason} | score:${opp.keyword_score} | via:${opp.via} | due:${opp.deadline || 'none'} | ${opp.agency || 'Unknown'} — ${opp.title} | ${opp.source_url}`);
+  });
   console.log(`[Standalone URLs] Using ${airtableStandalonePages.length > 0 ? airtableStandalonePages.length : STANDALONE_PAGES.length} agency bid page URLs from ${airtableStandalonePages.length > 0 ? 'Airtable' : 'hardcoded list'} — deterministic scraper plus AI fallback`);
   console.log(`[${new Date().toISOString()}] Memory patterns: ${memoryPatterns.length}, Search sources: ${searchSources.length}, Validated opps for prompt: ${validatedTrack1Opps.length}`);
   console.log(`[${new Date().toISOString()}] Call 1: Tracks 1+2`);
